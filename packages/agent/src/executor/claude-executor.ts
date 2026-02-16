@@ -36,6 +36,7 @@ export class ClaudeExecutor {
     let totalCost = 0;
     let inputTokens = 0;
     let outputTokens = 0;
+    let assistantTurnCount = 0;
 
     logger.info(
       { taskId: task.taskId, command: task.command, model: task.model },
@@ -66,7 +67,7 @@ export class ClaudeExecutor {
       const queryOptions: Record<string, unknown> = {
         customSystemPrompt: task.systemPrompt || undefined,
         model: task.model,
-        maxTurns: 50,
+        maxTurns: 200,
         cwd: task.localPath,
         allowedTools: task.allowedTools.length > 0 ? task.allowedTools : undefined,
         abortController,
@@ -93,6 +94,23 @@ export class ClaudeExecutor {
       });
 
       for await (const message of stream) {
+        // Add newline separator between different assistant messages
+        if (message.type === 'assistant') {
+          const hasText = (message as SDKAssistantMessage).message?.content?.some(
+            (b: any) => b.type === 'text' && b.text,
+          );
+          if (hasText && assistantTurnCount > 0) {
+            this.wsClient.send(
+              createWSMessage(MessageType.TASK_STREAM, {
+                taskId: task.taskId,
+                delta: '\n\n',
+                timestamp: Date.now(),
+              }),
+            );
+          }
+          if (hasText) assistantTurnCount++;
+        }
+
         this.handleMessage(task.taskId, message, filesChanged, commandsRun);
 
         // Capture session ID from init or result messages
@@ -122,6 +140,36 @@ export class ClaudeExecutor {
       }
 
       const durationMs = Date.now() - startTime;
+
+      // Handle error_max_turns gracefully - send partial results instead of failing
+      if (resultIsError && resultText === 'error_max_turns') {
+        const partialResult = `_Reached the maximum turn limit (200 turns). Here's what was accomplished so far._\n\nThe task was too complex to complete in a single session. You can continue by replying in this thread.`;
+
+        const result: ExecutionResult = {
+          result: partialResult,
+          sessionId,
+          inputTokens,
+          outputTokens,
+          estimatedCost: totalCost,
+          filesChanged: Array.from(filesChanged),
+          commandsRun: Array.from(commandsRun),
+          durationMs,
+        };
+
+        this.wsClient.send(
+          createWSMessage(MessageType.TASK_COMPLETE, {
+            taskId: task.taskId,
+            ...result,
+          }),
+        );
+
+        logger.warn(
+          { taskId: task.taskId, durationMs, cost: totalCost, turns: 200 },
+          'Claude execution hit max turns limit',
+        );
+
+        return result;
+      }
 
       const result: ExecutionResult = {
         result: resultText || '(no output)',

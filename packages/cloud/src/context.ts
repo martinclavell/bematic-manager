@@ -8,6 +8,7 @@ import type {
 import type { CommandService } from './services/command.service.js';
 import type { ProjectService } from './services/project.service.js';
 import type { NotificationService } from './services/notification.service.js';
+import type { DeployService } from './services/deploy.service.js';
 import type { AgentManager } from './gateway/agent-manager.js';
 
 /** Shared context injected into all Slack listeners */
@@ -23,6 +24,7 @@ export interface AppContext {
   commandService: CommandService;
   projectService: ProjectService;
   notifier: NotificationService;
+  deployService: DeployService;
 
   // Gateway
   agentManager: AgentManager;

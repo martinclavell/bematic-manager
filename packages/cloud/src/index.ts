@@ -26,6 +26,7 @@ import { OfflineQueue } from './gateway/offline-queue.js';
 import { CommandService } from './services/command.service.js';
 import { ProjectService } from './services/project.service.js';
 import { NotificationService } from './services/notification.service.js';
+import { DeployService } from './services/deploy.service.js';
 import type { AppContext } from './context.js';
 
 const logger = createLogger('cloud');
@@ -91,6 +92,7 @@ async function main() {
     notifier,
   );
   const projectService = new ProjectService(projectRepo, auditLogRepo);
+  const deployService = new DeployService(config.railway.apiToken);
 
   // Middleware
   const rateLimiter = createRateLimiter(config);
@@ -107,6 +109,7 @@ async function main() {
     commandService,
     projectService,
     notifier,
+    deployService,
     agentManager,
     authChecker,
     rateLimiter,

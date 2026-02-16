@@ -18,6 +18,9 @@ export function loadConfig() {
       appToken: requireEnv('SLACK_APP_TOKEN'),
     },
     agentApiKeys: requireEnv('AGENT_API_KEYS').split(',').map((k) => k.trim()),
+    railway: {
+      apiToken: optionalEnv('RAILWAY_API_TOKEN', ''),
+    },
     database: {
       url: optionalEnv('DATABASE_URL', './data/bematic.db'),
     },

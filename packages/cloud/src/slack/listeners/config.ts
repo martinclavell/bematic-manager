@@ -96,6 +96,47 @@ export function registerConfigListener(app: App, ctx: AppContext) {
               placeholder: { type: 'plain_text', text: '5.00' },
             },
           },
+          { type: 'divider' },
+          {
+            type: 'section',
+            text: { type: 'mrkdwn', text: '*Railway Deployment (optional)*\nLink a Railway service for `/bm-admin deploy`' },
+          },
+          {
+            type: 'input',
+            block_id: 'railway_project_id',
+            optional: true,
+            label: { type: 'plain_text', text: 'Railway Project ID' },
+            element: {
+              type: 'plain_text_input',
+              action_id: 'value',
+              initial_value: existing?.railwayProjectId ?? '',
+              placeholder: { type: 'plain_text', text: 'UUID from Railway dashboard' },
+            },
+          },
+          {
+            type: 'input',
+            block_id: 'railway_service_id',
+            optional: true,
+            label: { type: 'plain_text', text: 'Railway Service ID' },
+            element: {
+              type: 'plain_text_input',
+              action_id: 'value',
+              initial_value: existing?.railwayServiceId ?? '',
+              placeholder: { type: 'plain_text', text: 'UUID from Railway dashboard' },
+            },
+          },
+          {
+            type: 'input',
+            block_id: 'railway_environment_id',
+            optional: true,
+            label: { type: 'plain_text', text: 'Railway Environment ID' },
+            element: {
+              type: 'plain_text_input',
+              action_id: 'value',
+              initial_value: existing?.railwayEnvironmentId ?? '',
+              placeholder: { type: 'plain_text', text: 'Optional - defaults to production' },
+            },
+          },
         ],
       },
     });
@@ -112,6 +153,9 @@ export function registerConfigListener(app: App, ctx: AppContext) {
     const agentId = vals['agent_id']!['value']!.value!;
     const defaultModel = vals['default_model']!['value']!.selected_option!.value;
     const maxBudget = parseFloat(vals['max_budget']!['value']!.value!) || 5.0;
+    const railwayProjectId = vals['railway_project_id']?.['value']?.value || null;
+    const railwayServiceId = vals['railway_service_id']?.['value']?.value || null;
+    const railwayEnvironmentId = vals['railway_environment_id']?.['value']?.value || null;
 
     // Validate
     if (!name || !localPath || !agentId) {
@@ -137,11 +181,15 @@ export function registerConfigListener(app: App, ctx: AppContext) {
         agentId,
         defaultModel,
         defaultMaxBudget: maxBudget,
-      });
+        railwayProjectId,
+        railwayServiceId,
+        railwayEnvironmentId,
+      } as any);
 
+      const railwayInfo = railwayServiceId ? `\n> Railway: \`${railwayServiceId}\`` : '';
       await client.chat.postMessage({
         channel: channelId,
-        text: `:white_check_mark: Project *${name}* updated.\n> Path: \`${localPath}\`\n> Agent: \`${agentId}\`\n> Model: \`${defaultModel}\`\n> Budget: $${maxBudget}`,
+        text: `:white_check_mark: Project *${name}* updated.\n> Path: \`${localPath}\`\n> Agent: \`${agentId}\`\n> Model: \`${defaultModel}\`\n> Budget: $${maxBudget}${railwayInfo}`,
       });
     } else {
       // Auto-provision user as admin if first project
@@ -165,11 +213,15 @@ export function registerConfigListener(app: App, ctx: AppContext) {
         agentId,
         defaultModel,
         defaultMaxBudget: maxBudget,
-      });
+        railwayProjectId,
+        railwayServiceId,
+        railwayEnvironmentId,
+      } as any);
 
+      const railwayInfo = railwayServiceId ? `\n> Railway: \`${railwayServiceId}\`` : '';
       await client.chat.postMessage({
         channel: channelId,
-        text: `:white_check_mark: Project *${name}* created!\n> Path: \`${localPath}\`\n> Agent: \`${agentId}\`\n> Model: \`${defaultModel}\`\n> Budget: $${maxBudget}\n\nYou can now use \`@BematicManager code <task>\` in this channel.`,
+        text: `:white_check_mark: Project *${name}* created!\n> Path: \`${localPath}\`\n> Agent: \`${agentId}\`\n> Model: \`${defaultModel}\`\n> Budget: $${maxBudget}${railwayInfo}\n\nYou can now use \`@BematicManager code <task>\` in this channel.`,
       });
     }
 

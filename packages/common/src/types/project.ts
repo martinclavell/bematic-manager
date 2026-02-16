@@ -6,6 +6,9 @@ export interface Project {
   agentId: string;
   defaultModel: string;
   defaultMaxBudget: number;
+  railwayProjectId: string | null;
+  railwayServiceId: string | null;
+  railwayEnvironmentId: string | null;
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -18,4 +21,7 @@ export interface ProjectCreateInput {
   agentId: string;
   defaultModel?: string;
   defaultMaxBudget?: number;
+  railwayProjectId?: string | null;
+  railwayServiceId?: string | null;
+  railwayEnvironmentId?: string | null;
 }
