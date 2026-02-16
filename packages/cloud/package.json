@@ -1,0 +1,31 @@
+{
+  "name": "@bematic/cloud",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@bematic/common": "*",
+    "@bematic/db": "*",
+    "@bematic/bots": "*",
+    "@slack/bolt": "^4.0.0",
+    "ws": "^8.0.0",
+    "pino": "^9.0.0",
+    "dotenv": "^16.0.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.0.0",
+    "tsx": "^4.0.0"
+  }
+}

@@ -1,0 +1,95 @@
+import type { MessageType } from '../constants/message-types.js';
+import type { AuthRequestPayload, AuthResponsePayload } from './auth.js';
+import type {
+  TaskSubmitPayload,
+  TaskProgressPayload,
+  TaskStreamPayload,
+  TaskCompletePayload,
+  TaskErrorPayload,
+  TaskCancelPayload,
+} from './task.js';
+
+/** Maps each message type to its payload type */
+export interface MessagePayloadMap {
+  [MessageType.AUTH_REQUEST]: AuthRequestPayload;
+  [MessageType.AUTH_RESPONSE]: AuthResponsePayload;
+  [MessageType.HEARTBEAT_PING]: HeartbeatPingPayload;
+  [MessageType.HEARTBEAT_PONG]: HeartbeatPongPayload;
+  [MessageType.TASK_SUBMIT]: TaskSubmitPayload;
+  [MessageType.TASK_ACK]: TaskAckPayload;
+  [MessageType.TASK_PROGRESS]: TaskProgressPayload;
+  [MessageType.TASK_STREAM]: TaskStreamPayload;
+  [MessageType.TASK_COMPLETE]: TaskCompletePayload;
+  [MessageType.TASK_ERROR]: TaskErrorPayload;
+  [MessageType.TASK_CANCEL]: TaskCancelPayload;
+  [MessageType.TASK_CANCELLED]: TaskCancelledPayload;
+  [MessageType.AGENT_STATUS]: AgentStatusPayload;
+  [MessageType.AGENT_METRICS]: AgentMetricsPayload;
+  [MessageType.SYSTEM_ERROR]: SystemErrorPayload;
+  [MessageType.SYSTEM_SHUTDOWN]: SystemShutdownPayload;
+  [MessageType.SYSTEM_RESTART]: SystemRestartPayload;
+}
+
+/** Type-safe WebSocket message envelope */
+export interface WSMessage<T extends MessageType = MessageType> {
+  id: string;
+  type: T;
+  payload: MessagePayloadMap[T];
+  timestamp: number;
+}
+
+export interface HeartbeatPingPayload {
+  serverTime: number;
+}
+
+export interface HeartbeatPongPayload {
+  agentId: string;
+  serverTime: number;
+  activeTasks: number;
+  cpuUsage: number;
+  memoryUsage: number;
+}
+
+export interface TaskAckPayload {
+  taskId: string;
+  accepted: boolean;
+  reason?: string;
+  queuePosition?: number;
+}
+
+export interface TaskCancelledPayload {
+  taskId: string;
+  reason: string;
+}
+
+export interface AgentStatusPayload {
+  agentId: string;
+  status: 'online' | 'busy' | 'offline';
+  activeTasks: string[];
+  version: string;
+}
+
+export interface AgentMetricsPayload {
+  agentId: string;
+  cpuUsage: number;
+  memoryUsageMb: number;
+  activeTasks: number;
+  completedTasks: number;
+  uptimeSeconds: number;
+}
+
+export interface SystemErrorPayload {
+  code: string;
+  message: string;
+  details?: unknown;
+}
+
+export interface SystemShutdownPayload {
+  reason: string;
+  gracePeriodMs: number;
+}
+
+export interface SystemRestartPayload {
+  reason: string;
+  rebuild: boolean;
+}

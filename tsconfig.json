@@ -1,0 +1,10 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/common" },
+    { "path": "packages/db" },
+    { "path": "packages/bots" },
+    { "path": "packages/cloud" },
+    { "path": "packages/agent" }
+  ]
+}

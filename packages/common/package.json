@@ -1,0 +1,22 @@
+{
+  "name": "@bematic/common",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "nanoid": "^5.0.0",
+    "pino": "^9.0.0",
+    "zod": "^3.24.0"
+  }
+}
