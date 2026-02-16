@@ -1,6 +1,6 @@
 export const Limits = {
   /** Max concurrent Claude sessions per agent */
-  MAX_CONCURRENT_TASKS: 3,
+  MAX_CONCURRENT_TASKS: 5,
 
   /** Rate limit: requests per window */
   RATE_LIMIT_MAX_REQUESTS: 50,
