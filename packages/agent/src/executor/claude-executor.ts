@@ -11,6 +11,7 @@ const logger = createLogger('claude-executor');
 
 export interface ExecutionResult {
   result: string;
+  sessionId: string | null;
   inputTokens: number;
   outputTokens: number;
   estimatedCost: number;
@@ -31,6 +32,7 @@ export class ClaudeExecutor {
     const commandsRun = new Set<string>();
     let resultText = '';
     let resultIsError = false;
+    let sessionId: string | null = null;
     let totalCost = 0;
     let inputTokens = 0;
     let outputTokens = 0;
@@ -61,32 +63,50 @@ export class ClaudeExecutor {
         'Pre-launch check',
       );
 
+      const queryOptions: Record<string, unknown> = {
+        customSystemPrompt: task.systemPrompt || undefined,
+        model: task.model,
+        maxTurns: 50,
+        cwd: task.localPath,
+        allowedTools: task.allowedTools.length > 0 ? task.allowedTools : undefined,
+        abortController,
+        permissionMode: 'bypassPermissions',
+        env: {
+          ...process.env as Record<string, string>,
+          // Only pass API key if explicitly set; otherwise SDK uses Claude subscription auth
+          ...(process.env['ANTHROPIC_API_KEY'] ? { ANTHROPIC_API_KEY: process.env['ANTHROPIC_API_KEY'] } : {}),
+        },
+        stderr: (data: string) => {
+          logger.error({ taskId: task.taskId, stderr: data }, 'Claude stderr');
+        },
+      };
+
+      // Resume previous session if provided (thread continuation)
+      if (task.resumeSessionId) {
+        queryOptions['resume'] = task.resumeSessionId;
+        logger.info({ taskId: task.taskId, resumeSessionId: task.resumeSessionId }, 'Resuming Claude session');
+      }
+
       const stream = query({
         prompt: task.prompt,
-        options: {
-          customSystemPrompt: task.systemPrompt || undefined,
-          model: task.model,
-          maxTurns: 50,
-          cwd: task.localPath,
-          allowedTools: task.allowedTools.length > 0 ? task.allowedTools : undefined,
-          abortController,
-          permissionMode: 'bypassPermissions',
-          env: {
-            ...process.env as Record<string, string>,
-            // Only pass API key if explicitly set; otherwise SDK uses Claude subscription auth
-            ...(process.env['ANTHROPIC_API_KEY'] ? { ANTHROPIC_API_KEY: process.env['ANTHROPIC_API_KEY'] } : {}),
-          },
-          stderr: (data: string) => {
-            logger.error({ taskId: task.taskId, stderr: data }, 'Claude stderr');
-          },
-        },
+        options: queryOptions as any,
       });
 
       for await (const message of stream) {
         this.handleMessage(task.taskId, message, filesChanged, commandsRun);
 
+        // Capture session ID from init or result messages
+        if (message.type === 'system' && (message as any).subtype === 'init') {
+          sessionId = (message as any).session_id ?? null;
+          logger.info({ taskId: task.taskId, sessionId }, 'Claude session started');
+        }
+
         // Extract result from result message
         if (message.type === 'result') {
+          // Also grab session_id from result if available
+          if ((message as any).session_id) {
+            sessionId = (message as any).session_id;
+          }
           const resultMsg = message as SDKResultMessage;
           totalCost = resultMsg.total_cost_usd;
           inputTokens = resultMsg.usage.input_tokens;
@@ -105,6 +125,7 @@ export class ClaudeExecutor {
 
       const result: ExecutionResult = {
         result: resultText || '(no output)',
+        sessionId,
         inputTokens,
         outputTokens,
         estimatedCost: totalCost,

@@ -46,6 +46,7 @@ export interface TaskSubmitPayload {
   model: string;
   maxBudget: number;
   allowedTools: string[];
+  resumeSessionId?: string | null;
   slackContext: {
     channelId: string;
     threadTs: string | null;
@@ -69,6 +70,7 @@ export interface TaskStreamPayload {
 export interface TaskCompletePayload {
   taskId: string;
   result: string;
+  sessionId: string | null;
   inputTokens: number;
   outputTokens: number;
   estimatedCost: number;

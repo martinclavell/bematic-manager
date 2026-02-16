@@ -81,6 +81,23 @@ export class TaskRepository extends BaseRepository {
       .get();
   }
 
+  /** Find the most recent completed task in a Slack thread that has a session ID */
+  findLastSessionInThread(channelId: string, threadTs: string): TaskRow | undefined {
+    return this.db
+      .select()
+      .from(tasks)
+      .where(
+        and(
+          eq(tasks.slackChannelId, channelId),
+          eq(tasks.slackThreadTs, threadTs),
+          eq(tasks.status, 'completed'),
+        ),
+      )
+      .orderBy(desc(tasks.createdAt))
+      .limit(1)
+      .get();
+  }
+
   fail(id: string, errorMessage: string): TaskRow | undefined {
     return this.db
       .update(tasks)

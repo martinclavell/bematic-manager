@@ -151,7 +151,7 @@ export class MessageRouter {
     const task = this.taskRepo.findById(parsed.taskId);
     if (!task) return;
 
-    // Update DB
+    // Update DB (including session ID for thread continuation)
     this.taskRepo.complete(parsed.taskId, parsed.result, {
       inputTokens: parsed.inputTokens,
       outputTokens: parsed.outputTokens,
@@ -159,6 +159,9 @@ export class MessageRouter {
       filesChanged: parsed.filesChanged,
       commandsRun: parsed.commandsRun,
     });
+    if (parsed.sessionId) {
+      this.taskRepo.update(parsed.taskId, { sessionId: parsed.sessionId });
+    }
 
     // Clean up stream + progress tracker
     this.streamAccumulator.removeStream(parsed.taskId);

@@ -22,6 +22,7 @@ interface SubmitParams {
   command: ParsedCommand;
   project: ProjectRow;
   slackContext: SlackContext;
+  resumeSessionId?: string | null;
 }
 
 export class CommandService {
@@ -78,6 +79,7 @@ export class CommandService {
       model: execConfig.model,
       maxBudget: execConfig.maxBudget,
       allowedTools: execConfig.allowedTools,
+      resumeSessionId: params.resumeSessionId ?? null,
       slackContext: {
         channelId: slackContext.channelId,
         threadTs: slackContext.threadTs,

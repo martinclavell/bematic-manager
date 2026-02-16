@@ -27,7 +27,10 @@ export function registerMessageListener(app: App, ctx: AppContext) {
     // Skip messages that are just slash commands or very short
     if (text.startsWith('/') || text.trim().length < 3) return;
 
-    logger.info({ user, channel, text: text.slice(0, 100) }, 'Channel message received');
+    const threadTs = (message as any).thread_ts ?? ts;
+    const isThreadReply = !!(message as any).thread_ts;
+
+    logger.info({ user, channel, text: text.slice(0, 100), isThreadReply, threadTs }, 'Channel message received');
 
     try {
       // Auth check
@@ -52,13 +55,23 @@ export function registerMessageListener(app: App, ctx: AppContext) {
 
       const { bot, command } = resolved;
 
+      // Look up previous session in this thread for context continuity
+      let resumeSessionId: string | null = null;
+      if (isThreadReply) {
+        const lastTask = ctx.taskRepo.findLastSessionInThread(channel, threadTs);
+        if (lastTask?.sessionId) {
+          resumeSessionId = lastTask.sessionId;
+          logger.info({ threadTs, resumeSessionId }, 'Resuming thread session');
+        }
+      }
+
       // Submit the task
-      const threadTs = (message as any).thread_ts ?? ts;
       await ctx.commandService.submit({
         bot,
         command,
         project,
         slackContext: { channelId: channel, threadTs, userId: user },
+        resumeSessionId,
       });
     } catch (error) {
       logger.error({ error, channel, user }, 'Error handling message');

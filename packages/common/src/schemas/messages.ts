@@ -31,6 +31,7 @@ export const taskSubmitSchema = z.object({
   model: z.string(),
   maxBudget: z.number().positive(),
   allowedTools: z.array(z.string()),
+  resumeSessionId: z.string().nullable().optional(),
   slackContext: z.object({
     channelId: z.string(),
     threadTs: z.string().nullable(),
@@ -61,6 +62,7 @@ export const taskStreamSchema = z.object({
 export const taskCompleteSchema = z.object({
   taskId: z.string(),
   result: z.string(),
+  sessionId: z.string().nullable(),
   inputTokens: z.number(),
   outputTokens: z.number(),
   estimatedCost: z.number(),
