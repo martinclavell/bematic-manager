@@ -88,6 +88,7 @@
 | `slack/middleware/index.ts` | Barrel export |
 | `slack/listeners/mentions.ts` | @BematicManager mention handler |
 | `slack/listeners/messages.ts` | Channel message listener |
+| `slack/listeners/file-utils.ts` | Slack file attachment extraction for prompts |
 | `slack/listeners/commands.ts` | Slash command handlers |
 | `slack/listeners/actions.ts` | Interactive action handlers (retry/cancel) |
 | `slack/listeners/config.ts` | /bm-config project configuration |

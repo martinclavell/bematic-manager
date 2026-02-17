@@ -2,18 +2,29 @@ import type { App } from '@slack/bolt';
 import { Permission, createLogger } from '@bematic/common';
 import { BotRegistry } from '@bematic/bots';
 import type { AppContext } from '../../context.js';
+import { extractFileInfo } from './file-utils.js';
 
 const logger = createLogger('slack:messages');
 
 export function registerMessageListener(app: App, ctx: AppContext) {
   app.message(async ({ message, say }) => {
-    // Only handle regular user messages (not bot messages, edits, etc.)
-    if (message.subtype) return;
-    if (!('text' in message) || !message.text) return;
+    // Allow file_share messages through; skip other subtypes (bot_message, message_changed, etc.)
+    if (message.subtype && message.subtype !== 'file_share') return;
     if (!('user' in message) || !message.user) return;
 
-    const { text, user, channel, ts } = message as {
-      text: string;
+    const rawText = ('text' in message ? message.text : '') ?? '';
+    const files = ('files' in message ? (message as any).files : undefined) as
+      | Array<{ url_private: string; name: string; mimetype: string; filetype: string }>
+      | undefined;
+
+    // Build the effective text: original text + any attached file references
+    const fileInfo = extractFileInfo(files);
+    const text = fileInfo ? [rawText, fileInfo].filter(Boolean).join('\n\n') : rawText;
+
+    // Skip if there's no content at all
+    if (!text || text.trim().length < 1) return;
+
+    const { user, channel, ts } = message as {
       user: string;
       channel: string;
       ts: string;
@@ -30,7 +41,8 @@ export function registerMessageListener(app: App, ctx: AppContext) {
     const threadTs = (message as any).thread_ts ?? ts;
     const isThreadReply = !!(message as any).thread_ts;
 
-    logger.info({ user, channel, text: text.slice(0, 100), isThreadReply, threadTs }, 'Channel message received');
+    const hasFiles = !!(files && files.length > 0);
+    logger.info({ user, channel, text: text.slice(0, 100), isThreadReply, threadTs, hasFiles, fileCount: files?.length ?? 0 }, 'Channel message received');
 
     // React with hourglass to acknowledge the message
     await ctx.notifier.addReaction(channel, ts, 'hourglass_flowing_sand');
