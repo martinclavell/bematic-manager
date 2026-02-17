@@ -4,6 +4,7 @@ import type {
   AuditLogRepository,
   UserRepository,
   OfflineQueueRepository,
+  PromptHistoryRepository,
 } from '@bematic/db';
 import type { CommandService } from './services/command.service.js';
 import type { ProjectService } from './services/project.service.js';
@@ -20,6 +21,7 @@ export interface AppContext {
   auditLogRepo: AuditLogRepository;
   userRepo: UserRepository;
   offlineQueueRepo: OfflineQueueRepository;
+  promptHistoryRepo: PromptHistoryRepository;
 
   // Services
   commandService: CommandService;

@@ -11,6 +11,7 @@ import {
   AuditLogRepository,
   UserRepository,
   OfflineQueueRepository,
+  PromptHistoryRepository,
 } from '@bematic/db';
 import { registerAllBots } from '@bematic/bots';
 import { loadConfig } from './config.js';
@@ -45,6 +46,7 @@ async function main() {
   const auditLogRepo = new AuditLogRepository(db);
   const userRepo = new UserRepository(db);
   const offlineQueueRepo = new OfflineQueueRepository(db);
+  const promptHistoryRepo = new PromptHistoryRepository(db);
 
   // Register all bots
   registerAllBots();
@@ -109,6 +111,7 @@ async function main() {
     auditLogRepo,
     userRepo,
     offlineQueueRepo,
+    promptHistoryRepo,
     commandService,
     projectService,
     notifier,

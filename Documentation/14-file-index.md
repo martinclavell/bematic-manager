@@ -47,6 +47,7 @@
 | `schema/users.ts` | Users + user_project_permissions tables |
 | `schema/audit-logs.ts` | Audit logs table definition |
 | `schema/offline-queue.ts` | Offline queue table definition |
+| `schema/prompt-history.ts` | Prompt history table definition |
 | `schema/index.ts` | Barrel export |
 | `repositories/base.repository.ts` | Abstract base with DB injection |
 | `repositories/project.repository.ts` | Project CRUD |
@@ -55,7 +56,10 @@
 | `repositories/user.repository.ts` | User CRUD + upsert |
 | `repositories/audit-log.repository.ts` | Audit log creation + querying |
 | `repositories/offline-queue.repository.ts` | Queue operations |
+| `repositories/prompt-history.repository.ts` | Prompt history CRUD + search + stats |
 | `repositories/index.ts` | Barrel export |
+| `cli/history.ts` | CLI tool to view/search prompt history |
+| `cli/log-prompt.ts` | CLI tool to quickly log prompts |
 
 ---
 

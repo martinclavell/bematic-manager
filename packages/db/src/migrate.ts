@@ -6,6 +6,7 @@ import { sessions } from './schema/sessions.js';
 import { auditLogs } from './schema/audit-logs.js';
 import { users, userProjectPermissions } from './schema/users.js';
 import { offlineQueue } from './schema/offline-queue.js';
+import { promptHistory } from './schema/prompt-history.js';
 
 /**
  * Push schema to database (create tables if not exist).
@@ -122,6 +123,21 @@ export function pushSchema(dbUrl?: string) {
     expires_at TEXT NOT NULL,
     delivered INTEGER NOT NULL DEFAULT 0,
     delivered_at TEXT
+  )`);
+
+  db.run(sql`CREATE TABLE IF NOT EXISTS ${promptHistory} (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    prompt TEXT NOT NULL,
+    category TEXT,
+    tags TEXT NOT NULL DEFAULT '[]',
+    context TEXT,
+    related_files TEXT NOT NULL DEFAULT '[]',
+    execution_status TEXT NOT NULL DEFAULT 'pending',
+    execution_notes TEXT,
+    estimated_duration_minutes INTEGER,
+    actual_duration_minutes INTEGER,
+    timestamp TEXT NOT NULL,
+    completed_at TEXT
   )`);
 
   return db;

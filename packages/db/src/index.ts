@@ -11,6 +11,7 @@ export {
   users,
   userProjectPermissions,
   offlineQueue,
+  promptHistory,
 } from './schema/index.js';
 export type {
   ProjectRow,
@@ -26,6 +27,8 @@ export type {
   UserProjectPermissionRow,
   OfflineQueueRow,
   OfflineQueueInsert,
+  PromptHistoryRow,
+  PromptHistoryInsert,
 } from './schema/index.js';
 
 // Repositories
@@ -36,4 +39,5 @@ export {
   AuditLogRepository,
   UserRepository,
   OfflineQueueRepository,
+  PromptHistoryRepository,
 } from './repositories/index.js';

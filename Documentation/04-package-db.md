@@ -7,7 +7,7 @@
 **Purpose**: Database layer — SQLite schema, connection management, and repository pattern for data access.
 
 **Dependencies**: `@bematic/common`, `better-sqlite3`, `drizzle-orm`
-**Dev Dependencies**: `drizzle-kit`
+**Dev Dependencies**: `drizzle-kit`, `tsx`
 
 ---
 
@@ -26,7 +26,7 @@
 
 ## Schema
 
-All tables use TEXT primary keys (nanoid-generated) except `audit_logs`, `offline_queue`, and `user_project_permissions` which use INTEGER autoincrement.
+All tables use TEXT primary keys (nanoid-generated) except `audit_logs`, `offline_queue`, `user_project_permissions`, and `prompt_history` which use INTEGER autoincrement.
 
 ### `projects` table
 
@@ -134,6 +134,23 @@ All tables use TEXT primary keys (nanoid-generated) except `audit_logs`, `offlin
 | `delivered` | BOOLEAN NOT NULL | default: false |
 | `delivered_at` | TEXT NULL | |
 
+### `prompt_history` table
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | INTEGER PK AUTO | |
+| `prompt` | TEXT NOT NULL | The task/prompt text |
+| `category` | TEXT NULL | feature/bugfix/refactor/documentation/research |
+| `tags` | TEXT NOT NULL | JSON array, default: `[]` |
+| `context` | TEXT NULL | Additional context/notes |
+| `related_files` | TEXT NOT NULL | JSON array of file paths, default: `[]` |
+| `execution_status` | TEXT NOT NULL | pending/completed/failed/cancelled, default: 'pending' |
+| `execution_notes` | TEXT NULL | What was actually done |
+| `estimated_duration_minutes` | INTEGER NULL | |
+| `actual_duration_minutes` | INTEGER NULL | |
+| `timestamp` | TEXT NOT NULL | ISO string |
+| `completed_at` | TEXT NULL | ISO string |
+
 ---
 
 ## Repositories
@@ -148,6 +165,61 @@ All repositories extend `BaseRepository` which receives a DB instance via constr
 | `UserRepository` | `create`, `findById`, `findBySlackUserId`, `upsert`, `updateRole`, `findAll` |
 | `AuditLogRepository` | `create`, `log(action, resourceType, resourceId?, userId?, metadata?)`, `findRecent(limit?)` |
 | `OfflineQueueRepository` | `enqueue`, `findPendingByAgentId`, `markDelivered`, `cleanExpired` |
+| `PromptHistoryRepository` | `create`, `log(prompt, options?)`, `findById`, `findAll(options?)`, `findRecent(limit?)`, `update`, `complete`, `fail`, `cancel`, `getStats`, `getCategories`, `getTags`, `delete` |
+
+---
+
+## CLI Tools
+
+### Prompt History Viewer
+
+```bash
+# View recent 20 prompts
+npm run history
+
+# View all prompts
+npm run history -- --all
+
+# View last 50 prompts
+npm run history -- --limit 50
+
+# Search prompts
+npm run history -- --search "authentication"
+
+# Filter by category
+npm run history -- --category bugfix
+
+# Filter by status
+npm run history -- --status completed
+
+# Filter by tag
+npm run history -- --tag security
+
+# Show statistics
+npm run history -- --stats
+
+# List categories
+npm run history -- --categories
+
+# List tags
+npm run history -- --tags
+```
+
+### Prompt Logger
+
+```bash
+# Log a prompt
+npm run log-prompt -- "Add user authentication"
+
+# With category
+npm run log-prompt -- "Fix login bug" --category bugfix
+
+# With tags
+npm run log-prompt -- "Refactor API" --category refactor --tag api --tag performance
+
+# With context and files
+npm run log-prompt -- "Update docs" --category documentation --context "API reference" --file README.md
+```
 
 ---
 
@@ -163,11 +235,79 @@ All repositories extend `BaseRepository` which receives a DB instance via constr
 
 ```typescript
 // Row types (select)
-ProjectRow, TaskRow, SessionRow, UserRow, UserProjectPermissionRow, AuditLogRow, OfflineQueueRow
+ProjectRow, TaskRow, SessionRow, UserRow, UserProjectPermissionRow, AuditLogRow, OfflineQueueRow, PromptHistoryRow
 
 // Insert types
-ProjectInsert, TaskInsert, SessionInsert, UserInsert, AuditLogInsert, OfflineQueueInsert
+ProjectInsert, TaskInsert, SessionInsert, UserInsert, AuditLogInsert, OfflineQueueInsert, PromptHistoryInsert
 
 // Database connection type
 DB
+```
+# 04 — Package: @bematic/db
+
+[← Back to Index](./README.md)
+
+---
+
+**Purpose**: Database layer — SQLite schema, connection management, and repository pattern for data access.
+
+**Dependencies**: `@bematic/common`, `better-sqlite3`, `drizzle-orm`
+**Dev Dependencies**: `drizzle-kit`
+
+---
+
+## Connection (`connection.ts`)
+
+- SQLite via `better-sqlite3`
+- Path: `DATABASE_URL` env var or `./data/bematic.db`
+- Performance pragmas applied on connect:
+  - WAL journal mode
+  - 5s busy timeout
+  - 20MB cache
+  - Foreign keys enabled
+  - NORMAL synchronous mode
+
+---
+
+## Schema
+
+All tables use TEXT primary keys (nanoid-generated) except `audit_logs`, `offline_queue`, `user_project_permissions`, and `prompt_history` which use INTEGER autoincrement.
+
+### `prompt_history` table
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | INTEGER PK AUTO | |
+| `prompt` | TEXT NOT NULL | The task/prompt text |
+| `category` | TEXT NULL | feature/bugfix/refactor/documentation/research |
+| `tags` | TEXT NOT NULL | JSON array, default: `[]` |
+| `context` | TEXT NULL | Additional context/notes |
+| `related_files` | TEXT NOT NULL | JSON array of file paths, default: `[]` |
+| `execution_status` | TEXT NOT NULL | pending/completed/failed/cancelled, default: 'pending' |
+| `execution_notes` | TEXT NULL | What was actually done |
+| `estimated_duration_minutes` | INTEGER NULL | |
+| `actual_duration_minutes` | INTEGER NULL | |
+| `timestamp` | TEXT NOT NULL | ISO string |
+| `completed_at` | TEXT NULL | ISO string |
+
+---
+
+## Repositories
+
+All repositories extend `BaseRepository` which receives a DB instance via constructor injection.
+
+| Repository | Key Methods |
+|-----------|-------------|
+| `PromptHistoryRepository` | `create`, `log(prompt, options?)`, `findById`, `findAll(options?)`, `findRecent(limit?)`, `update`, `complete`, `fail`, `cancel`, `getStats`, `getCategories`, `getTags`, `delete` |
+
+---
+
+## Exported Types
+
+```typescript
+// Row types (select)
+PromptHistoryRow
+
+// Insert types
+PromptHistoryInsert
 ```

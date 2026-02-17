@@ -15,3 +15,5 @@ export type { UserRow, UserInsert, UserProjectPermissionRow } from './users.js';
 
 export { offlineQueue } from './offline-queue.js';
 export type { OfflineQueueRow, OfflineQueueInsert } from './offline-queue.js';
+export { promptHistory } from "./prompt-history.js";
+export type { PromptHistoryRow, PromptHistoryInsert } from "./prompt-history.js";
