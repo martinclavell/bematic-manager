@@ -45,13 +45,11 @@
 
 | Export | Type | Description |
 |--------|------|-------------|
-| `ModelTier` | const object | `{ LITE: 'lite', STANDARD: 'standard', PREMIUM: 'premium' }` |
-| `DEFAULT_TIER_MODELS` | Record | Default Claude model ID per tier (Haiku → Sonnet → Opus) |
+| `ModelTier` | const object | `{ STANDARD: 'standard', PREMIUM: 'premium' }` |
+| `DEFAULT_TIER_MODELS` | Record | Default Claude model ID per tier (Sonnet 4.5, Opus 4) |
 | `TIER_COST_PER_MILLION` | Record | Approximate cost per 1M tokens (input/output) per tier |
-| `BOT_TIER_BIAS` | Record | Per-bot baseline scoring bias (-1 = lite, +1 = premium) |
-| `COMMAND_TIER_WEIGHT` | Record | Per-command scoring weight (status → lite, feature → premium) |
-| `PROMPT_LENGTH_THRESHOLDS` | const object | Character thresholds for prompt complexity scoring |
-| `TIER_SCORE_BOUNDARIES` | const object | Score cutoffs for tier selection (liteMax, premiumMin) |
+| `OPUS_COMMANDS` | Set | CoderBot commands that trigger Opus (fix, feature, refactor, test) |
+| `WRITE_BOTS` | Set | Bots that perform write operations (currently only 'coder') |
 
 Key limits:
 ```

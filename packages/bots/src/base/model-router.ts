@@ -1,10 +1,8 @@
 import {
   ModelTier,
   DEFAULT_TIER_MODELS,
-  BOT_TIER_BIAS,
-  COMMAND_TIER_WEIGHT,
-  PROMPT_LENGTH_THRESHOLDS,
-  TIER_SCORE_BOUNDARIES,
+  OPUS_COMMANDS,
+  WRITE_BOTS,
   createLogger,
   type ParsedCommand,
 } from '@bematic/common';
@@ -15,14 +13,12 @@ const logger = createLogger('model-router');
 // Types
 // ---------------------------------------------------------------------------
 
-/** Breakdown of how the router scored a task */
+/** Breakdown of how the router selected a model */
 export interface RoutingDecision {
   /** The tier that was selected */
   tier: ModelTier;
   /** The concrete model ID to use */
   model: string;
-  /** The raw numeric score before tier mapping */
-  score: number;
   /** Human-readable reason for the decision */
   reason: string;
   /** Whether an explicit --model flag overrode the routing */
@@ -49,8 +45,6 @@ function loadConfig(): ModelRouterConfig {
   cachedConfig = {
     enabled: process.env['MODEL_ROUTING_ENABLED'] !== 'false', // on by default
     tierModels: {
-      [ModelTier.LITE]:
-        process.env['MODEL_TIER_LITE'] ?? DEFAULT_TIER_MODELS[ModelTier.LITE],
       [ModelTier.STANDARD]:
         process.env['MODEL_TIER_STANDARD'] ?? DEFAULT_TIER_MODELS[ModelTier.STANDARD],
       [ModelTier.PREMIUM]:
@@ -67,78 +61,19 @@ export function resetRouterConfig(): void {
 }
 
 // ---------------------------------------------------------------------------
-// Scoring Engine
-// ---------------------------------------------------------------------------
-
-/**
- * Score a task from multiple signals. The resulting number is mapped to a tier:
- *   score ≤ liteMax       → LITE
- *   score ≥ premiumMin    → PREMIUM
- *   otherwise             → STANDARD
- */
-function scoreTask(
-  botName: string,
-  command: string,
-  promptLength: number,
-  flags: Record<string, string | boolean>,
-): { score: number; components: string[] } {
-  let score = 0;
-  const components: string[] = [];
-
-  // 1. Bot baseline bias
-  const botBias = BOT_TIER_BIAS[botName] ?? 0;
-  if (botBias !== 0) {
-    score += botBias;
-    components.push(`bot(${botName}):${botBias > 0 ? '+' : ''}${botBias}`);
-  }
-
-  // 2. Command weight
-  const cmdWeight = COMMAND_TIER_WEIGHT[command] ?? 0;
-  if (cmdWeight !== 0) {
-    score += cmdWeight;
-    components.push(`cmd(${command}):${cmdWeight > 0 ? '+' : ''}${cmdWeight}`);
-  }
-
-  // 3. Prompt length complexity
-  let lengthBias = 0;
-  if (promptLength <= PROMPT_LENGTH_THRESHOLDS.short) {
-    lengthBias = -1;
-  } else if (promptLength >= PROMPT_LENGTH_THRESHOLDS.veryLong) {
-    lengthBias = 2;
-  } else if (promptLength >= PROMPT_LENGTH_THRESHOLDS.long) {
-    lengthBias = 1;
-  }
-  if (lengthBias !== 0) {
-    score += lengthBias;
-    components.push(`len(${promptLength}):${lengthBias > 0 ? '+' : ''}${lengthBias}`);
-  }
-
-  // 4. Decomposition flag — if the task is being decomposed, it's complex
-  if (flags['decompose'] === true) {
-    score += 1;
-    components.push('flag(decompose):+1');
-  }
-
-  return { score, components };
-}
-
-/** Map a numeric score to a ModelTier */
-function scoreToTier(score: number): ModelTier {
-  if (score <= TIER_SCORE_BOUNDARIES.liteMax) return ModelTier.LITE;
-  if (score >= TIER_SCORE_BOUNDARIES.premiumMin) return ModelTier.PREMIUM;
-  return ModelTier.STANDARD;
-}
-
-// ---------------------------------------------------------------------------
-// Public API
+// Routing Logic — Simple: Write Operations = Opus, Everything Else = Sonnet
 // ---------------------------------------------------------------------------
 
 /**
  * Route a parsed command to the optimal model.
  *
+ * Strategy:
+ * - Sonnet 4.5: Default for all tasks (read-only, analysis, planning)
+ * - Opus 4: Only for CoderBot write commands (fix, feature, refactor, test)
+ *
  * @param command       The parsed command (botName, command, args, flags)
  * @param projectModel  The project's configured defaultModel (used as fallback
- *                      when routing is disabled or as the standard tier model)
+ *                      when routing is disabled)
  * @returns A routing decision with the selected model and reasoning
  */
 export function routeToModel(
@@ -153,7 +88,6 @@ export function routeToModel(
     const decision: RoutingDecision = {
       tier: ModelTier.STANDARD,
       model: explicitModel,
-      score: 0,
       reason: `Explicit --model flag: ${explicitModel}`,
       overridden: true,
     };
@@ -166,7 +100,6 @@ export function routeToModel(
     const decision: RoutingDecision = {
       tier: ModelTier.STANDARD,
       model: projectModel,
-      score: 0,
       reason: 'Model routing disabled — using project default',
       overridden: false,
     };
@@ -174,28 +107,26 @@ export function routeToModel(
     return decision;
   }
 
-  // Score the task
-  const { score, components } = scoreTask(
-    command.botName,
-    command.command,
-    command.args.length,
-    command.flags,
-  );
+  // Determine tier: Opus for CoderBot write commands, Sonnet for everything else
+  const isWriteBot = WRITE_BOTS.has(command.botName);
+  const isWriteCommand = OPUS_COMMANDS.has(command.command);
+  const useOpus = isWriteBot && isWriteCommand;
 
-  const tier = scoreToTier(score);
+  const tier = useOpus ? ModelTier.PREMIUM : ModelTier.STANDARD;
   const model = config.tierModels[tier];
-  const reason = `score=${score} [${components.join(', ')}] → ${tier}`;
+  const reason = useOpus
+    ? `CoderBot write command (${command.command}) → Opus for implementation`
+    : `${command.botName}/${command.command} → Sonnet (read-only or analysis)`;
 
   const decision: RoutingDecision = {
     tier,
     model,
-    score,
     reason,
     overridden: false,
   };
 
   logger.info(
-    { botName: command.botName, command: command.command, promptLen: command.args.length, ...decision },
+    { botName: command.botName, command: command.command, tier, model },
     'Model routed',
   );
 

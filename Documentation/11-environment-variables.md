@@ -44,6 +44,7 @@
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `MODEL_ROUTING_ENABLED` | No | `true` | Master switch — `false` disables routing, all tasks use project default |
-| `MODEL_TIER_LITE` | No | `claude-haiku-3-5-20241022` | Model ID for the lite tier (simple tasks) |
-| `MODEL_TIER_STANDARD` | No | `claude-sonnet-4-5-20250929` | Model ID for the standard tier (typical tasks) |
-| `MODEL_TIER_PREMIUM` | No | `claude-opus-4-20250514` | Model ID for the premium tier (complex tasks) |
+| `MODEL_TIER_STANDARD` | No | `claude-sonnet-4-5-20250929` | Sonnet model (default for all read-only/analysis tasks) |
+| `MODEL_TIER_PREMIUM` | No | `claude-opus-4-20250514` | Opus model (CoderBot write commands only) |
+
+**Routing strategy:** Sonnet for all tasks except CoderBot write commands (fix, feature, refactor, test) which use Opus.

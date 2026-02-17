@@ -91,37 +91,34 @@ BotRegistry.getAll(): BaseBotPlugin[]
 
 ## Intelligent Model Routing
 
-The `ModelRouter` (`base/model-router.ts`) automatically selects the optimal Claude model tier for each task based on rule-based scoring — no AI call needed for classification.
+The `ModelRouter` (`base/model-router.ts`) automatically selects the optimal Claude model for each task with a simple, quality-focused strategy.
 
-### Model Tiers
+### Routing Strategy
 
-| Tier | Default Model | Best For |
-|------|---------------|----------|
-| **lite** | `claude-haiku-3-5-20241022` | Status checks, logs, simple explanations, listings |
-| **standard** | `claude-sonnet-4-5-20250929` | Code fixes, reviews, diffs, tests, git ops |
-| **premium** | `claude-opus-4-20250514` | Complex features, refactors, security audits |
+**Simple rule:** Write operations use Opus, everything else uses Sonnet.
 
-### Scoring Signals
+| Model | When Used | Commands |
+|-------|-----------|----------|
+| **Sonnet 4.5** (standard) | All read-only tasks, analysis, planning, and all non-CoderBot tasks | ReviewerBot (all), OpsBot (all), PlannerBot (all), CoderBot decomposition planning |
+| **Opus 4** (premium) | CoderBot write commands only | `fix`, `feature`, `refactor`, `test`, `bugfix`, `debug`, `add`, `implement`, `create`, `cleanup`, `improve` |
 
-1. **Bot bias** — Planner/Ops lean lite; Coder leans premium
-2. **Command weight** — `status`/`logs` → lite; `fix`/`test` → standard; `feature`/`refactor`/`security` → premium
-3. **Prompt length** — short (<50 chars) → lite bias; long (>200) → premium bias
-4. **Explicit override** — `--model <id>` flag always wins
+**No Haiku** — it produces lower quality results.
 
 ### Configuration
 
 | Env Variable | Default | Description |
 |--------------|---------|-------------|
 | `MODEL_ROUTING_ENABLED` | `true` | Master switch (`false` = use project default) |
-| `MODEL_TIER_LITE` | `claude-haiku-3-5-20241022` | Override lite tier model |
-| `MODEL_TIER_STANDARD` | `claude-sonnet-4-5-20250929` | Override standard tier model |
-| `MODEL_TIER_PREMIUM` | `claude-opus-4-20250514` | Override premium tier model |
+| `MODEL_TIER_STANDARD` | `claude-sonnet-4-5-20250929` | Override Sonnet model |
+| `MODEL_TIER_PREMIUM` | `claude-opus-4-20250514` | Override Opus model |
+
+**Note:** `--model <id>` flag always overrides routing.
 
 ### Public API
 
 ```typescript
 routeToModel(command: ParsedCommand, projectModel: string): RoutingDecision
-// Returns: { tier, model, score, reason, overridden }
+// Returns: { tier, model, reason, overridden }
 ```
 
 ---
