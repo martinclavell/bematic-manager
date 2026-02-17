@@ -5,6 +5,7 @@ import {
   createLogger,
   createWSMessage,
   serializeMessage,
+  generateId,
 } from '@bematic/common';
 import type { AppContext } from '../../context.js';
 
@@ -78,44 +79,134 @@ export function registerAdminListener(app: App, ctx: AppContext) {
           break;
         }
 
-        case 'deploy': {
-          if (!ctx.deployService.isConfigured()) {
-            await respond(':x: Railway API token not configured. Set `RAILWAY_API_TOKEN` env var.');
+        case 'workers': {
+          const agentIds = ctx.agentManager.getConnectedAgentIds();
+
+          if (agentIds.length === 0) {
+            await respond(':red_circle: *Workers Dashboard* — No agents connected.');
             return;
           }
 
+          const sections: string[] = [
+            `:factory: *Workers Dashboard* (${agentIds.length} agent${agentIds.length === 1 ? '' : 's'} connected)`,
+          ];
+
+          let totalRunning = 0;
+          let totalQueued = 0;
+
+          for (const agentId of agentIds) {
+            const agent = ctx.agentManager.getAgent(agentId);
+            if (!agent) continue;
+
+            // Uptime formatting
+            const uptimeMs = Date.now() - agent.connectedAt;
+            const uptimeStr = formatDuration(uptimeMs);
+
+            // Heartbeat ago
+            const heartbeatAgoMs = Date.now() - agent.lastHeartbeat;
+            const heartbeatStr = formatDuration(heartbeatAgoMs);
+
+            // Status icon
+            const statusIcon = agent.status === 'online' ? ':large_green_circle:'
+              : agent.status === 'busy' ? ':large_yellow_circle:'
+              : ':red_circle:';
+
+            // Projects linked to this agent
+            const agentProjects = ctx.projectRepo.findByAgentId(agentId);
+            const projectNames = agentProjects.length > 0
+              ? agentProjects.map((p) => p.name).join(', ')
+              : '_none_';
+
+            // Running tasks across all projects for this agent
+            const runningTasks = agentProjects.flatMap((p) =>
+              ctx.taskRepo.findActiveByProjectId(p.id),
+            );
+
+            // Queued/pending tasks across all projects for this agent
+            const queuedTasks = agentProjects.flatMap((p) => {
+              const allTasks = ctx.taskRepo.findByProjectId(p.id, 50);
+              return allTasks.filter((t) => t.status === 'queued' || t.status === 'pending');
+            });
+
+            totalRunning += runningTasks.length;
+            totalQueued += queuedTasks.length;
+
+            let section =
+              `\n:heavy_minus_sign::heavy_minus_sign::heavy_minus_sign: Agent \`${agentId}\` ${statusIcon} *${agent.status}* :heavy_minus_sign::heavy_minus_sign::heavy_minus_sign:\n` +
+              `> :clock1: Uptime: *${uptimeStr}* | Heartbeat: ${heartbeatStr} ago\n` +
+              `> :file_folder: Projects: ${projectNames}`;
+
+            if (runningTasks.length > 0) {
+              section += `\n> :wrench: *Running Tasks (${runningTasks.length}):*`;
+              for (const task of runningTasks) {
+                const elapsed = formatDuration(Date.now() - new Date(task.createdAt).getTime());
+                const cost = task.estimatedCost > 0 ? ` | $${task.estimatedCost.toFixed(2)}` : '';
+                const promptPreview = task.prompt.length > 40
+                  ? task.prompt.slice(0, 40) + '...'
+                  : task.prompt;
+                section += `\n>    \u2022 [${task.botName}] ${task.command} — "${promptPreview}" — <@${task.slackUserId}> — ${elapsed}${cost}`;
+              }
+            } else {
+              section += `\n> :white_check_mark: No running tasks`;
+            }
+
+            if (queuedTasks.length > 0) {
+              section += `\n> :hourglass_flowing_sand: Queued: ${queuedTasks.length} task${queuedTasks.length === 1 ? '' : 's'}`;
+            }
+
+            sections.push(section);
+          }
+
+          // Summary footer
+          sections.push(
+            `\n:bar_chart: *Totals:* ${totalRunning} running | ${totalQueued} queued | ${agentIds.length} agent${agentIds.length === 1 ? '' : 's'}`,
+          );
+
+          await respond(sections.join('\n'));
+          break;
+        }
+
+        case 'deploy': {
           const project = ctx.projectResolver.tryResolve(channel_id);
           if (!project) {
             await respond(':x: No project configured for this channel. Use `/bm-config` first.');
             return;
           }
 
-          if (!project.railwayServiceId) {
-            await respond(':x: No Railway service linked to this project. Update project config with `/bm-config` to add Railway IDs.');
+          // Find the agent for this project
+          const agentId = project.agentId;
+          const agent = ctx.agentManager.getAgent(agentId);
+          if (!agent) {
+            await respond(`:x: Agent \`${agentId}\` is not connected. Cannot deploy.`);
             return;
           }
 
-          await respond(':rocket: Triggering deployment...');
+          const requestId = generateId('deploy');
+          const msg = createWSMessage(MessageType.DEPLOY_REQUEST, {
+            requestId,
+            localPath: project.localPath,
+            slackChannelId: channel_id,
+            slackThreadTs: null,
+            requestedBy: user_id,
+          });
 
-          const result = await ctx.deployService.deploy(
-            project.railwayServiceId,
-            project.railwayEnvironmentId,
-          );
+          // Register so message router knows where to post the result
+          ctx.messageRouter.registerDeployRequest(requestId, channel_id, null, user_id);
 
-          await respond(
-            `:white_check_mark: *Deployment triggered!*\n` +
-            `> Deployment ID: \`${result.deploymentId}\`\n` +
-            `> Status: \`${result.status}\`\n` +
-            (result.url ? `> URL: ${result.url}\n` : '') +
-            `\nUse \`/bm-admin deploy-status\` to check progress.`,
-          );
+          const sent = ctx.agentManager.send(agentId, serializeMessage(msg));
+          if (!sent) {
+            await respond(':x: Failed to send deploy request to agent.');
+            return;
+          }
+
+          await respond(`:rocket: Deploy request sent to agent \`${agentId}\`. Running \`railway up\` in \`${project.localPath}\`...`);
 
           ctx.auditLogRepo.log(
-            'deploy:triggered',
+            'deploy:requested',
             'project',
             project.id,
             user_id,
-            { deploymentId: result.deploymentId, serviceId: project.railwayServiceId },
+            { agentId, requestId },
           );
           break;
         }
@@ -197,6 +288,7 @@ export function registerAdminListener(app: App, ctx: AppContext) {
         default:
           await respond(
             '*Admin Commands:*\n' +
+            '`/bm-admin workers` - Dashboard of all agents, projects & active tasks\n' +
             '`/bm-admin restart-agent` - Restart all connected agents\n' +
             '`/bm-admin restart-agent --rebuild` - Restart with TypeScript rebuild\n' +
             '`/bm-admin agent-status` - Show connected agent status\n' +
@@ -213,4 +305,26 @@ export function registerAdminListener(app: App, ctx: AppContext) {
       await respond(`:x: ${message}`);
     }
   });
+}
+
+/** Format milliseconds into a human-readable duration (e.g. "2h 34m", "45s") */
+function formatDuration(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 60) return `${seconds}s`;
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) {
+    const secs = seconds % 60;
+    return secs > 0 ? `${minutes}m ${secs}s` : `${minutes}m`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  if (hours < 24) {
+    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+  }
+
+  const days = Math.floor(hours / 24);
+  const hrs = hours % 24;
+  return hrs > 0 ? `${days}d ${hrs}h` : `${days}d`;
 }

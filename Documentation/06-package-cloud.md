@@ -58,7 +58,7 @@ Executed in order for every incoming Slack event:
 | Commands | `commands.ts` | `/bm-code`, `/bm-review`, `/bm-ops`, `/bm-plan` | Slash command handling |
 | Actions | `actions.ts` | Button clicks | Retry/cancel task interactive actions |
 | Config | `config.ts` | `/bm-config` | Project configuration modal (admin) |
-| Admin | `admin.ts` | `/bm-admin` | Agent restart, status commands |
+| Admin | `admin.ts` | `/bm-admin` | Agent restart, status, workers dashboard, deploy commands |
 
 ---
 
