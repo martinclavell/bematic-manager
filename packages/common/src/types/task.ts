@@ -81,6 +81,8 @@ export interface TaskCompletePayload {
   filesChanged: string[];
   commandsRun: string[];
   durationMs: number;
+  /** Number of auto-continuations that were performed (0 = completed in one shot) */
+  continuations?: number;
 }
 
 export interface TaskErrorPayload {

@@ -35,3 +35,4 @@
 | `LOG_LEVEL` | No | `info` | Pino log level |
 | `WS_RECONNECT_BASE_DELAY_MS` | No | `1000` | Initial reconnect delay |
 | `WS_RECONNECT_MAX_DELAY_MS` | No | `30000` | Maximum reconnect delay |
+| `MAX_CONTINUATIONS` | No | `3` | Max auto-continuations when Claude hits 200-turn limit |

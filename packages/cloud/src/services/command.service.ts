@@ -8,6 +8,7 @@ import {
   type BotPlugin,
   type ParsedCommand,
   type SlackContext,
+  type SubtaskDefinition,
 } from '@bematic/common';
 import type { ProjectRow, TaskRepository, AuditLogRepository, TaskRow } from '@bematic/db';
 import { ResponseBuilder } from '@bematic/bots';
@@ -35,6 +36,18 @@ export class CommandService {
   ) {}
 
   async submit(params: SubmitParams): Promise<string> {
+    const { bot, command, project, slackContext } = params;
+
+    // Check if this task should be decomposed into subtasks
+    if (bot.shouldDecompose(command)) {
+      return this.submitWithDecomposition(params);
+    }
+
+    return this.submitDirect(params);
+  }
+
+  /** Submit a task directly to the agent (no decomposition) */
+  private async submitDirect(params: SubmitParams, parentTaskId?: string): Promise<string> {
     const { bot, command, project, slackContext } = params;
 
     // Build execution config
@@ -69,6 +82,7 @@ ${slackContext.fileInfo}`
       slackUserId: slackContext.userId,
       slackMessageTs: slackContext.messageTs ?? null,
       maxBudget: execConfig.maxBudget,
+      parentTaskId: parentTaskId ?? null,
     });
 
     // Audit log
@@ -76,6 +90,7 @@ ${slackContext.fileInfo}`
       botName: bot.name,
       command: command.command,
       projectId: project.id,
+      parentTaskId: parentTaskId ?? null,
     });
 
     // Build WS message
@@ -91,6 +106,7 @@ ${slackContext.fileInfo}`
       maxBudget: execConfig.maxBudget,
       allowedTools: execConfig.allowedTools,
       resumeSessionId: params.resumeSessionId ?? null,
+      parentTaskId: parentTaskId ?? null,
       slackContext: {
         channelId: slackContext.channelId,
         threadTs: slackContext.threadTs,
@@ -106,7 +122,107 @@ ${slackContext.fileInfo}`
       this.offlineQueue.enqueue(project.agentId, wsMsg);
       this.taskRepo.update(taskId, { status: 'queued' });
 
-      // Swap hourglass for queued emoji on the user's message
+      // Swap hourglass for queued emoji on the user's message (only for root tasks)
+      if (!parentTaskId && slackContext.messageTs) {
+        await this.notifier.removeReaction(slackContext.channelId, slackContext.messageTs, 'hourglass_flowing_sand');
+        await this.notifier.addReaction(slackContext.channelId, slackContext.messageTs, 'inbox_tray');
+      }
+
+      if (!parentTaskId) {
+        await this.notifier.postBlocks(
+          slackContext.channelId,
+          ResponseBuilder.queuedOfflineBlocks(taskId),
+          'Agent is offline. Task queued.',
+          slackContext.threadTs,
+        );
+      }
+
+      logger.info({ taskId, agentId: project.agentId, parentTaskId }, 'Task queued for offline agent');
+    } else {
+      logger.info({ taskId, agentId: project.agentId, parentTaskId }, 'Task submitted to agent');
+    }
+
+    return taskId;
+  }
+
+  /**
+   * Submit a task with decomposition:
+   * 1. Send a lightweight planning task to Claude (read-only)
+   * 2. Parse the subtask list from the result
+   * 3. Submit each subtask as a separate task
+   */
+  private async submitWithDecomposition(params: SubmitParams): Promise<string> {
+    const { bot, command, project, slackContext } = params;
+
+    const decompositionConfig = bot.buildDecompositionConfig(command, {
+      name: project.name,
+      localPath: project.localPath,
+      defaultModel: project.defaultModel,
+      defaultMaxBudget: project.defaultMaxBudget,
+    });
+
+    if (!decompositionConfig) {
+      // Fallback to direct submission if decomposition not supported
+      return this.submitDirect(params);
+    }
+
+    // Create the parent (planning) task
+    const parentTaskId = generateTaskId();
+    this.taskRepo.create({
+      id: parentTaskId,
+      projectId: project.id,
+      botName: bot.name,
+      command: 'decompose',
+      prompt: decompositionConfig.prompt,
+      status: 'pending',
+      slackChannelId: slackContext.channelId,
+      slackThreadTs: slackContext.threadTs,
+      slackUserId: slackContext.userId,
+      slackMessageTs: slackContext.messageTs ?? null,
+      maxBudget: decompositionConfig.maxBudget,
+    });
+
+    this.auditLogRepo.log('task:created', 'task', parentTaskId, slackContext.userId, {
+      botName: bot.name,
+      command: 'decompose',
+      projectId: project.id,
+      isDecomposition: true,
+    });
+
+    // Notify user that decomposition is happening
+    await this.notifier.postMessage(
+      slackContext.channelId,
+      ':mag: Analyzing task complexity... Breaking into subtasks.',
+      slackContext.threadTs,
+    );
+
+    // Send planning task to agent with maxContinuations=0 (no need to continue planning)
+    const wsMsg = createWSMessage(MessageType.TASK_SUBMIT, {
+      taskId: parentTaskId,
+      projectId: project.id,
+      botName: bot.name,
+      command: 'decompose',
+      prompt: decompositionConfig.prompt,
+      systemPrompt: decompositionConfig.systemPrompt,
+      localPath: project.localPath,
+      model: decompositionConfig.model,
+      maxBudget: decompositionConfig.maxBudget,
+      allowedTools: decompositionConfig.allowedTools,
+      maxContinuations: 0, // Planning should complete in one shot
+      parentTaskId: null,
+      slackContext: {
+        channelId: slackContext.channelId,
+        threadTs: slackContext.threadTs,
+        userId: slackContext.userId,
+      },
+    });
+
+    const sent = this.agentManager.send(project.agentId, serializeMessage(wsMsg));
+
+    if (!sent) {
+      this.offlineQueue.enqueue(project.agentId, wsMsg);
+      this.taskRepo.update(parentTaskId, { status: 'queued' });
+
       if (slackContext.messageTs) {
         await this.notifier.removeReaction(slackContext.channelId, slackContext.messageTs, 'hourglass_flowing_sand');
         await this.notifier.addReaction(slackContext.channelId, slackContext.messageTs, 'inbox_tray');
@@ -114,17 +230,129 @@ ${slackContext.fileInfo}`
 
       await this.notifier.postBlocks(
         slackContext.channelId,
-        ResponseBuilder.queuedOfflineBlocks(taskId),
+        ResponseBuilder.queuedOfflineBlocks(parentTaskId),
         'Agent is offline. Task queued.',
         slackContext.threadTs,
       );
-
-      logger.info({ taskId, agentId: project.agentId }, 'Task queued for offline agent');
-    } else {
-      logger.info({ taskId, agentId: project.agentId }, 'Task submitted to agent');
     }
 
-    return taskId;
+    logger.info(
+      { parentTaskId, agentId: project.agentId },
+      'Decomposition planning task submitted',
+    );
+
+    return parentTaskId;
+  }
+
+  /**
+   * Called by MessageRouter when a planning (decompose) task completes.
+   * Parses the subtask list and submits each one.
+   */
+  async handleDecompositionComplete(
+    parentTaskId: string,
+    planningResult: string,
+    project: ProjectRow,
+    bot: BotPlugin,
+    slackContext: SlackContext,
+  ): Promise<string[]> {
+    const subtasks = this.parseSubtasks(planningResult);
+
+    if (subtasks.length === 0) {
+      logger.warn({ parentTaskId }, 'Decomposition returned no subtasks, submitting original task directly');
+
+      // Fall back to the parent task's original prompt as a direct submission
+      const parentTask = this.taskRepo.findById(parentTaskId);
+      if (parentTask) {
+        const command = bot.parseCommand(parentTask.prompt);
+        return [await this.submitDirect({
+          bot,
+          command,
+          project,
+          slackContext,
+        })];
+      }
+      return [];
+    }
+
+    // Notify user about the subtask breakdown
+    const subtaskList = subtasks
+      .map((s, i) => `${i + 1}. *${s.title}*`)
+      .join('\n');
+
+    await this.notifier.postBlocks(
+      slackContext.channelId,
+      ResponseBuilder.subtaskPlanBlocks(parentTaskId, subtasks),
+      `Breaking into ${subtasks.length} subtasks:\n${subtaskList}`,
+      slackContext.threadTs,
+    );
+
+    // Submit each subtask sequentially (they share the same project dir)
+    const subtaskIds: string[] = [];
+    for (const subtask of subtasks) {
+      const parsedCommand: ParsedCommand = {
+        botName: bot.name,
+        command: subtask.command,
+        args: subtask.prompt,
+        flags: {},
+        rawText: subtask.prompt,
+      };
+
+      const taskId = await this.submitDirect(
+        {
+          bot,
+          command: parsedCommand,
+          project,
+          slackContext,
+        },
+        parentTaskId,
+      );
+
+      subtaskIds.push(taskId);
+    }
+
+    logger.info(
+      { parentTaskId, subtaskCount: subtaskIds.length, subtaskIds },
+      'All subtasks submitted from decomposition',
+    );
+
+    return subtaskIds;
+  }
+
+  /** Parse subtasks from a planning result text */
+  private parseSubtasks(result: string): SubtaskDefinition[] {
+    try {
+      // Look for JSON block with the ```json:subtasks marker
+      const jsonMatch = result.match(/```json:subtasks\s*\n([\s\S]*?)```/);
+      if (jsonMatch?.[1]) {
+        const parsed = JSON.parse(jsonMatch[1]);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(
+            (item): item is SubtaskDefinition =>
+              typeof item.title === 'string' &&
+              typeof item.prompt === 'string' &&
+              typeof item.command === 'string',
+          );
+        }
+      }
+
+      // Fallback: try to find any JSON array in the result
+      const arrayMatch = result.match(/\[\s*\{[\s\S]*?\}\s*\]/);
+      if (arrayMatch) {
+        const parsed = JSON.parse(arrayMatch[0]);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(
+            (item): item is SubtaskDefinition =>
+              typeof item.title === 'string' &&
+              typeof item.prompt === 'string' &&
+              typeof item.command === 'string',
+          );
+        }
+      }
+    } catch (error) {
+      logger.error({ error }, 'Failed to parse subtasks from planning result');
+    }
+
+    return [];
   }
 
   async resubmit(task: TaskRow, project: ProjectRow): Promise<string> {
@@ -195,6 +423,21 @@ ${slackContext.fileInfo}`
     }
 
     this.taskRepo.update(taskId, { status: 'cancelled' });
+
+    // Also cancel any child subtasks
+    const subtasks = this.taskRepo.findByParentTaskId(taskId);
+    for (const subtask of subtasks) {
+      if (subtask.status === 'pending' || subtask.status === 'running' || subtask.status === 'queued') {
+        const childCancelMsg = createWSMessage(MessageType.TASK_CANCEL, {
+          taskId: subtask.id,
+          reason: `Parent task ${taskId} cancelled: ${reason}`,
+        });
+        for (const agentId of this.agentManager.getConnectedAgentIds()) {
+          this.agentManager.send(agentId, serializeMessage(childCancelMsg));
+        }
+        this.taskRepo.update(subtask.id, { status: 'cancelled' });
+      }
+    }
 
     this.auditLogRepo.log('task:cancelled', 'task', taskId, null, { reason });
   }

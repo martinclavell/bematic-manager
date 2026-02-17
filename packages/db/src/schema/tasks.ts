@@ -19,6 +19,7 @@ export const tasks = sqliteTable('tasks', {
   outputTokens: integer('output_tokens').notNull().default(0),
   estimatedCost: real('estimated_cost').notNull().default(0),
   maxBudget: real('max_budget').notNull().default(5.0),
+  parentTaskId: text('parent_task_id'), // Self-reference for subtasks
   filesChanged: text('files_changed').notNull().default('[]'), // JSON array
   commandsRun: text('commands_run').notNull().default('[]'), // JSON array
   createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),

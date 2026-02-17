@@ -61,11 +61,13 @@ export function pushSchema(dbUrl?: string) {
     completed_at TEXT
   )`);
 
-  // Add slack_message_ts column if it doesn't exist (migration for existing DBs)
-  try {
-    db.run(sql.raw(`ALTER TABLE tasks ADD COLUMN slack_message_ts TEXT`));
-  } catch {
-    // Column already exists, ignore
+  // Add columns that may not exist in older DBs (migration for existing DBs)
+  for (const col of ['slack_message_ts', 'parent_task_id']) {
+    try {
+      db.run(sql.raw(`ALTER TABLE tasks ADD COLUMN ${col} TEXT`));
+    } catch {
+      // Column already exists, ignore
+    }
   }
 
   db.run(sql`CREATE TABLE IF NOT EXISTS ${sessions} (

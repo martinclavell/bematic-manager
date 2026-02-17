@@ -111,4 +111,23 @@ export class TaskRepository extends BaseRepository {
       .returning()
       .get();
   }
+
+  /** Find all subtasks of a parent task */
+  findByParentTaskId(parentTaskId: string): TaskRow[] {
+    return this.db
+      .select()
+      .from(tasks)
+      .where(eq(tasks.parentTaskId, parentTaskId))
+      .orderBy(tasks.createdAt)
+      .all();
+  }
+
+  /** Check if all subtasks of a parent are in a terminal state */
+  areAllSubtasksComplete(parentTaskId: string): boolean {
+    const subtasks = this.findByParentTaskId(parentTaskId);
+    if (subtasks.length === 0) return false;
+    return subtasks.every(
+      (t) => t.status === 'completed' || t.status === 'failed' || t.status === 'cancelled',
+    );
+  }
 }

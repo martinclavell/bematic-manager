@@ -71,6 +71,7 @@ export const taskCompleteSchema = z.object({
   filesChanged: z.array(z.string()),
   commandsRun: z.array(z.string()),
   durationMs: z.number(),
+  continuations: z.number().int().min(0).optional(),
 });
 
 export const taskErrorSchema = z.object({

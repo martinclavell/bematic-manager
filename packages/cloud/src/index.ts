@@ -94,6 +94,9 @@ async function main() {
   const projectService = new ProjectService(projectRepo, auditLogRepo);
   const deployService = new DeployService(config.railway.apiToken);
 
+  // Wire up MessageRouter ↔ CommandService for decomposition support
+  messageRouter.setCommandService(commandService, projectRepo);
+
   // Middleware
   const rateLimiter = createRateLimiter(config);
   const authChecker = createAuthChecker(userRepo);

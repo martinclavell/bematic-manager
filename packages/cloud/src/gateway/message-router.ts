@@ -10,9 +10,10 @@ import {
 } from '@bematic/common';
 import { BotRegistry } from '@bematic/bots';
 import { ResponseBuilder } from '@bematic/bots';
-import type { TaskRepository, AuditLogRepository, TaskRow } from '@bematic/db';
+import type { TaskRepository, AuditLogRepository, ProjectRepository, TaskRow } from '@bematic/db';
 import type { StreamAccumulator } from './stream-accumulator.js';
 import type { NotificationService } from '../services/notification.service.js';
+import type { CommandService } from '../services/command.service.js';
 import { markdownToSlack } from '../utils/markdown-to-slack.js';
 
 const logger = createLogger('message-router');
@@ -25,6 +26,8 @@ interface ProgressTracker {
 
 export class MessageRouter {
   private progressTrackers = new Map<string, ProgressTracker>();
+  private commandService: CommandService | null = null;
+  private projectRepo: ProjectRepository | null = null;
 
   constructor(
     private readonly taskRepo: TaskRepository,
@@ -32,6 +35,15 @@ export class MessageRouter {
     private readonly streamAccumulator: StreamAccumulator,
     private readonly notifier: NotificationService,
   ) {}
+
+  /**
+   * Inject CommandService after construction (avoids circular init order).
+   * Must be called before handling any decomposition completions.
+   */
+  setCommandService(commandService: CommandService, projectRepo: ProjectRepository): void {
+    this.commandService = commandService;
+    this.projectRepo = projectRepo;
+  }
 
   /** Swap the hourglass reaction on the user's original message for a final status emoji */
   private async swapReaction(task: TaskRow, emoji: string): Promise<void> {
@@ -175,6 +187,19 @@ export class MessageRouter {
     this.streamAccumulator.removeStream(parsed.taskId);
     this.progressTrackers.delete(parsed.taskId);
 
+    // --- Decomposition handling ---
+    // If this was a planning (decompose) task, spawn the subtasks
+    if (task.command === 'decompose' && this.commandService && this.projectRepo) {
+      await this.handleDecompositionTaskComplete(task, parsed.result);
+      return;
+    }
+
+    // If this is a subtask (has parent), check if all siblings are done
+    if (task.parentTaskId && this.taskRepo.areAllSubtasksComplete(task.parentTaskId)) {
+      await this.handleAllSubtasksComplete(task.parentTaskId, agentId);
+      // Don't return — still post the individual subtask result below
+    }
+
     // Convert markdown to Slack mrkdwn
     const slackResult = markdownToSlack(parsed.result);
 
@@ -184,8 +209,10 @@ export class MessageRouter {
       ? bot.formatResult({ ...parsed, result: slackResult })
       : ResponseBuilder.taskCompleteBlocks(slackResult, parsed);
 
-    // Swap hourglass for success on the user's original message
-    await this.swapReaction(task, 'white_check_mark');
+    // Swap hourglass for success on the user's original message (only for root tasks)
+    if (!task.parentTaskId) {
+      await this.swapReaction(task, 'white_check_mark');
+    }
 
     await this.notifier.postBlocks(
       task.slackChannelId,
@@ -199,11 +226,107 @@ export class MessageRouter {
       agentId,
       cost: parsed.estimatedCost,
       durationMs: parsed.durationMs,
+      parentTaskId: task.parentTaskId,
     });
 
     logger.info(
-      { taskId: parsed.taskId, cost: parsed.estimatedCost, durationMs: parsed.durationMs },
+      { taskId: parsed.taskId, cost: parsed.estimatedCost, durationMs: parsed.durationMs, parentTaskId: task.parentTaskId },
       'Task completed',
+    );
+  }
+
+  /** Handle completion of a decompose planning task — spawn the actual subtasks */
+  private async handleDecompositionTaskComplete(task: TaskRow, planningResult: string): Promise<void> {
+    if (!this.commandService || !this.projectRepo) {
+      logger.error({ taskId: task.id }, 'CommandService not available for decomposition');
+      return;
+    }
+
+    const project = this.projectRepo.findById(task.projectId);
+    if (!project) {
+      logger.error({ taskId: task.id, projectId: task.projectId }, 'Project not found for decomposition');
+      return;
+    }
+
+    const bot = BotRegistry.get(task.botName as any);
+    if (!bot) {
+      logger.error({ taskId: task.id, botName: task.botName }, 'Bot not found for decomposition');
+      return;
+    }
+
+    try {
+      const subtaskIds = await this.commandService.handleDecompositionComplete(
+        task.id,
+        planningResult,
+        project,
+        bot,
+        {
+          channelId: task.slackChannelId,
+          threadTs: task.slackThreadTs,
+          userId: task.slackUserId,
+        },
+      );
+
+      logger.info(
+        { parentTaskId: task.id, subtaskIds },
+        'Decomposition subtasks spawned',
+      );
+    } catch (error) {
+      logger.error({ taskId: task.id, error }, 'Failed to spawn subtasks from decomposition');
+
+      await this.notifier.postMessage(
+        task.slackChannelId,
+        `:warning: Failed to decompose task into subtasks. The planning result could not be parsed.`,
+        task.slackThreadTs,
+      );
+    }
+  }
+
+  /** Called when all subtasks of a parent have reached a terminal state */
+  private async handleAllSubtasksComplete(parentTaskId: string, _agentId: string): Promise<void> {
+    const parentTask = this.taskRepo.findById(parentTaskId);
+    if (!parentTask) return;
+
+    const subtasks = this.taskRepo.findByParentTaskId(parentTaskId);
+    const subtaskResults = subtasks.map((s) => ({
+      taskId: s.id,
+      status: s.status,
+      result: s.result ?? undefined,
+      durationMs: undefined, // Not stored separately
+      estimatedCost: s.estimatedCost,
+    }));
+
+    const blocks = ResponseBuilder.subtaskSummaryBlocks(parentTaskId, subtaskResults);
+
+    // Swap reaction on original message
+    const allSucceeded = subtasks.every((s) => s.status === 'completed');
+    await this.swapReaction(parentTask, allSucceeded ? 'white_check_mark' : 'warning');
+
+    await this.notifier.postBlocks(
+      parentTask.slackChannelId,
+      blocks,
+      `All subtasks finished for ${parentTaskId}`,
+      parentTask.slackThreadTs,
+    );
+
+    // Mark parent task as completed with summary
+    const totalCost = subtasks.reduce((sum, s) => sum + s.estimatedCost, 0);
+    const completed = subtasks.filter((s) => s.status === 'completed').length;
+    const failed = subtasks.filter((s) => s.status === 'failed').length;
+
+    this.taskRepo.complete(parentTaskId, `Decomposed into ${subtasks.length} subtasks: ${completed} completed, ${failed} failed.`, {
+      inputTokens: subtasks.reduce((sum, s) => sum + s.inputTokens, 0),
+      outputTokens: subtasks.reduce((sum, s) => sum + s.outputTokens, 0),
+      estimatedCost: totalCost,
+      filesChanged: subtasks.flatMap((s) => {
+        try { return JSON.parse(s.filesChanged); } catch { return []; }
+      }),
+      commandsRun: [],
+    });
+
+    logger.info(
+      { parentTaskId, subtaskCount: subtasks.length, completed, failed, totalCost },
+      'All subtasks completed — parent task finalized',
     );
   }
 
@@ -216,13 +339,20 @@ export class MessageRouter {
     this.streamAccumulator.removeStream(parsed.taskId);
     this.progressTrackers.delete(parsed.taskId);
 
+    // If this is a subtask, check if all siblings are done
+    if (task.parentTaskId && this.taskRepo.areAllSubtasksComplete(task.parentTaskId)) {
+      await this.handleAllSubtasksComplete(task.parentTaskId, agentId);
+    }
+
     const bot = BotRegistry.get(task.botName as any);
     const blocks = bot
       ? bot.formatError(parsed.error, parsed.taskId)
       : ResponseBuilder.taskErrorBlocks(parsed.error, parsed.taskId);
 
-    // Swap hourglass for error on the user's original message
-    await this.swapReaction(task, 'x');
+    // Swap hourglass for error on the user's original message (only for root tasks)
+    if (!task.parentTaskId) {
+      await this.swapReaction(task, 'x');
+    }
 
     await this.notifier.postBlocks(
       task.slackChannelId,
@@ -234,9 +364,10 @@ export class MessageRouter {
     this.auditLogRepo.log('task:failed', 'task', parsed.taskId, null, {
       agentId,
       error: parsed.error,
+      parentTaskId: task.parentTaskId,
     });
 
-    logger.error({ taskId: parsed.taskId, error: parsed.error }, 'Task failed');
+    logger.error({ taskId: parsed.taskId, error: parsed.error, parentTaskId: task.parentTaskId }, 'Task failed');
   }
 
   private async handleTaskCancelled(payload: unknown): Promise<void> {
@@ -248,8 +379,15 @@ export class MessageRouter {
     this.streamAccumulator.removeStream(parsed.taskId);
     this.progressTrackers.delete(parsed.taskId);
 
+    // If this is a subtask, check if all siblings are done
+    if (task.parentTaskId && this.taskRepo.areAllSubtasksComplete(task.parentTaskId)) {
+      await this.handleAllSubtasksComplete(task.parentTaskId, 'unknown');
+    }
+
     // Swap hourglass for cancelled on the user's original message
-    await this.swapReaction(task, 'no_entry_sign');
+    if (!task.parentTaskId) {
+      await this.swapReaction(task, 'no_entry_sign');
+    }
 
     await this.notifier.postMessage(
       task.slackChannelId,

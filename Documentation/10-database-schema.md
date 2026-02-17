@@ -14,6 +14,7 @@ For complete column-by-column schema definitions, see [04 — Package: @bematic/
 projects 1──┬──N tasks
              │
 tasks    1──┬──N sessions
+tasks    1──┬──N tasks (parent_task_id self-reference for subtasks)
              │
 users    1──┬──N user_project_permissions
              │

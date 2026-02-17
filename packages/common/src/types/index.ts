@@ -52,4 +52,5 @@ export type {
   BotCommand,
   ParsedCommand,
   BotExecutionConfig,
+  SubtaskDefinition,
 } from './bot.js';

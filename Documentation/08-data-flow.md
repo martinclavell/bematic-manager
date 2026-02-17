@@ -87,3 +87,42 @@ BUDGET EXCEEDED    → Agent: Claude executor monitors cost
 RATE LIMIT         → Cloud: rate-limit middleware rejects request
                    → Slack: "Rate limit exceeded, try again in X minutes"
 ```
+
+---
+
+## Auto-Continuation (max_turns recovery)
+
+```
+CLAUDE HITS 200-TURN LIMIT
+  → Agent detects error_max_turns in result
+  → Agent sends TASK_PROGRESS "Auto-continuing (1/3)..."
+  → Agent re-invokes query() with resume: sessionId
+  → Repeats up to MAX_CONTINUATIONS (default: 3)
+  → On success: sends TASK_COMPLETE with aggregated metrics
+  → On exhaustion: sends TASK_COMPLETE with partial result + warning
+```
+
+---
+
+## Task Decomposition (complex tasks)
+
+```
+1. USER submits complex feature task (long args or --decompose flag)
+   → CommandService.submit() detects bot.shouldDecompose() = true
+   → Submits lightweight planning task (read-only, command="decompose")
+
+2. PLANNING TASK completes
+   → MessageRouter detects command="decompose"
+   → Calls CommandService.handleDecompositionComplete()
+   → Parses JSON subtask list from planning result
+   → Posts subtask plan to Slack
+
+3. SUBTASKS submitted sequentially
+   → Each gets its own taskId with parentTaskId = planning task ID
+   → Each executes independently (with auto-continuation enabled)
+
+4. ALL SUBTASKS COMPLETE
+   → MessageRouter detects all siblings in terminal state
+   → Posts consolidated summary to Slack
+   → Marks parent task as completed with aggregated metrics
+```

@@ -32,11 +32,11 @@
 
 | Direction | Type | Payload |
 |-----------|------|---------|
-| Cloud→Agent | `TASK_SUBMIT` | `{ taskId, projectId, botName, command, prompt, systemPrompt, allowedTools, model, maxBudget, localPath, slackContext }` |
+| Cloud→Agent | `TASK_SUBMIT` | `{ taskId, projectId, botName, command, prompt, systemPrompt, allowedTools, model, maxBudget, localPath, slackContext, maxContinuations?, parentTaskId? }` |
 | Agent→Cloud | `TASK_ACK` | `{ taskId, accepted, queued?, reason? }` |
 | Agent→Cloud | `TASK_PROGRESS` | `{ taskId, step, message, percentage? }` |
 | Agent→Cloud | `TASK_STREAM` | `{ taskId, text, isPartial }` |
-| Agent→Cloud | `TASK_COMPLETE` | `{ taskId, result, inputTokens, outputTokens, estimatedCost, durationMs, filesChanged, commandsRun }` |
+| Agent→Cloud | `TASK_COMPLETE` | `{ taskId, result, inputTokens, outputTokens, estimatedCost, durationMs, filesChanged, commandsRun, continuations? }` |
 | Agent→Cloud | `TASK_ERROR` | `{ taskId, error, recoverable }` |
 | Cloud→Agent | `TASK_CANCEL` | `{ taskId, reason? }` |
 | Agent→Cloud | `TASK_CANCELLED` | `{ taskId }` |

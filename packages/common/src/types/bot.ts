@@ -25,6 +25,13 @@ export interface BotExecutionConfig {
   allowedTools: string[];
 }
 
+/** A subtask definition returned by the decomposition planning step */
+export interface SubtaskDefinition {
+  title: string;
+  prompt: string;
+  command: string;
+}
+
 export interface BotPlugin {
   name: BotName;
   displayName: string;
@@ -47,4 +54,20 @@ export interface BotPlugin {
 
   /** Format an error into Slack blocks */
   formatError(error: string, taskId: string): SlackBlock[];
+
+  /**
+   * Whether this command should be decomposed into subtasks.
+   * Returns true if the task is complex enough to benefit from decomposition.
+   */
+  shouldDecompose(command: ParsedCommand): boolean;
+
+  /**
+   * Build a planning prompt that asks Claude to decompose the task
+   * into a JSON array of SubtaskDefinition[]. Returns null if
+   * decomposition is not supported.
+   */
+  buildDecompositionConfig(
+    command: ParsedCommand,
+    projectContext: { name: string; localPath: string; defaultModel: string; defaultMaxBudget: number },
+  ): BotExecutionConfig | null;
 }

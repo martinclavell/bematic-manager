@@ -31,7 +31,7 @@ async function main() {
   const wsClient = new WSClient(config);
 
   // Initialize executor and queue processor
-  const executor = new ClaudeExecutor(wsClient);
+  const executor = new ClaudeExecutor(wsClient, config.maxContinuations);
   const queueProcessor = new QueueProcessor(executor, config.maxConcurrentTasks);
 
   // Setup heartbeat responses

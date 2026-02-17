@@ -93,4 +93,17 @@ If the push fails (e.g. no upstream), use: \`git push -u origin HEAD\``;
   formatError(error: string, taskId: string): SlackBlock[] {
     return rb.taskErrorBlocks(error, taskId);
   }
+
+  /** By default, bots do not support decomposition */
+  shouldDecompose(_command: ParsedCommand): boolean {
+    return false;
+  }
+
+  /** By default, bots do not support decomposition */
+  buildDecompositionConfig(
+    _command: ParsedCommand,
+    _projectContext: { name: string; localPath: string; defaultModel: string; defaultMaxBudget: number },
+  ): BotExecutionConfig | null {
+    return null;
+  }
 }

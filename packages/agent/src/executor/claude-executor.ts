@@ -1,6 +1,7 @@
 import { query, type SDKMessage, type SDKResultMessage, type SDKAssistantMessage } from '@anthropic-ai/claude-code';
 import {
   MessageType,
+  Limits,
   createWSMessage,
   createLogger,
   type TaskSubmitPayload,
@@ -18,10 +19,25 @@ export interface ExecutionResult {
   filesChanged: string[];
   commandsRun: string[];
   durationMs: number;
+  /** Number of auto-continuations that were performed (0 = completed in one shot) */
+  continuations: number;
+}
+
+/** Result of a single Claude SDK invocation (one query() call) */
+interface InvocationResult {
+  resultText: string;
+  resultIsError: boolean;
+  sessionId: string | null;
+  totalCost: number;
+  inputTokens: number;
+  outputTokens: number;
 }
 
 export class ClaudeExecutor {
-  constructor(private readonly wsClient: WSClient) {}
+  constructor(
+    private readonly wsClient: WSClient,
+    private readonly defaultMaxContinuations: number = Limits.MAX_CONTINUATIONS,
+  ) {}
 
   async execute(
     task: TaskSubmitPayload,
@@ -30,16 +46,20 @@ export class ClaudeExecutor {
     const startTime = Date.now();
     const filesChanged = new Set<string>();
     const commandsRun = new Set<string>();
-    let resultText = '';
-    let resultIsError = false;
-    let sessionId: string | null = null;
-    let totalCost = 0;
-    let inputTokens = 0;
-    let outputTokens = 0;
     let assistantTurnCount = 0;
 
+    // Aggregate metrics across all continuations
+    let totalInputTokens = 0;
+    let totalOutputTokens = 0;
+    let totalCost = 0;
+    let sessionId: string | null = null;
+    let lastResultText = '';
+    let continuationCount = 0;
+
+    const maxContinuations = task.maxContinuations ?? this.defaultMaxContinuations;
+
     logger.info(
-      { taskId: task.taskId, command: task.command, model: task.model },
+      { taskId: task.taskId, command: task.command, model: task.model, maxContinuations },
       'Starting Claude execution',
     );
 
@@ -64,96 +84,95 @@ export class ClaudeExecutor {
         'Pre-launch check',
       );
 
-      const queryOptions: Record<string, unknown> = {
-        customSystemPrompt: task.systemPrompt || undefined,
-        model: task.model,
-        maxTurns: 200,
-        cwd: task.localPath,
-        allowedTools: task.allowedTools.length > 0 ? task.allowedTools : undefined,
+      // --- First invocation ---
+      const initialResumeId = task.resumeSessionId ?? null;
+      let invocation = await this.runInvocation({
+        task,
+        resumeSessionId: initialResumeId,
         abortController,
-        permissionMode: 'bypassPermissions',
-        env: {
-          ...process.env as Record<string, string>,
-          // Only pass API key if explicitly set; otherwise SDK uses Claude subscription auth
-          ...(process.env['ANTHROPIC_API_KEY'] ? { ANTHROPIC_API_KEY: process.env['ANTHROPIC_API_KEY'] } : {}),
-        },
-        stderr: (data: string) => {
-          logger.error({ taskId: task.taskId, stderr: data }, 'Claude stderr');
-        },
-      };
-
-      // Resume previous session if provided (thread continuation)
-      if (task.resumeSessionId) {
-        queryOptions['resume'] = task.resumeSessionId;
-        logger.info({ taskId: task.taskId, resumeSessionId: task.resumeSessionId }, 'Resuming Claude session');
-      }
-
-      const stream = query({
-        prompt: task.prompt,
-        options: queryOptions as any,
+        filesChanged,
+        commandsRun,
+        assistantTurnCount,
       });
 
-      for await (const message of stream) {
-        // Add newline separator between different assistant messages
-        if (message.type === 'assistant') {
-          const hasText = (message as SDKAssistantMessage).message?.content?.some(
-            (b: any) => b.type === 'text' && b.text,
-          );
-          if (hasText && assistantTurnCount > 0) {
-            this.wsClient.send(
-              createWSMessage(MessageType.TASK_STREAM, {
-                taskId: task.taskId,
-                delta: '\n\n',
-                timestamp: Date.now(),
-              }),
-            );
-          }
-          if (hasText) assistantTurnCount++;
-        }
+      assistantTurnCount = invocation.assistantTurnCount;
+      totalInputTokens += invocation.result.inputTokens;
+      totalOutputTokens += invocation.result.outputTokens;
+      totalCost += invocation.result.totalCost;
+      sessionId = invocation.result.sessionId ?? sessionId;
+      lastResultText = invocation.result.resultText;
 
-        this.handleMessage(task.taskId, message, filesChanged, commandsRun);
+      // --- Auto-continue loop ---
+      while (
+        invocation.result.resultIsError &&
+        invocation.result.resultText === 'error_max_turns' &&
+        continuationCount < maxContinuations &&
+        sessionId &&
+        !abortSignal?.aborted
+      ) {
+        continuationCount++;
 
-        // Capture session ID from init or result messages
-        if (message.type === 'system' && (message as any).subtype === 'init') {
-          sessionId = (message as any).session_id ?? null;
-          logger.info({ taskId: task.taskId, sessionId }, 'Claude session started');
-        }
+        logger.info(
+          {
+            taskId: task.taskId,
+            continuation: continuationCount,
+            maxContinuations,
+            sessionId,
+          },
+          'Auto-continuing after max_turns',
+        );
 
-        // Extract result from result message
-        if (message.type === 'result') {
-          // Also grab session_id from result if available
-          if ((message as any).session_id) {
-            sessionId = (message as any).session_id;
-          }
-          const resultMsg = message as SDKResultMessage;
-          totalCost = resultMsg.total_cost_usd;
-          inputTokens = resultMsg.usage.input_tokens;
-          outputTokens = resultMsg.usage.output_tokens;
-          resultIsError = resultMsg.is_error;
-          if (resultMsg.subtype === 'success') {
-            resultText = resultMsg.result;
-          } else {
-            // For error subtypes, extract the result from the raw message
-            resultText = (resultMsg as any).result ?? resultMsg.subtype;
-          }
-        }
+        // Notify user about continuation
+        this.wsClient.send(
+          createWSMessage(MessageType.TASK_PROGRESS, {
+            taskId: task.taskId,
+            type: 'info',
+            message: `:repeat: Auto-continuing task (${continuationCount}/${maxContinuations})...`,
+            timestamp: Date.now(),
+          }),
+        );
+
+        // Small delay to let the previous session finalize
+        await new Promise((resolve) => setTimeout(resolve, 1_000));
+
+        invocation = await this.runInvocation({
+          task,
+          resumeSessionId: sessionId,
+          abortController,
+          filesChanged,
+          commandsRun,
+          assistantTurnCount,
+          continuationPrompt: 'Continue where you left off. Complete the remaining work from the original task.',
+        });
+
+        assistantTurnCount = invocation.assistantTurnCount;
+        totalInputTokens += invocation.result.inputTokens;
+        totalOutputTokens += invocation.result.outputTokens;
+        totalCost += invocation.result.totalCost;
+        sessionId = invocation.result.sessionId ?? sessionId;
+        lastResultText = invocation.result.resultText;
       }
 
       const durationMs = Date.now() - startTime;
 
-      // Handle error_max_turns gracefully - send partial results instead of failing
-      if (resultIsError && resultText === 'error_max_turns') {
-        const partialResult = `_Reached the maximum turn limit (200 turns). Here's what was accomplished so far._\n\nThe task was too complex to complete in a single session. You can continue by replying in this thread.`;
+      // If we exhausted all continuations and STILL hit max_turns
+      if (
+        invocation.result.resultIsError &&
+        invocation.result.resultText === 'error_max_turns'
+      ) {
+        const totalTurns = Limits.MAX_TURNS_PER_INVOCATION * (continuationCount + 1);
+        const partialResult = `_Reached the maximum turn limit (${totalTurns} turns across ${continuationCount + 1} invocations). Here's what was accomplished so far._\n\nThe task was too complex to complete even with auto-continuation. You can continue by replying in this thread.`;
 
         const result: ExecutionResult = {
           result: partialResult,
           sessionId,
-          inputTokens,
-          outputTokens,
+          inputTokens: totalInputTokens,
+          outputTokens: totalOutputTokens,
           estimatedCost: totalCost,
           filesChanged: Array.from(filesChanged),
           commandsRun: Array.from(commandsRun),
           durationMs,
+          continuations: continuationCount,
         };
 
         this.wsClient.send(
@@ -164,22 +183,30 @@ export class ClaudeExecutor {
         );
 
         logger.warn(
-          { taskId: task.taskId, durationMs, cost: totalCost, turns: 200 },
-          'Claude execution hit max turns limit',
+          {
+            taskId: task.taskId,
+            durationMs,
+            cost: totalCost,
+            totalTurns,
+            continuations: continuationCount,
+          },
+          'Claude execution exhausted all continuations',
         );
 
         return result;
       }
 
+      // Normal completion (either first-shot or after successful continuation)
       const result: ExecutionResult = {
-        result: resultText || '(no output)',
+        result: lastResultText || '(no output)',
         sessionId,
-        inputTokens,
-        outputTokens,
+        inputTokens: totalInputTokens,
+        outputTokens: totalOutputTokens,
         estimatedCost: totalCost,
         filesChanged: Array.from(filesChanged),
         commandsRun: Array.from(commandsRun),
         durationMs,
+        continuations: continuationCount,
       };
 
       // Send completion
@@ -191,7 +218,12 @@ export class ClaudeExecutor {
       );
 
       logger.info(
-        { taskId: task.taskId, durationMs, cost: totalCost },
+        {
+          taskId: task.taskId,
+          durationMs,
+          cost: totalCost,
+          continuations: continuationCount,
+        },
         'Claude execution completed',
       );
 
@@ -199,8 +231,7 @@ export class ClaudeExecutor {
     } catch (error) {
       const durationMs = Date.now() - startTime;
       const rawError = error instanceof Error ? error.message : String(error);
-      // Use the actual result text from the SDK if available (e.g. "Credit balance is too low")
-      const errorMessage = (resultIsError && resultText) ? resultText : rawError;
+      const errorMessage = rawError;
 
       logger.error({ taskId: task.taskId, error: errorMessage, durationMs }, 'Claude execution failed');
 
@@ -214,6 +245,117 @@ export class ClaudeExecutor {
 
       throw new Error(errorMessage);
     }
+  }
+
+  /**
+   * Run a single Claude SDK query() invocation and process all streamed messages.
+   * Returns the invocation result without sending TASK_COMPLETE/TASK_ERROR
+   * (the caller handles that).
+   */
+  private async runInvocation(params: {
+    task: TaskSubmitPayload;
+    resumeSessionId: string | null;
+    abortController: AbortController;
+    filesChanged: Set<string>;
+    commandsRun: Set<string>;
+    assistantTurnCount: number;
+    continuationPrompt?: string;
+  }): Promise<{ result: InvocationResult; assistantTurnCount: number }> {
+    const { task, resumeSessionId, abortController, filesChanged, commandsRun } = params;
+    let { assistantTurnCount } = params;
+
+    let resultText = '';
+    let resultIsError = false;
+    let sessionId: string | null = null;
+    let totalCost = 0;
+    let inputTokens = 0;
+    let outputTokens = 0;
+
+    const prompt = params.continuationPrompt ?? task.prompt;
+
+    const queryOptions: Record<string, unknown> = {
+      customSystemPrompt: task.systemPrompt || undefined,
+      model: task.model,
+      maxTurns: Limits.MAX_TURNS_PER_INVOCATION,
+      cwd: task.localPath,
+      allowedTools: task.allowedTools.length > 0 ? task.allowedTools : undefined,
+      abortController,
+      permissionMode: 'bypassPermissions',
+      env: {
+        ...process.env as Record<string, string>,
+        ...(process.env['ANTHROPIC_API_KEY'] ? { ANTHROPIC_API_KEY: process.env['ANTHROPIC_API_KEY'] } : {}),
+      },
+      stderr: (data: string) => {
+        logger.error({ taskId: task.taskId, stderr: data }, 'Claude stderr');
+      },
+    };
+
+    // Resume previous session
+    if (resumeSessionId) {
+      queryOptions['resume'] = resumeSessionId;
+      logger.info({ taskId: task.taskId, resumeSessionId }, 'Resuming Claude session');
+    }
+
+    const stream = query({
+      prompt,
+      options: queryOptions as any,
+    });
+
+    for await (const message of stream) {
+      // Add newline separator between different assistant messages
+      if (message.type === 'assistant') {
+        const hasText = (message as SDKAssistantMessage).message?.content?.some(
+          (b: any) => b.type === 'text' && b.text,
+        );
+        if (hasText && assistantTurnCount > 0) {
+          this.wsClient.send(
+            createWSMessage(MessageType.TASK_STREAM, {
+              taskId: task.taskId,
+              delta: '\n\n',
+              timestamp: Date.now(),
+            }),
+          );
+        }
+        if (hasText) assistantTurnCount++;
+      }
+
+      this.handleMessage(task.taskId, message, filesChanged, commandsRun);
+
+      // Capture session ID from init or result messages
+      if (message.type === 'system' && (message as any).subtype === 'init') {
+        sessionId = (message as any).session_id ?? null;
+        logger.info({ taskId: task.taskId, sessionId }, 'Claude session started');
+      }
+
+      // Extract result from result message
+      if (message.type === 'result') {
+        if ((message as any).session_id) {
+          sessionId = (message as any).session_id;
+        }
+        const resultMsg = message as SDKResultMessage;
+        totalCost = resultMsg.total_cost_usd;
+        inputTokens = resultMsg.usage.input_tokens;
+        outputTokens = resultMsg.usage.output_tokens;
+        resultIsError = resultMsg.is_error;
+        if (resultMsg.subtype === 'success') {
+          resultText = resultMsg.result;
+        } else {
+          resultText = (resultMsg as any).result ?? resultMsg.subtype;
+        }
+      }
+    }
+
+    return {
+      result: {
+        resultText,
+        resultIsError,
+        sessionId,
+        totalCost,
+        inputTokens,
+        outputTokens,
+      },
+      assistantTurnCount,
+    };
   }
 
   private handleMessage(

@@ -49,6 +49,7 @@ export type {
   BotCommand,
   ParsedCommand,
   BotExecutionConfig,
+  SubtaskDefinition,
 } from './types/index.js';
 export { TaskStatus } from './types/index.js';
 export type { TaskStatusType } from './types/index.js';
