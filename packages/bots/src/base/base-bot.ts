@@ -8,6 +8,7 @@ import type {
   BotName,
 } from '@bematic/common';
 import { parseCommandText } from './command-parser.js';
+import { routeToModel } from './model-router.js';
 import * as rb from './response-builder.js';
 
 export abstract class BaseBotPlugin implements BotPlugin {
@@ -64,8 +65,9 @@ If the push fails (e.g. no upstream), use: \`git push -u origin HEAD\``;
     const promptTemplate = botCommand?.defaultPromptTemplate ?? '{args}';
     const prompt = promptTemplate.replace('{args}', command.args);
 
-    const model =
-      (command.flags['model'] as string | undefined) ?? projectContext.defaultModel;
+    // Route to the optimal model tier based on task signals
+    const routing = routeToModel(command, projectContext.defaultModel);
+
     const maxBudget =
       (command.flags['budget'] as string | undefined)
         ? parseFloat(command.flags['budget'] as string)
@@ -74,7 +76,7 @@ If the push fails (e.g. no upstream), use: \`git push -u origin HEAD\``;
     return {
       systemPrompt: `${this.baseSystemPrompt}\n\n${this.getSystemPrompt()}`,
       prompt,
-      model,
+      model: routing.model,
       maxBudget,
       allowedTools: this.getAllowedTools(),
     };

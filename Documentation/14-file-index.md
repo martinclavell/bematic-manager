@@ -13,6 +13,7 @@
 | `constants/message-types.ts` | WebSocket message type constants |
 | `constants/permissions.ts` | User roles, permissions, role-permission mapping |
 | `constants/limits.ts` | System-wide limits and defaults |
+| `constants/models.ts` | Model tiers, cost profiles, scoring weights for intelligent routing |
 | `constants/index.ts` | Barrel export |
 | `types/task.ts` | Task, TaskStatus, task-related payload types |
 | `types/project.ts` | Project type |
@@ -66,6 +67,7 @@
 | `base/base-bot.ts` | Abstract BaseBotPlugin class |
 | `base/bot-registry.ts` | Singleton bot registry |
 | `base/command-parser.ts` | Text → ParsedCommand parser |
+| `base/model-router.ts` | Intelligent model tier routing engine |
 | `base/response-builder.ts` | Slack block formatting utilities |
 | `coder/coder.bot.ts` | CoderBot implementation |
 | `reviewer/reviewer.bot.ts` | ReviewerBot implementation |

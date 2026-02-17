@@ -36,3 +36,14 @@
 | `WS_RECONNECT_BASE_DELAY_MS` | No | `1000` | Initial reconnect delay |
 | `WS_RECONNECT_MAX_DELAY_MS` | No | `30000` | Maximum reconnect delay |
 | `MAX_CONTINUATIONS` | No | `3` | Max auto-continuations when Claude hits 200-turn limit |
+
+---
+
+## Model Routing (Agent)
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `MODEL_ROUTING_ENABLED` | No | `true` | Master switch — `false` disables routing, all tasks use project default |
+| `MODEL_TIER_LITE` | No | `claude-haiku-3-5-20241022` | Model ID for the lite tier (simple tasks) |
+| `MODEL_TIER_STANDARD` | No | `claude-sonnet-4-5-20250929` | Model ID for the standard tier (typical tasks) |
+| `MODEL_TIER_PREMIUM` | No | `claude-opus-4-20250514` | Model ID for the premium tier (complex tasks) |

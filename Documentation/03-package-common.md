@@ -41,6 +41,18 @@
 |--------|------|-------------|
 | `Limits` | const object | System-wide limits and defaults |
 
+### `constants/models.ts`
+
+| Export | Type | Description |
+|--------|------|-------------|
+| `ModelTier` | const object | `{ LITE: 'lite', STANDARD: 'standard', PREMIUM: 'premium' }` |
+| `DEFAULT_TIER_MODELS` | Record | Default Claude model ID per tier (Haiku → Sonnet → Opus) |
+| `TIER_COST_PER_MILLION` | Record | Approximate cost per 1M tokens (input/output) per tier |
+| `BOT_TIER_BIAS` | Record | Per-bot baseline scoring bias (-1 = lite, +1 = premium) |
+| `COMMAND_TIER_WEIGHT` | Record | Per-command scoring weight (status → lite, feature → premium) |
+| `PROMPT_LENGTH_THRESHOLDS` | const object | Character thresholds for prompt complexity scoring |
+| `TIER_SCORE_BOUNDARIES` | const object | Score cutoffs for tier selection (liteMax, premiumMin) |
+
 Key limits:
 ```
 MAX_CONCURRENT_TASKS: 3

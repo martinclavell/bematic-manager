@@ -3,6 +3,8 @@ export { BaseBotPlugin } from './base/base-bot.js';
 export { BotRegistry } from './base/bot-registry.js';
 export { parseCommandText } from './base/command-parser.js';
 export * as ResponseBuilder from './base/response-builder.js';
+export { routeToModel, resetRouterConfig } from './base/model-router.js';
+export type { RoutingDecision, ModelRouterConfig } from './base/model-router.js';
 
 // Bots
 export { CoderBot } from './coder/coder.bot.js';

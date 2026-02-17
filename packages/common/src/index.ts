@@ -9,6 +9,13 @@ export {
   Permission,
   ROLE_PERMISSIONS,
   Limits,
+  ModelTier,
+  DEFAULT_TIER_MODELS,
+  TIER_COST_PER_MILLION,
+  BOT_TIER_BIAS,
+  COMMAND_TIER_WEIGHT,
+  PROMPT_LENGTH_THRESHOLDS,
+  TIER_SCORE_BOUNDARIES,
 } from './constants/index.js';
 
 // Types
@@ -24,6 +31,8 @@ export type {
   SystemErrorPayload,
   SystemShutdownPayload,
   SystemRestartPayload,
+  DeployRequestPayload,
+  DeployResultPayload,
   Task,
   TaskSubmitPayload,
   TaskProgressPayload,
