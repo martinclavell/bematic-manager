@@ -47,6 +47,10 @@ export interface TaskSubmitPayload {
   maxBudget: number;
   allowedTools: string[];
   resumeSessionId?: string | null;
+  /** Max auto-continuations when Claude hits turn limit (0 = disabled) */
+  maxContinuations?: number;
+  /** Parent task ID when this is a subtask from decomposition */
+  parentTaskId?: string | null;
   slackContext: {
     channelId: string;
     threadTs: string | null;

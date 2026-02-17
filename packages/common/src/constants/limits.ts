@@ -28,4 +28,10 @@ export const Limits = {
 
   /** WebSocket reconnect max delay in ms */
   WS_RECONNECT_MAX_DELAY_MS: 30_000,
+
+  /** Max auto-continuations when Claude hits max_turns limit */
+  MAX_CONTINUATIONS: 3,
+
+  /** Max turns per Claude invocation */
+  MAX_TURNS_PER_INVOCATION: 200,
 } as const;

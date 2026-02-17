@@ -20,6 +20,10 @@ export function loadAgentConfig() {
       optionalEnv('MAX_CONCURRENT_TASKS', String(Limits.MAX_CONCURRENT_TASKS)),
       10,
     ),
+    maxContinuations: parseInt(
+      optionalEnv('MAX_CONTINUATIONS', String(Limits.MAX_CONTINUATIONS)),
+      10,
+    ),
     logLevel: optionalEnv('LOG_LEVEL', 'info'),
     reconnect: {
       baseDelayMs: parseInt(

@@ -14,9 +14,11 @@ export function registerMentionListener(app: App, ctx: AppContext) {
       | Array<{ url_private: string; name: string; mimetype: string; filetype: string }>
       | undefined;
 
-    // Build the effective text: original text + any attached file references
+    // Extract file info (appended to prompt later, not used for command routing)
     const fileInfo = extractFileInfo(files);
-    const text = fileInfo ? [rawText, fileInfo].filter(Boolean).join('\n\n') : rawText;
+
+    // Use raw text for bot/command routing; file info is appended to prompt in CommandService
+    const text = rawText;
 
     const user = event.user ?? 'unknown';
     const hasFiles = !!(files && files.length > 0);
@@ -55,7 +57,7 @@ export function registerMentionListener(app: App, ctx: AppContext) {
         bot,
         command,
         project,
-        slackContext: { channelId: channel, threadTs: ts, userId: user, messageTs: ts },
+        slackContext: { channelId: channel, threadTs: ts, userId: user, messageTs: ts, fileInfo },
       });
     } catch (error) {
       logger.error({ error, channel, user }, 'Error handling mention');

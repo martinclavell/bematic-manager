@@ -31,11 +31,6 @@ export class DeployService {
       body: JSON.stringify({ query, variables }),
     });
 
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Railway API error (${res.status}): ${text}`);
-    }
-
     const json = await res.json() as { data?: T; errors?: Array<{ message: string }> };
     if (json.errors?.length) {
       throw new Error(`Railway API: ${json.errors.map((e) => e.message).join(', ')}`);
@@ -57,32 +52,25 @@ export class DeployService {
   ): Promise<DeployResult> {
     logger.info({ serviceId, environmentId }, 'Triggering Railway deployment');
 
-    // Get the latest deployment to redeploy
-    const envFilter = environmentId ? `, environmentId: "${environmentId}"` : '';
-
-    const data = await this.gql<{
-      serviceDeployRedeploy: { id: string; status: string; staticUrl: string | null };
-    }>(
-      `mutation {
-        serviceDeployRedeploy(
-          serviceId: "${serviceId}"
-          ${envFilter}
-        ) {
-          id
-          status
-          staticUrl
-        }
+    // serviceInstanceRedeploy returns a boolean
+    await this.gql<{ serviceInstanceRedeploy: boolean }>(
+      `mutation ($serviceId: String!, $environmentId: String!) {
+        serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
       }`,
+      { serviceId, environmentId: environmentId ?? undefined },
     );
 
-    const dep = data.serviceDeployRedeploy;
-    logger.info({ deploymentId: dep.id, status: dep.status }, 'Deployment triggered');
+    // Fetch the latest deployment to get its ID and status
+    const deployment = await this.getLatestDeployment(serviceId, environmentId);
 
-    return {
-      deploymentId: dep.id,
-      status: dep.status,
-      url: dep.staticUrl ?? undefined,
+    const result: DeployResult = {
+      deploymentId: deployment?.id ?? 'unknown',
+      status: deployment?.status ?? 'TRIGGERED',
+      url: deployment?.staticUrl,
     };
+
+    logger.info({ deploymentId: result.deploymentId, status: result.status }, 'Deployment triggered');
+    return result;
   }
 
   /** Get the status of the latest deployment for a service */
@@ -90,13 +78,14 @@ export class DeployService {
     serviceId: string,
     environmentId?: string | null,
   ): Promise<DeploymentStatus | null> {
-    const envFilter = environmentId ? `, input: { environmentId: "${environmentId}" }` : '';
+    const input: Record<string, string> = { serviceId };
+    if (environmentId) input['environmentId'] = environmentId;
 
     const data = await this.gql<{
       deployments: { edges: Array<{ node: { id: string; status: string; createdAt: string; staticUrl: string | null } }> };
     }>(
-      `query {
-        deployments(first: 1, serviceId: "${serviceId}" ${envFilter}) {
+      `query ($input: DeploymentListInput!, $first: Int) {
+        deployments(input: $input, first: $first) {
           edges {
             node {
               id
@@ -107,6 +96,7 @@ export class DeployService {
           }
         }
       }`,
+      { input, first: 1 },
     );
 
     const edge = data.deployments.edges[0];
@@ -126,13 +116,14 @@ export class DeployService {
     const data = await this.gql<{
       deploymentLogs: Array<{ message: string; timestamp: string; severity: string }>;
     }>(
-      `query {
-        deploymentLogs(deploymentId: "${deploymentId}", limit: 50) {
+      `query ($deploymentId: String!, $limit: Int) {
+        deploymentLogs(deploymentId: $deploymentId, limit: $limit) {
           message
           timestamp
           severity
         }
       }`,
+      { deploymentId, limit: 50 },
     );
 
     if (!data.deploymentLogs?.length) {

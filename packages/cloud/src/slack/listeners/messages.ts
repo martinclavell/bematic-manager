@@ -17,12 +17,15 @@ export function registerMessageListener(app: App, ctx: AppContext) {
       | Array<{ url_private: string; name: string; mimetype: string; filetype: string }>
       | undefined;
 
-    // Build the effective text: original text + any attached file references
+    // Extract file info (appended to prompt later, not used for command routing)
     const fileInfo = extractFileInfo(files);
-    const text = fileInfo ? [rawText, fileInfo].filter(Boolean).join('\n\n') : rawText;
 
-    // Skip if there's no content at all
-    if (!text || text.trim().length < 1) return;
+    // Skip if there's no text AND no files
+    if (!rawText.trim() && !fileInfo) return;
+
+    // Use raw text for bot/command routing; file info is appended to prompt in CommandService
+    const text = rawText || 'Analyze the attached file(s)';
+    if (text.trim().length < 1) return;
 
     const { user, channel, ts } = message as {
       user: string;
@@ -85,7 +88,7 @@ export function registerMessageListener(app: App, ctx: AppContext) {
         bot,
         command,
         project,
-        slackContext: { channelId: channel, threadTs, userId: user, messageTs: ts },
+        slackContext: { channelId: channel, threadTs, userId: user, messageTs: ts, fileInfo },
         resumeSessionId,
       });
     } catch (error) {

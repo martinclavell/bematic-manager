@@ -32,6 +32,8 @@ export const taskSubmitSchema = z.object({
   maxBudget: z.number().positive(),
   allowedTools: z.array(z.string()),
   resumeSessionId: z.string().nullable().optional(),
+  maxContinuations: z.number().int().min(0).optional(),
+  parentTaskId: z.string().nullable().optional(),
   slackContext: z.object({
     channelId: z.string(),
     threadTs: z.string().nullable(),

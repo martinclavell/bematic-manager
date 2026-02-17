@@ -45,6 +45,16 @@ export class CommandService {
       defaultMaxBudget: project.defaultMaxBudget,
     });
 
+    // Append file/image attachment info to the prompt if present
+    if (slackContext.fileInfo) {
+      execConfig.prompt = execConfig.prompt
+        ? `${execConfig.prompt}
+
+${slackContext.fileInfo}`
+        : slackContext.fileInfo;
+      logger.info({ fileInfo: slackContext.fileInfo.slice(0, 200) }, 'Appended file info to prompt');
+    }
+
     // Create task in DB
     const taskId = generateTaskId();
     this.taskRepo.create({
