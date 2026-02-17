@@ -1,23 +1,32 @@
 /**
  * Converts GitHub-flavored Markdown to Slack mrkdwn format.
  *
- * Key differences:
- * - MD: **bold** → Slack: *bold*
- * - MD: *italic* / _italic_ → Slack: _italic_
- * - MD: ## Header → Slack: *Header*
- * - MD: [text](url) → Slack: <url|text>
- * - MD: ![alt](url) → Slack: <url|alt>
- * - MD tables → Slack: preformatted code block with aligned columns
- * - Code blocks and inline code work the same
+ * Conversion map:
+ * - MD: **bold** / __bold__      → Slack: *bold*
+ * - MD: *italic* / _italic_      → Slack: _italic_
+ * - MD: ***bold italic***        → Slack: *_bold italic_*
+ * - MD: ~~strikethrough~~        → Slack: ~strikethrough~
+ * - MD: ## Header                → Slack: *Header*
+ * - MD: [text](url)              → Slack: <url|text>
+ * - MD: ![alt](url)              → Slack: <url|alt>
+ * - MD: > blockquote             → Slack: > blockquote
+ * - MD: - [ ] task / - [x] task  → Slack: ☐ / ✅ task
+ * - MD: - item / * item          → Slack: •  item (with indent)
+ * - MD: 1. item                  → Slack: 1. item (preserved)
+ * - MD: tables                   → Slack: preformatted code block
+ * - MD: ---                      → Slack: ───
+ * - Code blocks and inline code are preserved as-is
  */
 export function markdownToSlack(md: string): string {
   if (!md) return md;
 
   let result = md;
 
-  // Protect code blocks from being modified
+  // ── Phase 1: Protect content that must not be modified ──────────────
+
+  // Protect fenced code blocks
   // NOTE: Placeholders use %% delimiters (not __) to avoid collision
-  // with the __bold__ → *bold* conversion on line 38.
+  // with the __bold__ → *bold* conversion.
   const codeBlocks: string[] = [];
   result = result.replace(/```[\s\S]*?```/g, (match) => {
     codeBlocks.push(match);
@@ -31,13 +40,37 @@ export function markdownToSlack(md: string): string {
     return `%%INLINECODE_${inlineCode.length - 1}%%`;
   });
 
+  // ── Phase 2: Block-level conversions ────────────────────────────────
+
   // Convert Markdown tables to preformatted code blocks.
   // Must run BEFORE inline conversions so pipe characters aren't mangled.
   // The resulting code blocks are pushed into the codeBlocks array (protected).
-  result = convertTables(result, codeBlocks);
+  result = convertTables(result, codeBlocks, inlineCode);
 
-  // Headers: ## Header → *Header*
+  // Task lists: - [x] item / - [ ] item → emoji checkboxes
+  // Must run BEFORE unordered list conversion so the `- ` prefix is handled here.
+  result = result.replace(/^(\s*)[-*]\s+\[x\]\s+(.+)$/gm, '$1✅  $2');
+  result = result.replace(/^(\s*)[-*]\s+\[ \]\s+(.+)$/gm, '$1☐  $2');
+
+  // Unordered lists: - item or * item → •  item
+  // Preserve indentation. Only match lines starting with - or * followed by space.
+  // Must run BEFORE bold conversion so `* item` isn't turned into italic.
+  result = result.replace(/^(\s*)[-*]\s+(.+)$/gm, '$1•  $2');
+
+  // Headers: ## Header → *Header* (bold in Slack)
   result = result.replace(/^#{1,6}\s+(.+)$/gm, '*$1*');
+
+  // Blockquotes: > text → > text (Slack uses the same syntax)
+  // But strip the extra space after > that Markdown uses, and handle nested >>
+  result = result.replace(/^(\s*)>\s?/gm, '$1> ');
+
+  // Horizontal rules: --- or *** or ___ → ───
+  result = result.replace(/^[-*_]{3,}$/gm, '───');
+
+  // ── Phase 3: Inline conversions ─────────────────────────────────────
+
+  // Bold+italic combo: ***text*** → *_text_*
+  result = result.replace(/\*\*\*(.+?)\*\*\*/g, '*_$1_*');
 
   // Bold: **text** → *text*
   result = result.replace(/\*\*(.+?)\*\*/g, '*$1*');
@@ -45,11 +78,8 @@ export function markdownToSlack(md: string): string {
   // Bold: __text__ → *text*
   result = result.replace(/__(.+?)__/g, '*$1*');
 
-  // Italic with asterisks (single): leave as-is since Slack uses _italic_
-  // But we need to be careful not to break already-converted bold
-  // MD single *italic* that isn't part of **bold** → _italic_
-  // This is tricky because we already converted **bold** to *bold*
-  // Skip this conversion to avoid conflicts
+  // Strikethrough: ~~text~~ → ~text~
+  result = result.replace(/~~(.+?)~~/g, '~$1~');
 
   // Images: ![alt](url) → <url|alt>
   result = result.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<$2|$1>');
@@ -57,8 +87,7 @@ export function markdownToSlack(md: string): string {
   // Links: [text](url) → <url|text>
   result = result.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<$2|$1>');
 
-  // Horizontal rules: --- or *** → ───
-  result = result.replace(/^[-*_]{3,}$/gm, '───');
+  // ── Phase 4: Restore protected content ──────────────────────────────
 
   // Restore code blocks first (they may contain inline-code placeholders)
   result = result.replace(/%%CODEBLOCK_(\d+)%%/g, (_, i) => codeBlocks[parseInt(i)]);
@@ -81,27 +110,39 @@ function isSeparatorRow(line: string): boolean {
   return /^\s*\|[\s:-]+\|[\s:|-]*$/.test(line);
 }
 
-/** Split a table row into trimmed cell values (drops leading/trailing empty segments). */
-function parseCells(row: string): string[] {
+/**
+ * Split a table row into trimmed cell values.
+ * Drops leading/trailing empty segments from the split.
+ * Resolves inline-code placeholders back to readable text (without backticks)
+ * since the table will be rendered inside a monospace code block.
+ */
+function parseCells(row: string, inlineCode: string[]): string[] {
   return row
     .replace(/^\s*\|/, '')
     .replace(/\|\s*$/, '')
     .split('|')
-    .map((c) => stripInlineMarkdown(c.trim()));
+    .map((c) => stripCellMarkdown(c.trim(), inlineCode));
 }
 
 /**
- * Strip lightweight Markdown formatting so the monospace table reads cleanly.
- * Restores inline-code placeholder content but drops the backticks so it
- * stays readable inside a ``` block.
+ * Strip Markdown formatting from a table cell so it reads cleanly in monospace.
+ * Inline-code placeholders are resolved back to their text content (backticks
+ * stripped since the whole table is already inside a ``` block).
  */
-function stripInlineMarkdown(text: string): string {
+function stripCellMarkdown(text: string, inlineCode: string[]): string {
   return text
-    .replace(/\*\*(.+?)\*\*/g, '$1')      // **bold**
-    .replace(/__(.+?)__/g, '$1')            // __bold__
-    .replace(/\*(.+?)\*/g, '$1')            // *italic*
-    .replace(/_(.+?)_/g, '$1')              // _italic_
-    .replace(/%%INLINECODE_\d+%%/g, (m) => m)  // keep placeholder (restored later)
+    // Resolve inline-code placeholders → raw text (drop backticks)
+    .replace(/%%INLINECODE_(\d+)%%/g, (_, i) => {
+      const raw = inlineCode[parseInt(i)] ?? '';
+      // Strip surrounding backticks: `foo` → foo
+      return raw.replace(/^`|`$/g, '');
+    })
+    .replace(/\*\*\*(.+?)\*\*\*/g, '$1')   // ***bold italic***
+    .replace(/\*\*(.+?)\*\*/g, '$1')        // **bold**
+    .replace(/__(.+?)__/g, '$1')             // __bold__
+    .replace(/\*(.+?)\*/g, '$1')             // *italic*
+    .replace(/_(.+?)_/g, '$1')               // _italic_
+    .replace(/~~(.+?)~~/g, '$1')             // ~~strikethrough~~
     ;
 }
 
@@ -111,7 +152,7 @@ function stripInlineMarkdown(text: string): string {
  * The code block is pushed into the shared codeBlocks array so it is
  * protected from further inline conversions (bold, italic, links, etc.).
  */
-function convertTables(text: string, codeBlocks: string[]): string {
+function convertTables(text: string, codeBlocks: string[], inlineCode: string[]): string {
   const lines = text.split('\n');
   const output: string[] = [];
   let i = 0;
@@ -132,7 +173,13 @@ function convertTables(text: string, codeBlocks: string[]): string {
 
     // Need at least a header + separator (2 lines) to be a table
     if (tableLines.length < 2) {
-      // Not really a table, keep as-is
+      output.push(...tableLines);
+      continue;
+    }
+
+    // Check that there is actually a separator row (validates it's a real table)
+    const hasSeparator = tableLines.some((l) => isSeparatorRow(l));
+    if (!hasSeparator) {
       output.push(...tableLines);
       continue;
     }
@@ -141,7 +188,7 @@ function convertTables(text: string, codeBlocks: string[]): string {
     const dataRows: string[][] = [];
     for (const line of tableLines) {
       if (isSeparatorRow(line)) continue;
-      dataRows.push(parseCells(line));
+      dataRows.push(parseCells(line, inlineCode));
     }
 
     if (dataRows.length === 0) {
@@ -149,8 +196,10 @@ function convertTables(text: string, codeBlocks: string[]): string {
       continue;
     }
 
-    // Calculate column widths
+    // Normalize column counts (some rows may have fewer cells)
     const colCount = Math.max(...dataRows.map((r) => r.length));
+
+    // Calculate column widths
     const widths: number[] = new Array(colCount).fill(0);
     for (const row of dataRows) {
       for (let c = 0; c < colCount; c++) {
