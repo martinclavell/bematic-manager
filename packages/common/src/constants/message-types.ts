@@ -21,6 +21,10 @@ export const MessageType = {
   AGENT_STATUS: 'agent:status',
   AGENT_METRICS: 'agent:metrics',
 
+  // Deploy
+  DEPLOY_REQUEST: 'deploy:request',
+  DEPLOY_RESULT: 'deploy:result',
+
   // System
   SYSTEM_ERROR: 'system:error',
   SYSTEM_SHUTDOWN: 'system:shutdown',

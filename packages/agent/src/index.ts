@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { execSync } from 'node:child_process';
 import {
   MessageType,
   createLogger,
@@ -6,6 +7,7 @@ import {
   taskSubmitSchema,
   type TaskSubmitPayload,
   type SystemRestartPayload,
+  type DeployRequestPayload,
 } from '@bematic/common';
 import { loadAgentConfig } from './config.js';
 import { WSClient } from './connection/ws-client.js';
@@ -66,6 +68,13 @@ async function main() {
         break;
       }
 
+      case MessageType.DEPLOY_REQUEST: {
+        const payload = parsed.payload as DeployRequestPayload;
+        logger.info({ requestId: payload.requestId, localPath: payload.localPath }, 'Deploy request received');
+        handleDeploy(wsClient, payload);
+        break;
+      }
+
       case MessageType.SYSTEM_SHUTDOWN: {
         logger.info('Received shutdown signal from cloud');
         shutdown(0);
@@ -112,6 +121,39 @@ async function main() {
 
   process.on('SIGTERM', () => shutdown(0));
   process.on('SIGINT', () => shutdown(0));
+}
+
+function handleDeploy(wsClient: WSClient, payload: DeployRequestPayload) {
+  try {
+    logger.info({ localPath: payload.localPath }, 'Running railway up...');
+    const output = execSync('railway up --detach', {
+      cwd: payload.localPath,
+      encoding: 'utf-8',
+      timeout: 120_000,
+    });
+
+    // Extract build logs URL from output
+    const urlMatch = output.match(/(https:\/\/railway\.com\/[^\s]+)/);
+
+    wsClient.send(
+      createWSMessage(MessageType.DEPLOY_RESULT, {
+        requestId: payload.requestId,
+        success: true,
+        output: output.trim(),
+        buildLogsUrl: urlMatch?.[1],
+      }),
+    );
+  } catch (err) {
+    const message = err instanceof Error ? (err as any).stderr || err.message : String(err);
+    logger.error({ error: message }, 'Deploy failed');
+    wsClient.send(
+      createWSMessage(MessageType.DEPLOY_RESULT, {
+        requestId: payload.requestId,
+        success: false,
+        output: message,
+      }),
+    );
+  }
 }
 
 main().catch((err) => {

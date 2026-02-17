@@ -10,6 +10,8 @@ export type {
   SystemErrorPayload,
   SystemShutdownPayload,
   SystemRestartPayload,
+  DeployRequestPayload,
+  DeployResultPayload,
 } from './messages.js';
 
 export type {

@@ -25,6 +25,8 @@ export interface MessagePayloadMap {
   [MessageType.TASK_CANCELLED]: TaskCancelledPayload;
   [MessageType.AGENT_STATUS]: AgentStatusPayload;
   [MessageType.AGENT_METRICS]: AgentMetricsPayload;
+  [MessageType.DEPLOY_REQUEST]: DeployRequestPayload;
+  [MessageType.DEPLOY_RESULT]: DeployResultPayload;
   [MessageType.SYSTEM_ERROR]: SystemErrorPayload;
   [MessageType.SYSTEM_SHUTDOWN]: SystemShutdownPayload;
   [MessageType.SYSTEM_RESTART]: SystemRestartPayload;
@@ -87,6 +89,21 @@ export interface SystemErrorPayload {
 export interface SystemShutdownPayload {
   reason: string;
   gracePeriodMs: number;
+}
+
+export interface DeployRequestPayload {
+  requestId: string;
+  localPath: string;
+  slackChannelId: string;
+  slackThreadTs: string | null;
+  requestedBy: string;
+}
+
+export interface DeployResultPayload {
+  requestId: string;
+  success: boolean;
+  output: string;
+  buildLogsUrl?: string;
 }
 
 export interface SystemRestartPayload {

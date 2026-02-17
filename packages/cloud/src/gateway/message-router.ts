@@ -7,6 +7,7 @@ import {
   taskStreamSchema,
   taskCompleteSchema,
   taskErrorSchema,
+  type DeployResultPayload,
 } from '@bematic/common';
 import { BotRegistry } from '@bematic/bots';
 import { ResponseBuilder } from '@bematic/bots';
@@ -24,8 +25,16 @@ interface ProgressTracker {
   steps: string[];
 }
 
+/** Tracks where to send deploy results */
+interface DeployRequest {
+  slackChannelId: string;
+  slackThreadTs: string | null;
+  requestedBy: string;
+}
+
 export class MessageRouter {
   private progressTrackers = new Map<string, ProgressTracker>();
+  private deployRequests = new Map<string, DeployRequest>();
   private commandService: CommandService | null = null;
   private projectRepo: ProjectRepository | null = null;
 
@@ -35,6 +44,11 @@ export class MessageRouter {
     private readonly streamAccumulator: StreamAccumulator,
     private readonly notifier: NotificationService,
   ) {}
+
+  /** Register a deploy request so we know where to post the result */
+  registerDeployRequest(requestId: string, channelId: string, threadTs: string | null, userId: string): void {
+    this.deployRequests.set(requestId, { slackChannelId: channelId, slackThreadTs: threadTs, requestedBy: userId });
+  }
 
   /**
    * Inject CommandService after construction (avoids circular init order).
@@ -73,6 +87,9 @@ export class MessageRouter {
         break;
       case MessageType.TASK_CANCELLED:
         await this.handleTaskCancelled(msg.payload);
+        break;
+      case MessageType.DEPLOY_RESULT:
+        await this.handleDeployResult(agentId, msg.payload as DeployResultPayload);
         break;
       case MessageType.AGENT_STATUS:
         logger.debug({ agentId, payload: msg.payload }, 'Agent status update');
@@ -328,6 +345,33 @@ export class MessageRouter {
       { parentTaskId, subtaskCount: subtasks.length, completed, failed, totalCost },
       'All subtasks completed — parent task finalized',
     );
+  }
+
+  private async handleDeployResult(agentId: string, payload: DeployResultPayload): Promise<void> {
+    const req = this.deployRequests.get(payload.requestId);
+    this.deployRequests.delete(payload.requestId);
+
+    if (!req) {
+      logger.warn({ requestId: payload.requestId }, 'Deploy result for unknown request');
+      return;
+    }
+
+    if (payload.success) {
+      const logsLine = payload.buildLogsUrl ? `\n> Build logs: ${payload.buildLogsUrl}` : '';
+      await this.notifier.postMessage(
+        req.slackChannelId,
+        `:white_check_mark: *Deploy uploaded successfully!*\n\`\`\`${payload.output}\`\`\`${logsLine}`,
+        req.slackThreadTs,
+      );
+    } else {
+      await this.notifier.postMessage(
+        req.slackChannelId,
+        `:x: *Deploy failed:*\n\`\`\`${payload.output.slice(0, 2900)}\`\`\``,
+        req.slackThreadTs,
+      );
+    }
+
+    logger.info({ requestId: payload.requestId, success: payload.success, agentId }, 'Deploy result received');
   }
 
   private async handleTaskError(agentId: string, payload: unknown): Promise<void> {

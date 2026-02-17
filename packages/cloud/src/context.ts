@@ -10,6 +10,7 @@ import type { ProjectService } from './services/project.service.js';
 import type { NotificationService } from './services/notification.service.js';
 import type { DeployService } from './services/deploy.service.js';
 import type { AgentManager } from './gateway/agent-manager.js';
+import type { MessageRouter } from './gateway/message-router.js';
 
 /** Shared context injected into all Slack listeners */
 export interface AppContext {
@@ -28,6 +29,7 @@ export interface AppContext {
 
   // Gateway
   agentManager: AgentManager;
+  messageRouter: MessageRouter;
 
   // Middleware helpers
   authChecker: {

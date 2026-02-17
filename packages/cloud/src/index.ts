@@ -114,6 +114,7 @@ async function main() {
     notifier,
     deployService,
     agentManager,
+    messageRouter,
     authChecker,
     rateLimiter,
     projectResolver,
