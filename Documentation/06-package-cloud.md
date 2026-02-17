@@ -105,7 +105,7 @@ Executed in order for every incoming Slack event:
 | Service | File | Purpose |
 |---------|------|---------|
 | `CommandService` | `command.service.ts` | Orchestrates: bot resolution → command parsing → task creation → agent submission |
-| `NotificationService` | `notification.service.ts` | Slack thread posting: progress, completion, errors, stream updates |
+| `NotificationService` | `notification.service.ts` | Slack messaging (progress, completion, errors, stream updates) and emoji reactions |
 | `ProjectService` | `project.service.ts` | CRUD operations for project configuration |
 
 ---

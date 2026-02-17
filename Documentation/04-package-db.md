@@ -58,6 +58,7 @@ All tables use TEXT primary keys (nanoid-generated) except `audit_logs`, `offlin
 | `slack_channel_id` | TEXT NOT NULL | |
 | `slack_thread_ts` | TEXT NULL | |
 | `slack_user_id` | TEXT NOT NULL | |
+| `slack_message_ts` | TEXT NULL | User's original message ts (for emoji reactions) |
 | `session_id` | TEXT NULL | |
 | `input_tokens` | INTEGER NOT NULL | default: 0 |
 | `output_tokens` | INTEGER NOT NULL | default: 0 |

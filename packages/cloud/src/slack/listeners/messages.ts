@@ -32,6 +32,9 @@ export function registerMessageListener(app: App, ctx: AppContext) {
 
     logger.info({ user, channel, text: text.slice(0, 100), isThreadReply, threadTs }, 'Channel message received');
 
+    // React with hourglass to acknowledge the message
+    await ctx.notifier.addReaction(channel, ts, 'hourglass_flowing_sand');
+
     try {
       // Auth check
       await ctx.authChecker.checkPermission(user, Permission.TASK_CREATE);
@@ -65,16 +68,19 @@ export function registerMessageListener(app: App, ctx: AppContext) {
         }
       }
 
-      // Submit the task
+      // Submit the task (pass messageTs so we can react on completion)
       await ctx.commandService.submit({
         bot,
         command,
         project,
-        slackContext: { channelId: channel, threadTs, userId: user },
+        slackContext: { channelId: channel, threadTs, userId: user, messageTs: ts },
         resumeSessionId,
       });
     } catch (error) {
       logger.error({ error, channel, user }, 'Error handling message');
+      // Swap hourglass for error emoji
+      await ctx.notifier.removeReaction(channel, ts, 'hourglass_flowing_sand');
+      await ctx.notifier.addReaction(channel, ts, 'x');
       const errorMsg =
         error instanceof Error ? error.message : 'An unexpected error occurred';
       await say({ thread_ts: ts, text: `:x: ${errorMsg}` });

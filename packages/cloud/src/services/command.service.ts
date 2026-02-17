@@ -57,6 +57,7 @@ export class CommandService {
       slackChannelId: slackContext.channelId,
       slackThreadTs: slackContext.threadTs,
       slackUserId: slackContext.userId,
+      slackMessageTs: slackContext.messageTs ?? null,
       maxBudget: execConfig.maxBudget,
     });
 
@@ -94,6 +95,12 @@ export class CommandService {
       // Agent offline - queue message
       this.offlineQueue.enqueue(project.agentId, wsMsg);
       this.taskRepo.update(taskId, { status: 'queued' });
+
+      // Swap hourglass for queued emoji on the user's message
+      if (slackContext.messageTs) {
+        await this.notifier.removeReaction(slackContext.channelId, slackContext.messageTs, 'hourglass_flowing_sand');
+        await this.notifier.addReaction(slackContext.channelId, slackContext.messageTs, 'inbox_tray');
+      }
 
       await this.notifier.postBlocks(
         slackContext.channelId,

@@ -13,6 +13,7 @@ export const tasks = sqliteTable('tasks', {
   slackChannelId: text('slack_channel_id').notNull(),
   slackThreadTs: text('slack_thread_ts'),
   slackUserId: text('slack_user_id').notNull(),
+  slackMessageTs: text('slack_message_ts'),
   sessionId: text('session_id'),
   inputTokens: integer('input_tokens').notNull().default(0),
   outputTokens: integer('output_tokens').notNull().default(0),

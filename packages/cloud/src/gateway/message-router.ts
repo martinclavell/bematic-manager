@@ -10,7 +10,7 @@ import {
 } from '@bematic/common';
 import { BotRegistry } from '@bematic/bots';
 import { ResponseBuilder } from '@bematic/bots';
-import type { TaskRepository, AuditLogRepository } from '@bematic/db';
+import type { TaskRepository, AuditLogRepository, TaskRow } from '@bematic/db';
 import type { StreamAccumulator } from './stream-accumulator.js';
 import type { NotificationService } from '../services/notification.service.js';
 import { markdownToSlack } from '../utils/markdown-to-slack.js';
@@ -32,6 +32,13 @@ export class MessageRouter {
     private readonly streamAccumulator: StreamAccumulator,
     private readonly notifier: NotificationService,
   ) {}
+
+  /** Swap the hourglass reaction on the user's original message for a final status emoji */
+  private async swapReaction(task: TaskRow, emoji: string): Promise<void> {
+    if (!task.slackMessageTs) return;
+    await this.notifier.removeReaction(task.slackChannelId, task.slackMessageTs, 'hourglass_flowing_sand');
+    await this.notifier.addReaction(task.slackChannelId, task.slackMessageTs, emoji);
+  }
 
   async handleAgentMessage(agentId: string, raw: string): Promise<void> {
     const msg = parseMessage(raw);
@@ -81,6 +88,7 @@ export class MessageRouter {
         status: 'failed',
         errorMessage: parsed.reason ?? 'Task rejected by agent',
       });
+      await this.swapReaction(task, 'x');
       await this.notifier.postMessage(
         task.slackChannelId,
         `:x: Task rejected: ${parsed.reason ?? 'Unknown reason'}`,
@@ -176,6 +184,9 @@ export class MessageRouter {
       ? bot.formatResult({ ...parsed, result: slackResult })
       : ResponseBuilder.taskCompleteBlocks(slackResult, parsed);
 
+    // Swap hourglass for success on the user's original message
+    await this.swapReaction(task, 'white_check_mark');
+
     await this.notifier.postBlocks(
       task.slackChannelId,
       blocks,
@@ -210,6 +221,9 @@ export class MessageRouter {
       ? bot.formatError(parsed.error, parsed.taskId)
       : ResponseBuilder.taskErrorBlocks(parsed.error, parsed.taskId);
 
+    // Swap hourglass for error on the user's original message
+    await this.swapReaction(task, 'x');
+
     await this.notifier.postBlocks(
       task.slackChannelId,
       blocks,
@@ -233,6 +247,9 @@ export class MessageRouter {
     this.taskRepo.update(parsed.taskId, { status: 'cancelled' });
     this.streamAccumulator.removeStream(parsed.taskId);
     this.progressTrackers.delete(parsed.taskId);
+
+    // Swap hourglass for cancelled on the user's original message
+    await this.swapReaction(task, 'no_entry_sign');
 
     await this.notifier.postMessage(
       task.slackChannelId,

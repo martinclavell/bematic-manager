@@ -3,6 +3,8 @@ export interface SlackContext {
   threadTs: string | null;
   userId: string;
   teamId?: string;
+  /** Timestamp of the user's original message (used for emoji reactions) */
+  messageTs?: string | null;
 }
 
 export interface SlackBlockMessage {

@@ -28,6 +28,15 @@ export function pushSchema(dbUrl?: string) {
     updated_at TEXT NOT NULL
   )`);
 
+  // Add railway columns if they don't exist (migration for existing DBs)
+  for (const col of ['railway_project_id', 'railway_service_id', 'railway_environment_id']) {
+    try {
+      db.run(sql.raw(`ALTER TABLE projects ADD COLUMN ${col} TEXT`));
+    } catch {
+      // Column already exists, ignore
+    }
+  }
+
   db.run(sql`CREATE TABLE IF NOT EXISTS ${tasks} (
     id TEXT PRIMARY KEY,
     project_id TEXT NOT NULL REFERENCES projects(id),
@@ -51,6 +60,13 @@ export function pushSchema(dbUrl?: string) {
     updated_at TEXT NOT NULL,
     completed_at TEXT
   )`);
+
+  // Add slack_message_ts column if it doesn't exist (migration for existing DBs)
+  try {
+    db.run(sql.raw(`ALTER TABLE tasks ADD COLUMN slack_message_ts TEXT`));
+  } catch {
+    // Column already exists, ignore
+  }
 
   db.run(sql`CREATE TABLE IF NOT EXISTS ${sessions} (
     id TEXT PRIMARY KEY,
