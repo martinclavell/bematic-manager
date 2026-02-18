@@ -41,4 +41,16 @@ export const Limits = {
   SLACK_SECTION_BLOCK_MAX_LENGTH: 3_000, // Per section block limit
   SLACK_STREAMING_DISPLAY_LENGTH: 12_000, // Display limit for streaming messages
   SLACK_FINAL_DISPLAY_LENGTH: 15_000, // Display limit for final results
+
+  /** Agent keepalive ping interval in ms (send ping to cloud every 20s) */
+  AGENT_KEEPALIVE_INTERVAL_MS: 20_000,
+
+  /** Anthropic API call timeout in ms (5 minutes) */
+  CLAUDE_API_TIMEOUT_MS: 300_000,
+
+  /** Circuit breaker: max consecutive reconnection failures before backing off */
+  CIRCUIT_BREAKER_MAX_FAILURES: 10,
+
+  /** Circuit breaker: long backoff interval when circuit is open (5 minutes) */
+  CIRCUIT_BREAKER_LONG_BACKOFF_MS: 300_000,
 } as const;

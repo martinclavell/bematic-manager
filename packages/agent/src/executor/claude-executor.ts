@@ -115,6 +115,8 @@ export class ClaudeExecutor {
       'Starting Claude execution',
     );
 
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
     try {
       // Send ACK
       this.wsClient.send(
@@ -130,6 +132,12 @@ export class ClaudeExecutor {
       if (abortSignal) {
         abortSignal.addEventListener('abort', () => abortController.abort(), { once: true });
       }
+
+      // Add global timeout for Claude API calls
+      timeoutId = setTimeout(() => {
+        logger.warn({ taskId: task.taskId, timeoutMs: Limits.CLAUDE_API_TIMEOUT_MS }, 'Claude API timeout - aborting');
+        abortController.abort();
+      }, Limits.CLAUDE_API_TIMEOUT_MS);
 
       logger.info(
         { taskId: task.taskId, hasApiKey: !!process.env['ANTHROPIC_API_KEY'], cwd: task.localPath },
@@ -279,8 +287,14 @@ export class ClaudeExecutor {
         'Claude execution completed',
       );
 
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       return result;
     } catch (error) {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       const durationMs = Date.now() - startTime;
       const rawError = error instanceof Error ? error.message : String(error);
       const errorMessage = rawError;

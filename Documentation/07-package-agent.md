@@ -32,10 +32,17 @@ Startup sequence:
 
 - Connects to `CLOUD_WS_URL`
 - Authenticates with `AGENT_ID` + `AGENT_API_KEY`
+- **Bidirectional keepalive**: Sends periodic pings every 20s (`AGENT_KEEPALIVE_INTERVAL_MS`) to detect dead connections
 - Exponential backoff reconnection with jitter
+- **Circuit breaker**: After 10 consecutive failures, switches to 5-minute backoff to prevent resource exhaustion
 - Configurable delays: `WS_RECONNECT_BASE_DELAY_MS`, `WS_RECONNECT_MAX_DELAY_MS`
 - Forwards received messages to registered handlers
 - Sends typed messages to cloud
+
+**Resilience features**:
+- Proactive connection health monitoring via keepalive pings
+- Automatic recovery from transient network failures
+- Long backoff for persistent failures to reduce resource usage
 
 ---
 
@@ -81,11 +88,14 @@ Features:
 - Custom system prompt injection
 - Tool filtering (restricts which tools Claude can use)
 - Abort controller for task cancellation
+- **API timeout protection**: 5-minute global timeout (`CLAUDE_API_TIMEOUT_MS`) prevents indefinite hangs
 - File change tracking
 - Command execution tracking
 - Token usage and cost estimation
 
 **Authentication**: Uses `ANTHROPIC_API_KEY` env var. Falls back to Claude subscription auth if not set.
+
+**Resilience**: If Anthropic API becomes unresponsive, the timeout automatically aborts the request after 5 minutes to prevent blocking the agent indefinitely.
 
 **Callbacks**:
 ```typescript

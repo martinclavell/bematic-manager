@@ -9,10 +9,28 @@ export function setupGlobalErrorHandlers(): void {
   // Unhandled promise rejections
   process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
     logger.fatal({ reason, promise: promise.toString() }, 'Unhandled promise rejection in agent');
-    // Agents should try to recover if possible, but log fatally
-    // The wrapper script (start-agent.sh) will restart if we exit
+
+    // In production, try to determine if error is recoverable
     if (process.env.NODE_ENV === 'production') {
-      setTimeout(() => process.exit(1), 1000);
+      const errorMessage = reason instanceof Error ? reason.message : String(reason);
+
+      // Check if error is likely recoverable (network/API errors)
+      const isRecoverable =
+        errorMessage.includes('ECONNREFUSED') ||
+        errorMessage.includes('ENOTFOUND') ||
+        errorMessage.includes('ETIMEDOUT') ||
+        errorMessage.includes('socket hang up') ||
+        errorMessage.includes('network') ||
+        errorMessage.includes('timeout') ||
+        errorMessage.includes('aborted');
+
+      if (isRecoverable) {
+        logger.warn({ reason }, 'Recoverable error detected - continuing operation');
+        // Don't exit, let reconnection logic handle it
+      } else {
+        logger.fatal({ reason }, 'Non-recoverable error - exiting in 2 seconds');
+        setTimeout(() => process.exit(1), 2000);
+      }
     }
   });
 
