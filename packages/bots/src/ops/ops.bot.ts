@@ -5,7 +5,6 @@ export class OpsBot extends BaseBotPlugin {
   name = BotName.OPS;
   displayName = 'Ops';
   description = 'Build, deploy, git operations, and system status';
-  slashCommand = '/bm-ops';
   defaultCommand = 'status';
 
   commands: BotCommand[] = [

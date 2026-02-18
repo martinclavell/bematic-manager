@@ -2,30 +2,27 @@ import type { App } from '@slack/bolt';
 import { Permission, createLogger } from '@bematic/common';
 import { BotRegistry } from '@bematic/bots';
 import type { AppContext } from '../../context.js';
-import { extractFileInfo } from './file-utils.js';
+import { downloadSlackFiles, describeAttachments } from './file-utils.js';
 
 const logger = createLogger('slack:messages');
 
 export function registerMessageListener(app: App, ctx: AppContext) {
-  app.message(async ({ message, say }) => {
+  app.message(async ({ message, say, client }) => {
     // Allow file_share messages through; skip other subtypes (bot_message, message_changed, etc.)
     if (message.subtype && message.subtype !== 'file_share') return;
     if (!('user' in message) || !message.user) return;
 
     const rawText = ('text' in message ? message.text : '') ?? '';
     const files = ('files' in message ? (message as any).files : undefined) as
-      | Array<{ url_private: string; name: string; mimetype: string; filetype: string }>
+      | Array<{ url_private_download?: string; url_private: string; name: string; mimetype: string; filetype: string; size?: number }>
       | undefined;
 
-    // Extract file info (appended to prompt later, not used for command routing)
-    const fileInfo = extractFileInfo(files);
-
     // Skip if there's no text AND no files
-    if (!rawText.trim() && !fileInfo) return;
+    if (!rawText.trim() && (!files || files.length === 0)) return;
 
-    // Use raw text for bot/command routing; file info is appended to prompt in CommandService
-    const text = rawText || 'Analyze the attached file(s)';
-    if (text.trim().length < 1) return;
+    // Use raw text for bot/command routing; default to "Analyze" if only files
+    const text = rawText.trim() || 'Analyze the attached file(s)';
+    if (text.length < 1) return;
 
     const { user, channel, ts } = message as {
       user: string;
@@ -58,9 +55,11 @@ export function registerMessageListener(app: App, ctx: AppContext) {
       const dbUser = ctx.userRepo.findBySlackUserId(user);
       ctx.rateLimiter.check(user, dbUser?.rateLimitOverride ?? null);
 
+      // Download file attachments from Slack
+      const attachments = await downloadSlackFiles(files, client.token as string);
+      const fileInfo = attachments.length > 0 ? describeAttachments(attachments) : null;
+
       // Try to resolve as a bot command (e.g., "code fix the bug" or "review this file")
-      // If text starts with a bot keyword, route to that bot
-      // Otherwise default to coder bot with the full text as the prompt
       let resolved = BotRegistry.resolveFromMention(text);
 
       if (!resolved) {
@@ -83,17 +82,16 @@ export function registerMessageListener(app: App, ctx: AppContext) {
         }
       }
 
-      // Submit the task (pass messageTs so we can react on completion)
+      // Submit the task
       await ctx.commandService.submit({
         bot,
         command,
         project,
-        slackContext: { channelId: channel, threadTs, userId: user, messageTs: ts, fileInfo },
+        slackContext: { channelId: channel, threadTs, userId: user, messageTs: ts, fileInfo, attachments },
         resumeSessionId,
       });
     } catch (error) {
       logger.error({ error, channel, user }, 'Error handling message');
-      // Swap hourglass for error emoji
       await ctx.notifier.removeReaction(channel, ts, 'hourglass_flowing_sand');
       await ctx.notifier.addReaction(channel, ts, 'x');
       const errorMsg =

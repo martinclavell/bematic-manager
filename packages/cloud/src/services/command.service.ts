@@ -58,12 +58,10 @@ export class CommandService {
       defaultMaxBudget: project.defaultMaxBudget,
     });
 
-    // Append file/image attachment info to the prompt if present
+    // Append file description to the prompt if attachments were downloaded
     if (slackContext.fileInfo) {
       execConfig.prompt = execConfig.prompt
-        ? `${execConfig.prompt}
-
-${slackContext.fileInfo}`
+        ? `${execConfig.prompt}\n\n${slackContext.fileInfo}`
         : slackContext.fileInfo;
       logger.info({ fileInfo: slackContext.fileInfo.slice(0, 200) }, 'Appended file info to prompt');
     }
@@ -107,6 +105,7 @@ ${slackContext.fileInfo}`
       allowedTools: execConfig.allowedTools,
       resumeSessionId: params.resumeSessionId ?? null,
       parentTaskId: parentTaskId ?? null,
+      attachments: slackContext.attachments?.length ? slackContext.attachments : undefined,
       slackContext: {
         channelId: slackContext.channelId,
         threadTs: slackContext.threadTs,
@@ -114,11 +113,11 @@ ${slackContext.fileInfo}`
       },
     });
 
-    // Send to agent or queue offline
-    const sent = this.agentManager.send(project.agentId, serializeMessage(wsMsg));
+    // Send to agent (auto-resolve to any available agent)
+    const resolvedAgentId = this.agentManager.resolveAndSend(project.agentId, serializeMessage(wsMsg));
 
-    if (!sent) {
-      // Agent offline - queue message
+    if (!resolvedAgentId) {
+      // No agents available - queue message
       this.offlineQueue.enqueue(project.agentId, wsMsg);
       this.taskRepo.update(taskId, { status: 'queued' });
 
@@ -132,14 +131,14 @@ ${slackContext.fileInfo}`
         await this.notifier.postBlocks(
           slackContext.channelId,
           ResponseBuilder.queuedOfflineBlocks(taskId),
-          'Agent is offline. Task queued.',
+          'No agents online. Task queued.',
           slackContext.threadTs,
         );
       }
 
-      logger.info({ taskId, agentId: project.agentId, parentTaskId }, 'Task queued for offline agent');
+      logger.info({ taskId, preferredAgent: project.agentId, parentTaskId }, 'Task queued — no agents available');
     } else {
-      logger.info({ taskId, agentId: project.agentId, parentTaskId }, 'Task submitted to agent');
+      logger.info({ taskId, agentId: resolvedAgentId, preferredAgent: project.agentId, parentTaskId }, 'Task submitted to agent');
     }
 
     return taskId;
@@ -217,9 +216,9 @@ ${slackContext.fileInfo}`
       },
     });
 
-    const sent = this.agentManager.send(project.agentId, serializeMessage(wsMsg));
+    const resolvedAgentId = this.agentManager.resolveAndSend(project.agentId, serializeMessage(wsMsg));
 
-    if (!sent) {
+    if (!resolvedAgentId) {
       this.offlineQueue.enqueue(project.agentId, wsMsg);
       this.taskRepo.update(parentTaskId, { status: 'queued' });
 
@@ -231,13 +230,13 @@ ${slackContext.fileInfo}`
       await this.notifier.postBlocks(
         slackContext.channelId,
         ResponseBuilder.queuedOfflineBlocks(parentTaskId),
-        'Agent is offline. Task queued.',
+        'No agents online. Task queued.',
         slackContext.threadTs,
       );
     }
 
     logger.info(
-      { parentTaskId, agentId: project.agentId },
+      { parentTaskId, agentId: resolvedAgentId, preferredAgent: project.agentId },
       'Decomposition planning task submitted',
     );
 
@@ -390,8 +389,8 @@ ${slackContext.fileInfo}`
       },
     });
 
-    const sent = this.agentManager.send(project.agentId, serializeMessage(wsMsg));
-    if (!sent) {
+    const resolvedAgentId = this.agentManager.resolveAndSend(project.agentId, serializeMessage(wsMsg));
+    if (!resolvedAgentId) {
       this.offlineQueue.enqueue(project.agentId, wsMsg);
       this.taskRepo.update(taskId, { status: 'queued' });
     }

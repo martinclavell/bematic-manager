@@ -36,7 +36,6 @@ export interface BotPlugin {
   name: BotName;
   displayName: string;
   description: string;
-  slashCommand: string;
   commands: BotCommand[];
   defaultCommand: string;
 

@@ -20,6 +20,10 @@ export class SessionRepository extends BaseRepository {
       .all();
   }
 
+  findAll(): SessionRow[] {
+    return this.db.select().from(sessions).all();
+  }
+
   complete(
     id: string,
     metrics: {
@@ -42,5 +46,10 @@ export class SessionRepository extends BaseRepository {
       .where(eq(sessions.id, id))
       .returning()
       .get();
+  }
+
+  delete(id: string): boolean {
+    const result = this.db.delete(sessions).where(eq(sessions.id, id)).run();
+    return result.changes > 0;
   }
 }

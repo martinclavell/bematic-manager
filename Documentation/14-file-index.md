@@ -30,6 +30,7 @@
 | `utils/logger.ts` | Pino logger factory |
 | `utils/retry.ts` | Exponential backoff retry utility |
 | `utils/ws-helpers.ts` | WebSocket message creation, serialization, parsing |
+| `utils/message-truncation.ts` | Intelligent message truncation for Slack limits (head/tail/smart strategies) |
 | `utils/index.ts` | Barrel export |
 
 ---
@@ -50,16 +51,14 @@
 | `schema/prompt-history.ts` | Prompt history table definition |
 | `schema/index.ts` | Barrel export |
 | `repositories/base.repository.ts` | Abstract base with DB injection |
-| `repositories/project.repository.ts` | Project CRUD |
+| `repositories/project.repository.ts` | Project CRUD + tests |
 | `repositories/task.repository.ts` | Task CRUD + complete/fail helpers |
-| `repositories/session.repository.ts` | Session CRUD + complete helper |
+| `repositories/session.repository.ts` | Session CRUD + complete helper + cleanup |
 | `repositories/user.repository.ts` | User CRUD + upsert |
-| `repositories/audit-log.repository.ts` | Audit log creation + querying |
+| `repositories/audit-log.repository.ts` | Audit log creation + querying + cleanup |
 | `repositories/offline-queue.repository.ts` | Queue operations |
 | `repositories/prompt-history.repository.ts` | Prompt history CRUD + search + stats |
 | `repositories/index.ts` | Barrel export |
-| `cli/history.ts` | CLI tool to view/search prompt history |
-| `cli/log-prompt.ts` | CLI tool to quickly log prompts |
 
 ---
 
@@ -72,7 +71,7 @@
 | `base/bot-registry.ts` | Singleton bot registry |
 | `base/command-parser.ts` | Text → ParsedCommand parser |
 | `base/model-router.ts` | Intelligent model tier routing engine |
-| `base/response-builder.ts` | Slack block formatting utilities |
+| `base/response-builder.ts` | Slack block formatting with smart truncation for long responses |
 | `coder/coder.bot.ts` | CoderBot implementation |
 | `reviewer/reviewer.bot.ts` | ReviewerBot implementation |
 | `ops/ops.bot.ts` | OpsBot implementation |
@@ -87,6 +86,9 @@
 | `index.ts` | Main entry, server bootstrap |
 | `config.ts` | Environment config loading |
 | `context.ts` | Application context (DI container) |
+| `error-handlers.ts` | Global unhandled rejection and exception handlers |
+| `shutdown.ts` | Graceful shutdown orchestration |
+| **Slack Integration** | |
 | `slack/middleware/auth.middleware.ts` | User auth + permission checking |
 | `slack/middleware/rate-limit.middleware.ts` | Per-user rate limiting |
 | `slack/middleware/project.middleware.ts` | Channel → project resolution |
@@ -100,17 +102,28 @@
 | `slack/listeners/config.ts` | /bm-config project configuration |
 | `slack/listeners/admin.ts` | /bm-admin administrative commands |
 | `slack/listeners/index.ts` | Barrel export |
+| **WebSocket Gateway** | |
 | `gateway/ws-server.ts` | WebSocket server setup |
 | `gateway/agent-manager.ts` | Agent connection pool management |
 | `gateway/message-router.ts` | Incoming agent message routing |
 | `gateway/stream-accumulator.ts` | Batches streaming output for Slack |
 | `gateway/offline-queue.ts` | Offline message queuing |
+| `gateway/circuit-breaker.ts` | Circuit breaker pattern for agent failures |
+| `gateway/agent-health-tracker.ts` | Agent health monitoring with circuit breaker |
+| `gateway/message-buffer.ts` | Message buffering for connection recovery |
 | `gateway/index.ts` | Barrel export |
+| **Services** | |
 | `services/command.service.ts` | Command orchestration |
-| `services/notification.service.ts` | Slack notification posting |
+| `services/notification.service.ts` | Slack notification posting with retry logic |
 | `services/project.service.ts` | Project CRUD service |
+| `services/deploy.service.ts` | Railway deployment integration |
+| `services/retention.service.ts` | Data retention policy enforcement |
+| `services/health.service.ts` | Health check and metrics reporting |
 | `services/index.ts` | Barrel export |
+| **Utilities** | |
 | `utils/markdown-to-slack.ts` | Markdown → Slack format conversion |
+| `utils/slack-retry.ts` | Slack API retry logic with exponential backoff |
+| `utils/metrics.ts` | In-memory metrics collection |
 
 ---
 
@@ -121,6 +134,8 @@
 | `index.ts` | Main entry, lifecycle management |
 | `config.ts` | Agent config loading |
 | `logging.ts` | File + stdout logging setup |
+| `error-handlers.ts` | Global unhandled rejection and exception handlers |
+| `shutdown.ts` | Graceful shutdown with task cancellation |
 | `connection/ws-client.ts` | WebSocket client with reconnection |
 | `connection/heartbeat.ts` | Heartbeat response handler |
 | `executor/queue-processor.ts` | Task concurrency + per-project queuing |
@@ -133,6 +148,7 @@
 
 | File | Purpose |
 |------|---------|
+| **Configuration** | |
 | `package.json` | Workspace root, scripts, dev dependencies |
 | `tsconfig.json` | TypeScript project references |
 | `tsconfig.base.json` | Shared compiler options |
@@ -140,3 +156,14 @@
 | `railway.toml` | Railway deployment config |
 | `.env.example` | Environment variable template |
 | `.gitignore` | Git ignore rules |
+| **Code Quality** | |
+| `.eslintrc.json` | ESLint configuration with strict TypeScript rules |
+| `.prettierrc.json` | Prettier code formatting configuration |
+| `.prettierignore` | Prettier ignore patterns |
+| `.lintstagedrc.json` | Lint-staged configuration for pre-commit hooks |
+| **Git Hooks** | |
+| `.husky/pre-commit` | Git pre-commit hook (runs lint-staged) |
+| `.husky/pre-push` | Git pre-push hook (runs typecheck + tests) |
+| **Documentation** | |
+| `AGENTS.md` | Quick reference for AI agents |
+| `Documentation/` | Comprehensive project documentation (15 files) |

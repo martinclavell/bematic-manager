@@ -1,4 +1,4 @@
-import { createLogger } from '@bematic/common';
+import { createLogger, Limits, truncateMessage } from '@bematic/common';
 import { markdownToSlack } from '../utils/markdown-to-slack.js';
 
 const logger = createLogger('stream-accumulator');
@@ -74,15 +74,20 @@ export class StreamAccumulator {
       if (state.buffer.length === 0) continue;
 
       const text = state.buffer;
-      // Convert markdown to Slack format and truncate if needed
+      // Convert markdown to Slack format
       const converted = markdownToSlack(text);
-      const snapshot = converted.length > 3900
-        ? '...' + converted.slice(-3900)
-        : converted;
+
+      // Truncate using HEAD strategy (show beginning, not end)
+      // This ensures users see the start of responses first during streaming
+      const { truncated } = truncateMessage(converted, {
+        maxLength: Limits.SLACK_STREAMING_DISPLAY_LENGTH,
+        strategy: 'head',
+        indicator: '\n\n_...response continues (streaming)..._',
+      });
 
       this.updateSlack(
         state.slackChannelId,
-        snapshot,
+        truncated,
         state.slackThreadTs,
         state.slackMessageTs,
       )

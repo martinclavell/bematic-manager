@@ -1,4 +1,6 @@
 import { query, type SDKMessage, type SDKResultMessage, type SDKAssistantMessage } from '@anthropic-ai/claude-code';
+import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   MessageType,
   Limits,
@@ -39,6 +41,45 @@ export class ClaudeExecutor {
     private readonly defaultMaxContinuations: number = Limits.MAX_CONTINUATIONS,
   ) {}
 
+  /**
+   * Save file attachments from Slack to a temp directory inside the project.
+   * Returns the list of saved file paths for inclusion in the prompt.
+   */
+  private saveAttachments(task: TaskSubmitPayload): string[] {
+    if (!task.attachments || task.attachments.length === 0) return [];
+
+    const attachDir = join(task.localPath, '.bematic-attachments');
+    if (!existsSync(attachDir)) {
+      mkdirSync(attachDir, { recursive: true });
+    }
+
+    const savedPaths: string[] = [];
+
+    for (const attachment of task.attachments) {
+      try {
+        // Use taskId prefix to avoid collisions
+        const safeFilename = `${task.taskId.slice(-8)}_${attachment.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        const filePath = join(attachDir, safeFilename);
+        const buffer = Buffer.from(attachment.data, 'base64');
+
+        writeFileSync(filePath, buffer);
+        savedPaths.push(filePath);
+
+        logger.info(
+          { name: attachment.name, path: filePath, size: buffer.length },
+          'Saved attachment to disk',
+        );
+      } catch (error) {
+        logger.error(
+          { name: attachment.name, error: error instanceof Error ? error.message : String(error) },
+          'Failed to save attachment',
+        );
+      }
+    }
+
+    return savedPaths;
+  }
+
   async execute(
     task: TaskSubmitPayload,
     abortSignal?: AbortSignal,
@@ -47,6 +88,17 @@ export class ClaudeExecutor {
     const filesChanged = new Set<string>();
     const commandsRun = new Set<string>();
     let assistantTurnCount = 0;
+
+    // Save file attachments to disk and augment the prompt
+    const savedFiles = this.saveAttachments(task);
+    if (savedFiles.length > 0) {
+      const fileList = savedFiles.map((p) => `- ${p}`).join('\n');
+      task = {
+        ...task,
+        prompt: `${task.prompt}\n\nThe user attached files that have been saved to disk. Read them using the Read tool:\n${fileList}`,
+      };
+      logger.info({ taskId: task.taskId, fileCount: savedFiles.length }, 'Augmented prompt with saved file paths');
+    }
 
     // Aggregate metrics across all continuations
     let totalInputTokens = 0;

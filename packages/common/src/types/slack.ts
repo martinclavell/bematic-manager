@@ -1,3 +1,13 @@
+/** A file downloaded from Slack, base64-encoded for WS transmission */
+export interface FileAttachment {
+  name: string;
+  mimetype: string;
+  /** Base64-encoded file content */
+  data: string;
+  /** Original file size in bytes (before encoding) */
+  size: number;
+}
+
 export interface SlackContext {
   channelId: string;
   threadTs: string | null;
@@ -7,6 +17,8 @@ export interface SlackContext {
   messageTs?: string | null;
   /** Extracted file/image attachment info to append to the prompt */
   fileInfo?: string | null;
+  /** Downloaded file attachments */
+  attachments?: FileAttachment[];
 }
 
 export interface SlackBlockMessage {

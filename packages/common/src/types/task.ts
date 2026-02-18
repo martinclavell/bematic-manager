@@ -51,6 +51,13 @@ export interface TaskSubmitPayload {
   maxContinuations?: number;
   /** Parent task ID when this is a subtask from decomposition */
   parentTaskId?: string | null;
+  /** File attachments from Slack (base64-encoded) */
+  attachments?: Array<{
+    name: string;
+    mimetype: string;
+    data: string;
+    size: number;
+  }>;
   slackContext: {
     channelId: string;
     threadTs: string | null;

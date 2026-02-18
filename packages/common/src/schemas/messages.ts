@@ -20,6 +20,13 @@ export const authResponseSchema = z.object({
   agentId: z.string().optional(),
 });
 
+const fileAttachmentSchema = z.object({
+  name: z.string(),
+  mimetype: z.string(),
+  data: z.string(), // base64
+  size: z.number(),
+});
+
 export const taskSubmitSchema = z.object({
   taskId: z.string(),
   projectId: z.string(),
@@ -34,6 +41,7 @@ export const taskSubmitSchema = z.object({
   resumeSessionId: z.string().nullable().optional(),
   maxContinuations: z.number().int().min(0).optional(),
   parentTaskId: z.string().nullable().optional(),
+  attachments: z.array(fileAttachmentSchema).optional(),
   slackContext: z.object({
     channelId: z.string(),
     threadTs: z.string().nullable(),

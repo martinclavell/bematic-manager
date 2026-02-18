@@ -15,7 +15,6 @@ export abstract class BaseBotPlugin implements BotPlugin {
   abstract name: BotName;
   abstract displayName: string;
   abstract description: string;
-  abstract slashCommand: string;
   abstract commands: BotCommand[];
   abstract defaultCommand: string;
 
@@ -63,7 +62,7 @@ If the push fails (e.g. no upstream), use: \`git push -u origin HEAD\``;
     );
 
     const promptTemplate = botCommand?.defaultPromptTemplate ?? '{args}';
-    const prompt = promptTemplate.replace('{args}', command.args);
+    const prompt = promptTemplate.replace('{args}', command.args).trim() || command.rawText;
 
     // Route to the optimal model tier based on task signals
     const routing = routeToModel(command, projectContext.defaultModel);

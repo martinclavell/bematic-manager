@@ -1,0 +1,45 @@
+{
+  "name": "@bematic/manager",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/common",
+    "packages/db",
+    "packages/bots",
+    "packages/cloud",
+    "packages/agent"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "build:common": "npm run build -w packages/common",
+    "build:db": "npm run build -w packages/db",
+    "build:bots": "npm run build -w packages/bots",
+    "build:cloud": "npm run build -w packages/cloud",
+    "build:agent": "npm run build -w packages/agent",
+    "dev:cloud": "npm run dev -w packages/cloud",
+    "dev:agent": "npm run dev -w packages/agent",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint packages/*/src",
+    "typecheck": "tsc --build",
+    "db:generate": "npm run db:generate -w packages/db",
+    "db:migrate": "npm run db:migrate -w packages/db",
+    "clean": "rimraf packages/common/dist packages/db/dist packages/bots/dist packages/cloud/dist packages/agent/dist"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.56.0",
+    "@typescript-eslint/parser": "^8.56.0",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "prettier": "^3.8.1",
+    "rimraf": "^6.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

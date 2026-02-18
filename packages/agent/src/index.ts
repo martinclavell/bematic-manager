@@ -10,6 +10,8 @@ import {
   type DeployRequestPayload,
 } from '@bematic/common';
 import { loadAgentConfig } from './config.js';
+import { setupGlobalErrorHandlers } from './error-handlers.js';
+import { createShutdownHandler } from './shutdown.js';
 import { WSClient } from './connection/ws-client.js';
 import { setupHeartbeat } from './connection/heartbeat.js';
 import { ClaudeExecutor } from './executor/claude-executor.js';
@@ -20,6 +22,9 @@ import { setupFileLogging } from './logging.js';
 const RESTART_EXIT_CODE = 75;
 
 const logger = createLogger('agent');
+
+// Setup global error handlers first
+setupGlobalErrorHandlers();
 
 async function main() {
   const config = loadAgentConfig();
@@ -77,14 +82,14 @@ async function main() {
 
       case MessageType.SYSTEM_SHUTDOWN: {
         logger.info('Received shutdown signal from cloud');
-        shutdown(0);
+        shutdown('SYSTEM_SHUTDOWN', 0);
         break;
       }
 
       case MessageType.SYSTEM_RESTART: {
         const payload = parsed.payload as SystemRestartPayload;
         logger.info({ reason: payload.reason, rebuild: payload.rebuild }, 'Received restart signal from cloud');
-        shutdown(RESTART_EXIT_CODE);
+        shutdown('SYSTEM_RESTART', RESTART_EXIT_CODE);
         break;
       }
 
@@ -112,15 +117,17 @@ async function main() {
   // Connect to cloud
   wsClient.connect();
 
-  // Graceful shutdown
-  const shutdown = (exitCode = 0) => {
-    logger.info({ exitCode }, 'Shutting down agent...');
-    wsClient.close();
-    process.exit(exitCode);
-  };
+  // Graceful shutdown using new handler
+  const shutdown = createShutdownHandler({
+    wsClient,
+    queueProcessor,
+    agentId: config.agentId,
+  });
 
-  process.on('SIGTERM', () => shutdown(0));
-  process.on('SIGINT', () => shutdown(0));
+  process.on('SIGTERM', () => shutdown('SIGTERM', 0));
+  process.on('SIGINT', () => shutdown('SIGINT', 0));
+
+  logger.info('Bematic Agent fully initialized');
 }
 
 function handleDeploy(wsClient: WSClient, payload: DeployRequestPayload) {

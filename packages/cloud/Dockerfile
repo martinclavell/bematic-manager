@@ -1,5 +1,8 @@
 FROM node:22-alpine AS builder
 
+# Build tools for better-sqlite3 native module
+RUN apk add --no-cache python3 make g++
+
 WORKDIR /app
 
 # Copy root workspace files
@@ -12,8 +15,9 @@ COPY packages/db/ packages/db/
 COPY packages/bots/ packages/bots/
 COPY packages/cloud/ packages/cloud/
 
-# Install dependencies
-RUN npm install --workspace=packages/cloud --include-workspace-root
+# Install deps (--ignore-scripts skips husky), then rebuild native modules
+RUN npm install --workspace=packages/cloud --include-workspace-root --ignore-scripts && \
+    npm rebuild better-sqlite3
 
 # Build all packages in order
 RUN npm run build -w packages/common && \
@@ -32,7 +36,12 @@ COPY packages/db/package.json packages/db/
 COPY packages/bots/package.json packages/bots/
 COPY packages/cloud/package.json packages/cloud/
 
-RUN npm install --workspace=packages/cloud --include-workspace-root --omit=dev
+# Install production deps (--ignore-scripts skips husky), then rebuild native modules
+RUN apk add --no-cache python3 make g++ && \
+    npm install --workspace=packages/cloud --include-workspace-root --omit=dev --ignore-scripts && \
+    npm rebuild better-sqlite3 && \
+    apk del python3 make g++ && \
+    rm -rf /root/.npm /tmp/*
 
 # Copy built artifacts
 COPY --from=builder /app/packages/common/dist packages/common/dist

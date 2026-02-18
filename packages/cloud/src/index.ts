@@ -3,7 +3,6 @@ import { createServer } from 'node:http';
 import { App } from '@slack/bolt';
 import { createLogger, Limits } from '@bematic/common';
 import {
-  getDatabase,
   pushSchema,
   ProjectRepository,
   TaskRepository,
@@ -59,7 +58,7 @@ async function main() {
     socketMode: true,
   });
 
-  // Initialize notification service using the Slack web client
+  // Initialize notification service
   const notifier = new NotificationService(app.client);
 
   // Initialize agent manager + gateway
@@ -96,7 +95,7 @@ async function main() {
   const projectService = new ProjectService(projectRepo, auditLogRepo);
   const deployService = new DeployService(config.railway.apiToken);
 
-  // Wire up MessageRouter ↔ CommandService for decomposition support
+  // Wire up MessageRouter <-> CommandService for decomposition support
   messageRouter.setCommandService(commandService, projectRepo);
 
   // Middleware
@@ -138,11 +137,8 @@ async function main() {
   // Register Slack event listeners
   registerAllListeners(app, ctx);
 
-  // Start Slack app (socket mode)
-  await app.start();
-  logger.info('Slack app started in socket mode');
-
   // Create HTTP server for WS gateway + health check
+  // Start this BEFORE Slack so the healthcheck is available immediately
   const httpServer = createServer((req, res) => {
     if (req.url === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -172,6 +168,10 @@ async function main() {
   httpServer.listen(config.server.port, () => {
     logger.info({ port: config.server.port }, 'HTTP + WS server listening');
   });
+
+  // Start Slack app (socket mode) after HTTP server is listening
+  await app.start();
+  logger.info('Slack app started in socket mode');
 
   // Periodic cleanup of expired offline queue entries
   setInterval(() => {

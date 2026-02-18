@@ -1,0 +1,729 @@
+#!/usr/bin/env node
+/**
+ * Claude Skills Manager CLI
+ * Manage skills for Claude Code projects
+ *
+ * Commands:
+ *   init              Create .claude-skills in current project
+ *   add <name>        Add skill to current project
+ *   remove <name>     Remove skill from current project
+ *   list              List all available skills
+ *   show              Show active skills in current project
+ *   create <name>     Create new skill file
+ *   validate <name>   Validate skill file syntax
+ *   search <query>    Search for skills by keyword
+ *   info <name>       Show detailed info about a skill
+ */
+
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const readline = require('readline');
+
+// Configuration
+const SKILLS_DIR = path.join(os.homedir(), '.claude', 'skills');
+const SKILLS_FILE = '.claude-skills';
+const SKILLS_JSON_FILE = '.claude-skills.json';
+
+// ANSI color codes
+const colors = {
+    reset: '\x1b[0m',
+    bright: '\x1b[1m',
+    dim: '\x1b[2m',
+    green: '\x1b[32m',
+    red: '\x1b[31m',
+    yellow: '\x1b[33m',
+    blue: '\x1b[34m',
+    cyan: '\x1b[36m',
+    gray: '\x1b[90m'
+};
+
+// Emoji indicators
+const indicators = {
+    success: '✓',
+    error: '✗',
+    warning: '⚠',
+    info: 'ℹ',
+    skill: '📚',
+    add: '➕',
+    remove: '➖',
+    search: '🔍'
+};
+
+/**
+ * Detect project type and suggest skills
+ */
+function detectSkills(projectPath) {
+    const detected = [];
+
+    // NetSuite SuiteCommerce
+    if (fs.existsSync(path.join(projectPath, 'manifest.json'))) {
+        try {
+            const manifest = JSON.parse(fs.readFileSync(path.join(projectPath, 'manifest.json'), 'utf8'));
+            if (manifest.ssp_libraries) {
+                detected.push('netsuite-suitescript-1');
+            }
+            detected.push('suitecommerce-advanced');
+        } catch (e) {}
+    }
+
+    // Node.js projects
+    if (fs.existsSync(path.join(projectPath, 'package.json'))) {
+        try {
+            const pkg = JSON.parse(fs.readFileSync(path.join(projectPath, 'package.json'), 'utf8'));
+            const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+
+            if (deps.react) detected.push('react-patterns');
+            if (deps['@angular/core']) detected.push('angular-patterns');
+            if (deps.vue) detected.push('vue-patterns');
+            if (deps.express) detected.push('nodejs-express');
+            if (deps['@nestjs/core']) detected.push('nestjs-patterns');
+            if (deps.typescript) detected.push('typescript-best-practices');
+        } catch (e) {}
+    }
+
+    // Python projects
+    if (fs.existsSync(path.join(projectPath, 'requirements.txt'))) {
+        try {
+            const reqs = fs.readFileSync(path.join(projectPath, 'requirements.txt'), 'utf8');
+            if (reqs.includes('fastapi')) detected.push('python-fastapi');
+            if (reqs.includes('django')) detected.push('python-django');
+            if (reqs.includes('flask')) detected.push('python-flask');
+        } catch (e) {}
+    }
+
+    // Go projects
+    if (fs.existsSync(path.join(projectPath, 'go.mod'))) {
+        detected.push('golang-patterns');
+    }
+
+    // Rust projects
+    if (fs.existsSync(path.join(projectPath, 'Cargo.toml'))) {
+        detected.push('rust-patterns');
+    }
+
+    return detected;
+}
+
+/**
+ * Parse skill frontmatter
+ */
+function parseSkillFrontmatter(content) {
+    const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n/);
+    if (!frontmatterMatch) {
+        return null;
+    }
+
+    const frontmatter = {};
+    const lines = frontmatterMatch[1].split('\n');
+
+    for (const line of lines) {
+        const match = line.match(/^(\w+):\s*(.+)$/);
+        if (match) {
+            const key = match[1];
+            let value = match[2].trim();
+
+            // Handle arrays
+            if (value.startsWith('[') && value.endsWith(']')) {
+                value = value.slice(1, -1).split(',').map(s => s.trim().replace(/['"]/g, ''));
+            }
+
+            frontmatter[key] = value;
+        }
+    }
+
+    return frontmatter;
+}
+
+/**
+ * Read current project skills configuration
+ */
+function readProjectSkills() {
+    // Try JSON format first
+    if (fs.existsSync(SKILLS_JSON_FILE)) {
+        try {
+            const config = JSON.parse(fs.readFileSync(SKILLS_JSON_FILE, 'utf8'));
+            return { skills: config.skills || [], format: 'json', config };
+        } catch (e) {}
+    }
+
+    // Try text format
+    if (fs.existsSync(SKILLS_FILE)) {
+        const content = fs.readFileSync(SKILLS_FILE, 'utf8');
+        const skills = content
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line && !line.startsWith('#'));
+        return { skills, format: 'text', config: null };
+    }
+
+    return null;
+}
+
+/**
+ * Write project skills configuration
+ */
+function writeProjectSkills(skills, format = 'text') {
+    if (format === 'json') {
+        const config = fs.existsSync(SKILLS_JSON_FILE)
+            ? JSON.parse(fs.readFileSync(SKILLS_JSON_FILE, 'utf8'))
+            : {};
+        config.skills = skills;
+        fs.writeFileSync(SKILLS_JSON_FILE, JSON.stringify(config, null, 2) + '\n');
+    } else {
+        const content = '# Active skills for this project\n' + skills.join('\n') + '\n';
+        fs.writeFileSync(SKILLS_FILE, content);
+    }
+}
+
+// Command implementations
+const commands = {
+    /**
+     * Initialize skills configuration for current project
+     */
+    async init() {
+        if (fs.existsSync(SKILLS_FILE) || fs.existsSync(SKILLS_JSON_FILE)) {
+            console.log(`${colors.yellow}${indicators.warning}${colors.reset} Skills configuration already exists`);
+
+            const rl = readline.createInterface({
+                input: process.stdin,
+                output: process.stdout
+            });
+
+            const answer = await new Promise(resolve => {
+                rl.question('Overwrite existing configuration? (y/N) ', resolve);
+            });
+            rl.close();
+
+            if (answer.toLowerCase() !== 'y') {
+                return;
+            }
+        }
+
+        // Try to auto-detect skills
+        const detected = detectSkills(process.cwd());
+
+        if (detected.length > 0) {
+            console.log(`${colors.cyan}${indicators.search} Detected project type. Suggested skills:${colors.reset}`);
+            detected.forEach(skill => console.log(`  ${colors.dim}•${colors.reset} ${skill}`));
+            console.log('');
+
+            const rl = readline.createInterface({
+                input: process.stdin,
+                output: process.stdout
+            });
+
+            const answer = await new Promise(resolve => {
+                rl.question('Add suggested skills? (Y/n) ', resolve);
+            });
+            rl.close();
+
+            if (answer.toLowerCase() !== 'n') {
+                writeProjectSkills(detected);
+                console.log(`${colors.green}${indicators.success}${colors.reset} Created .claude-skills with ${detected.length} skill${detected.length > 1 ? 's' : ''}`);
+                return;
+            }
+        }
+
+        writeProjectSkills([]);
+        console.log(`${colors.green}${indicators.success}${colors.reset} Created empty .claude-skills file`);
+        console.log(`${colors.dim}Add skills with: claude-skills add <skill-name>${colors.reset}`);
+    },
+
+    /**
+     * Add skill to current project
+     */
+    add(skillName) {
+        if (!skillName) {
+            console.error(`${colors.red}Usage: claude-skills add <skill-name>${colors.reset}`);
+            process.exit(1);
+        }
+
+        const skillPath = path.join(SKILLS_DIR, `${skillName}.md`);
+        if (!fs.existsSync(skillPath)) {
+            console.error(`${colors.red}${indicators.error} Skill '${skillName}' not found${colors.reset}`);
+            console.log('\nAvailable skills:');
+            commands.list(true);
+            process.exit(1);
+        }
+
+        const config = readProjectSkills();
+        if (!config) {
+            console.error(`${colors.red}${indicators.error} No skills configuration found${colors.reset}`);
+            console.log(`${colors.dim}Run 'claude-skills init' first${colors.reset}`);
+            process.exit(1);
+        }
+
+        if (config.skills.includes(skillName)) {
+            console.log(`${colors.yellow}${indicators.info}${colors.reset} Skill '${skillName}' already active`);
+            return;
+        }
+
+        config.skills.push(skillName);
+        writeProjectSkills(config.skills, config.format);
+        console.log(`${colors.green}${indicators.add} Added skill: ${skillName}${colors.reset}`);
+
+        // Check for dependencies
+        const content = fs.readFileSync(skillPath, 'utf8');
+        const frontmatter = parseSkillFrontmatter(content);
+        if (frontmatter && frontmatter.requires) {
+            const requires = Array.isArray(frontmatter.requires) ? frontmatter.requires : [frontmatter.requires];
+            const missing = requires.filter(dep => !config.skills.includes(dep));
+            if (missing.length > 0) {
+                console.log(`${colors.yellow}${indicators.warning} This skill requires: ${missing.join(', ')}${colors.reset}`);
+            }
+        }
+    },
+
+    /**
+     * Remove skill from current project
+     */
+    remove(skillName) {
+        if (!skillName) {
+            console.error(`${colors.red}Usage: claude-skills remove <skill-name>${colors.reset}`);
+            process.exit(1);
+        }
+
+        const config = readProjectSkills();
+        if (!config) {
+            console.error(`${colors.red}${indicators.error} No skills configuration found${colors.reset}`);
+            process.exit(1);
+        }
+
+        const index = config.skills.indexOf(skillName);
+        if (index === -1) {
+            console.log(`${colors.yellow}${indicators.info}${colors.reset} Skill '${skillName}' was not active`);
+            return;
+        }
+
+        config.skills.splice(index, 1);
+        writeProjectSkills(config.skills, config.format);
+        console.log(`${colors.green}${indicators.remove} Removed skill: ${skillName}${colors.reset}`);
+    },
+
+    /**
+     * List all available skills
+     */
+    list(compact = false) {
+        if (!fs.existsSync(SKILLS_DIR)) {
+            console.error(`${colors.red}${indicators.error} Skills directory not found: ${SKILLS_DIR}${colors.reset}`);
+            process.exit(1);
+        }
+
+        const skills = fs.readdirSync(SKILLS_DIR)
+            .filter(f => f.endsWith('.md'))
+            .map(f => f.replace('.md', ''));
+
+        if (skills.length === 0) {
+            console.log('No skills found');
+            return;
+        }
+
+        if (compact) {
+            skills.forEach(skill => console.log(`  ${colors.dim}•${colors.reset} ${skill}`));
+            return;
+        }
+
+        console.log(`${colors.bright}Available Skills:${colors.reset}\n`);
+
+        skills.forEach(skillName => {
+            const skillPath = path.join(SKILLS_DIR, `${skillName}.md`);
+            const content = fs.readFileSync(skillPath, 'utf8');
+            const frontmatter = parseSkillFrontmatter(content);
+
+            console.log(`  ${indicators.skill} ${colors.bright}${skillName}${colors.reset}`);
+
+            if (frontmatter) {
+                if (frontmatter.description) {
+                    console.log(`     ${colors.dim}${frontmatter.description}${colors.reset}`);
+                }
+                if (frontmatter.tags) {
+                    const tags = Array.isArray(frontmatter.tags) ? frontmatter.tags : [frontmatter.tags];
+                    console.log(`     ${colors.cyan}Tags:${colors.reset} ${tags.join(', ')}`);
+                }
+                if (frontmatter.requires) {
+                    const requires = Array.isArray(frontmatter.requires) ? frontmatter.requires : [frontmatter.requires];
+                    console.log(`     ${colors.yellow}Requires:${colors.reset} ${requires.join(', ')}`);
+                }
+            }
+
+            console.log('');
+        });
+    },
+
+    /**
+     * Show active skills for current project
+     */
+    show() {
+        const config = readProjectSkills();
+
+        if (!config) {
+            console.log('No skills configuration found in current directory');
+            console.log(`${colors.dim}Run 'claude-skills init' to create one${colors.reset}`);
+            return;
+        }
+
+        if (config.skills.length === 0) {
+            console.log('No active skills');
+            console.log(`${colors.dim}Add skills with 'claude-skills add <skill-name>'${colors.reset}`);
+            return;
+        }
+
+        console.log(`${colors.bright}Active skills for this project:${colors.reset}\n`);
+
+        config.skills.forEach(skillName => {
+            const skillPath = path.join(SKILLS_DIR, `${skillName}.md`);
+            const exists = fs.existsSync(skillPath);
+
+            if (exists) {
+                const content = fs.readFileSync(skillPath, 'utf8');
+                const frontmatter = parseSkillFrontmatter(content);
+
+                console.log(`  ${colors.green}${indicators.success}${colors.reset} ${skillName}`);
+
+                if (frontmatter && frontmatter.description) {
+                    console.log(`     ${colors.dim}${frontmatter.description}${colors.reset}`);
+                }
+            } else {
+                console.log(`  ${colors.red}${indicators.error}${colors.reset} ${skillName} ${colors.red}(missing)${colors.reset}`);
+            }
+        });
+
+        if (config.format === 'json' && config.config.auto_detect) {
+            console.log(`\n${colors.dim}Auto-detection: enabled${colors.reset}`);
+        }
+    },
+
+    /**
+     * Create new skill file
+     */
+    create(skillName) {
+        if (!skillName) {
+            console.error(`${colors.red}Usage: claude-skills create <skill-name>${colors.reset}`);
+            process.exit(1);
+        }
+
+        if (!fs.existsSync(SKILLS_DIR)) {
+            fs.mkdirSync(SKILLS_DIR, { recursive: true });
+        }
+
+        const skillPath = path.join(SKILLS_DIR, `${skillName}.md`);
+
+        if (fs.existsSync(skillPath)) {
+            console.error(`${colors.red}${indicators.error} Skill '${skillName}' already exists${colors.reset}`);
+            process.exit(1);
+        }
+
+        const title = skillName.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+
+        const template = `---
+skill: ${skillName}
+version: 1.0
+tags: []
+description: Brief description of ${title}
+author: Your Name
+updated: ${new Date().toISOString().split('T')[0]}
+---
+
+# ${title}
+
+## Overview
+Brief description of this skill domain and when to use it.
+
+## Key Concepts
+- Concept 1: Explanation
+- Concept 2: Explanation
+
+## Core Patterns
+
+### Pattern Name
+Description of when and why to use this pattern.
+
+\`\`\`javascript
+// Example code demonstrating the pattern
+\`\`\`
+
+## Common Pitfalls
+1. **Pitfall 1**: Description and how to avoid
+2. **Pitfall 2**: Description and how to avoid
+
+## Best Practices
+- Practice 1
+- Practice 2
+
+## Examples
+
+### Example 1: Basic Usage
+\`\`\`javascript
+// Complete example
+\`\`\`
+
+### Example 2: Advanced Usage
+\`\`\`javascript
+// More complex example
+\`\`\`
+
+## References
+- [Official Documentation](https://example.com)
+- [Best Practices Guide](https://example.com)
+`;
+
+        fs.writeFileSync(skillPath, template);
+        console.log(`${colors.green}${indicators.success} Created skill: ${skillPath}${colors.reset}`);
+        console.log(`\nEdit the file to add your domain knowledge.`);
+    },
+
+    /**
+     * Validate skill file syntax
+     */
+    validate(skillName) {
+        if (!skillName) {
+            console.error(`${colors.red}Usage: claude-skills validate <skill-name>${colors.reset}`);
+            process.exit(1);
+        }
+
+        const skillPath = path.join(SKILLS_DIR, `${skillName}.md`);
+
+        if (!fs.existsSync(skillPath)) {
+            console.error(`${colors.red}${indicators.error} Skill '${skillName}' not found${colors.reset}`);
+            process.exit(1);
+        }
+
+        let content;
+        try {
+            content = fs.readFileSync(skillPath, 'utf8');
+        } catch (e) {
+            console.error(`${colors.red}${indicators.error} Error reading skill file: ${e.message}${colors.reset}`);
+            process.exit(1);
+        }
+
+        let issues = 0;
+        const warnings = [];
+
+        // Check frontmatter
+        const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n/);
+        if (frontmatterMatch) {
+            const frontmatter = parseSkillFrontmatter(content);
+            if (frontmatter) {
+                if (!frontmatter.skill) warnings.push('Missing "skill" field in frontmatter');
+                if (!frontmatter.version) warnings.push('Missing "version" field in frontmatter');
+                if (!frontmatter.description) warnings.push('Missing "description" field in frontmatter');
+            } else {
+                warnings.push('Invalid frontmatter format');
+                issues++;
+            }
+        }
+
+        // Check content structure
+        if (!content.includes('# ')) warnings.push('No main heading found');
+        if (!content.includes('## Overview')) warnings.push('Missing "Overview" section');
+        if (!content.includes('```')) warnings.push('No code examples found');
+
+        // Check file size
+        if (content.length < 500) {
+            warnings.push('Skill file seems too short (< 500 characters)');
+        }
+
+        // Display results
+        if (issues === 0 && warnings.length === 0) {
+            console.log(`${colors.green}${indicators.success} Skill validation passed${colors.reset}`);
+        } else {
+            if (issues > 0) {
+                console.log(`${colors.red}${indicators.error} Validation failed with ${issues} error${issues > 1 ? 's' : ''}${colors.reset}`);
+            }
+            if (warnings.length > 0) {
+                console.log(`${colors.yellow}${indicators.warning} ${warnings.length} warning${warnings.length > 1 ? 's' : ''}:${colors.reset}`);
+                warnings.forEach(w => console.log(`  ${colors.dim}•${colors.reset} ${w}`));
+            }
+        }
+    },
+
+    /**
+     * Search for skills by keyword
+     */
+    search(query) {
+        if (!query) {
+            console.error(`${colors.red}Usage: claude-skills search <query>${colors.reset}`);
+            process.exit(1);
+        }
+
+        if (!fs.existsSync(SKILLS_DIR)) {
+            console.error(`${colors.red}${indicators.error} Skills directory not found${colors.reset}`);
+            process.exit(1);
+        }
+
+        const results = [];
+        const searchRegex = new RegExp(query, 'i');
+
+        fs.readdirSync(SKILLS_DIR)
+            .filter(f => f.endsWith('.md'))
+            .forEach(filename => {
+                const skillName = filename.replace('.md', '');
+                const content = fs.readFileSync(path.join(SKILLS_DIR, filename), 'utf8');
+                const frontmatter = parseSkillFrontmatter(content);
+
+                // Search in: skill name, description, tags, content
+                let matches = false;
+                const matchedIn = [];
+
+                if (searchRegex.test(skillName)) {
+                    matches = true;
+                    matchedIn.push('name');
+                }
+
+                if (frontmatter) {
+                    if (frontmatter.description && searchRegex.test(frontmatter.description)) {
+                        matches = true;
+                        matchedIn.push('description');
+                    }
+                    if (frontmatter.tags) {
+                        const tags = Array.isArray(frontmatter.tags) ? frontmatter.tags : [frontmatter.tags];
+                        if (tags.some(tag => searchRegex.test(tag))) {
+                            matches = true;
+                            matchedIn.push('tags');
+                        }
+                    }
+                }
+
+                if (searchRegex.test(content)) {
+                    matches = true;
+                    matchedIn.push('content');
+                }
+
+                if (matches) {
+                    results.push({
+                        name: skillName,
+                        frontmatter,
+                        matchedIn
+                    });
+                }
+            });
+
+        if (results.length === 0) {
+            console.log(`No skills found matching "${query}"`);
+            return;
+        }
+
+        console.log(`${colors.bright}Found ${results.length} skill${results.length > 1 ? 's' : ''} matching "${query}":${colors.reset}\n`);
+
+        results.forEach(result => {
+            console.log(`  ${indicators.skill} ${colors.bright}${result.name}${colors.reset}`);
+            if (result.frontmatter && result.frontmatter.description) {
+                console.log(`     ${colors.dim}${result.frontmatter.description}${colors.reset}`);
+            }
+            console.log(`     ${colors.cyan}Matched in:${colors.reset} ${result.matchedIn.join(', ')}`);
+            console.log('');
+        });
+    },
+
+    /**
+     * Show detailed info about a skill
+     */
+    info(skillName) {
+        if (!skillName) {
+            console.error(`${colors.red}Usage: claude-skills info <skill-name>${colors.reset}`);
+            process.exit(1);
+        }
+
+        const skillPath = path.join(SKILLS_DIR, `${skillName}.md`);
+
+        if (!fs.existsSync(skillPath)) {
+            console.error(`${colors.red}${indicators.error} Skill '${skillName}' not found${colors.reset}`);
+            process.exit(1);
+        }
+
+        const content = fs.readFileSync(skillPath, 'utf8');
+        const stats = fs.statSync(skillPath);
+        const frontmatter = parseSkillFrontmatter(content);
+
+        console.log(`${colors.bright}Skill: ${skillName}${colors.reset}\n`);
+        console.log(`${colors.dim}Path:${colors.reset} ${skillPath}`);
+        console.log(`${colors.dim}Size:${colors.reset} ${(stats.size / 1024).toFixed(1)} KB`);
+        console.log(`${colors.dim}Modified:${colors.reset} ${stats.mtime.toLocaleDateString()}`);
+
+        if (frontmatter) {
+            console.log('');
+            Object.entries(frontmatter).forEach(([key, value]) => {
+                const displayValue = Array.isArray(value) ? value.join(', ') : value;
+                console.log(`${colors.dim}${key}:${colors.reset} ${displayValue}`);
+            });
+        }
+
+        // Show content preview
+        console.log(`\n${colors.bright}Content Preview:${colors.reset}`);
+        console.log(colors.dim + '─'.repeat(50) + colors.reset);
+
+        const lines = content.split('\n');
+        const preview = lines.slice(0, 20).join('\n');
+        console.log(preview);
+
+        if (lines.length > 20) {
+            console.log(colors.dim + `\n... (${lines.length - 20} more lines)` + colors.reset);
+        }
+    }
+};
+
+/**
+ * Show usage information
+ */
+function showUsage() {
+    console.log(`
+${colors.bright}Claude Skills Manager${colors.reset}
+
+Manage skills for Claude Code projects.
+
+${colors.bright}Usage:${colors.reset}
+  claude-skills <command> [arguments]
+
+${colors.bright}Commands:${colors.reset}
+  ${colors.cyan}init${colors.reset}              Create .claude-skills in current project
+  ${colors.cyan}add${colors.reset} <name>        Add skill to current project
+  ${colors.cyan}remove${colors.reset} <name>     Remove skill from current project
+  ${colors.cyan}list${colors.reset}              List all available skills
+  ${colors.cyan}show${colors.reset}              Show active skills in current project
+  ${colors.cyan}create${colors.reset} <name>     Create new skill file
+  ${colors.cyan}validate${colors.reset} <name>   Validate skill file syntax
+  ${colors.cyan}search${colors.reset} <query>    Search for skills by keyword
+  ${colors.cyan}info${colors.reset} <name>       Show detailed info about a skill
+
+${colors.bright}Examples:${colors.reset}
+  claude-skills init                        # Initialize skills for project
+  claude-skills add suitecommerce-advanced  # Add a skill
+  claude-skills show                        # View active skills
+  claude-skills list                        # Browse available skills
+  claude-skills search netsuite             # Find skills by keyword
+
+${colors.bright}Skills Directory:${colors.reset}
+  ${SKILLS_DIR}
+`);
+}
+
+// Main CLI
+async function main() {
+    const command = process.argv[2];
+    const args = process.argv.slice(3);
+
+    if (!command || command === 'help' || command === '--help' || command === '-h') {
+        showUsage();
+        process.exit(command ? 0 : 1);
+    }
+
+    if (!commands[command]) {
+        console.error(`${colors.red}Unknown command: ${command}${colors.reset}`);
+        showUsage();
+        process.exit(1);
+    }
+
+    try {
+        await commands[command](...args);
+    } catch (error) {
+        console.error(`${colors.red}${indicators.error} Error: ${error.message}${colors.reset}`);
+        process.exit(1);
+    }
+}
+
+// Run CLI
+main().catch(error => {
+    console.error(`${colors.red}${indicators.error} Unexpected error: ${error.message}${colors.reset}`);
+    process.exit(1);
+});

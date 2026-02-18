@@ -78,6 +78,48 @@ export class AgentManager extends EventEmitter {
     return Array.from(this.agents.keys());
   }
 
+  /**
+   * Resolve which agent should handle a request.
+   * - If preferredAgentId is "auto" or empty, pick any connected agent.
+   * - If a specific agent is requested but offline, fall back to any connected agent.
+   * Returns the agentId to use, or null if no agents are available.
+   */
+  resolveAgent(preferredAgentId: string): string | null {
+    // If a specific agent is requested and online, use it
+    if (preferredAgentId && preferredAgentId !== 'auto' && this.isOnline(preferredAgentId)) {
+      return preferredAgentId;
+    }
+
+    // Fall back to any connected agent
+    const ids = this.getConnectedAgentIds();
+    if (ids.length === 0) return null;
+
+    // Pick the least-busy agent (fewest active tasks)
+    let best = ids[0]!;
+    let bestLoad = this.agents.get(best)!.activeTasks.length;
+
+    for (let i = 1; i < ids.length; i++) {
+      const agent = this.agents.get(ids[i]!)!;
+      if (agent.activeTasks.length < bestLoad) {
+        best = ids[i]!;
+        bestLoad = agent.activeTasks.length;
+      }
+    }
+
+    return best;
+  }
+
+  /**
+   * Resolve and send to the best available agent.
+   * Returns the agentId that was used, or null if no agents available.
+   */
+  resolveAndSend(preferredAgentId: string, data: string): string | null {
+    const agentId = this.resolveAgent(preferredAgentId);
+    if (!agentId) return null;
+    const sent = this.send(agentId, data);
+    return sent ? agentId : null;
+  }
+
   /** Sweep for dead connections (no heartbeat in 2x interval) */
   sweepDead(heartbeatIntervalMs: number): string[] {
     const threshold = Date.now() - heartbeatIntervalMs * 2;

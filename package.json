@@ -21,14 +21,27 @@
     "dev:agent": "npm run dev -w packages/agent",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "lint": "eslint packages/*/src",
+    "lint:fix": "eslint packages/*/src --fix",
+    "format": "prettier --write \"packages/*/src/**/*.ts\" \"Documentation/**/*.md\" \"*.md\" \"*.json\"",
+    "format:check": "prettier --check \"packages/*/src/**/*.ts\" \"Documentation/**/*.md\" \"*.md\" \"*.json\"",
     "typecheck": "tsc --build",
     "db:generate": "npm run db:generate -w packages/db",
     "db:migrate": "npm run db:migrate -w packages/db",
-    "clean": "rimraf packages/common/dist packages/db/dist packages/bots/dist packages/cloud/dist packages/agent/dist"
+    "clean": "rimraf packages/common/dist packages/db/dist packages/bots/dist packages/cloud/dist packages/agent/dist",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.56.0",
+    "@typescript-eslint/parser": "^8.56.0",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.8.1",
     "rimraf": "^6.0.0",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"

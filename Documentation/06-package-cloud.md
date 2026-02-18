@@ -55,10 +55,9 @@ Executed in order for every incoming Slack event:
 |----------|------|-------------|-------------|
 | Mentions | `mentions.ts` | `@BematicManager ...` | Primary UX — resolve bot, parse command, create task, submit to agent |
 | Messages | `messages.ts` | Channel messages | Auto-detect tasks in configured project channels |
-| Commands | `commands.ts` | `/bm-code`, `/bm-review`, `/bm-ops`, `/bm-plan` | Slash command handling |
+| BM Command | `bm-command.ts` | `/bm [subcommand]` | Main unified command handler (build, test, deploy, agents, cancel, restart, config, logs, etc.) |
 | Actions | `actions.ts` | Button clicks | Retry/cancel task interactive actions |
-| Config | `config.ts` | `/bm-config` | Project configuration modal (admin) |
-| Admin | `admin.ts` | `/bm-admin` | Agent restart, status, workers dashboard, deploy commands |
+| Admin (legacy) | `admin.ts` | `/bm-admin` | Legacy admin commands (kept for backwards compatibility) |
 
 ---
 
@@ -100,11 +99,56 @@ Executed in order for every incoming Slack event:
 
 ---
 
+## /bm Slash Commands
+
+Primary command interface for development, operations, and configuration:
+
+| Command | Permission | Purpose |
+|---------|------------|---------|
+| `/bm build` | TASK_CREATE | Compile/rebuild the app |
+| `/bm test [args]` | TASK_CREATE | Run tests |
+| `/bm status` | TASK_CREATE | Check git status & project health |
+| `/bm deploy` | USER_MANAGE | Deploy to Railway |
+| `/bm agents` | USER_MANAGE | Dashboard showing all agents, projects, and active tasks with IDs |
+| `/bm queue` | USER_MANAGE | List all queued/pending tasks (project-specific or global) |
+| `/bm cancel <task-id>` | USER_MANAGE | Cancel a specific running or queued task (stops execution on agent) |
+| `/bm clear-queue` | USER_MANAGE | Clear all queued tasks for current project |
+| `/bm clear-queue --all` | USER_MANAGE | Clear ALL queued tasks across ALL projects |
+| `/bm restart [--rebuild]` | USER_MANAGE | Restart all connected agents (optionally rebuild TypeScript) |
+| `/bm usage` | USER_MANAGE | View session usage & statistics |
+| `/bm logs [limit]` | USER_MANAGE | View prompt history with optional filters |
+| `/bm config` | PROJECT_MANAGE | Configure project settings via modal |
+
+**Task & Queue Management Flows**:
+
+*Viewing Queued Tasks*:
+1. User runs `/bm queue` in a project channel (shows project-specific queue)
+2. OR runs `/bm queue` in any channel (shows all queued tasks across all projects)
+3. Each task displays: ID, status, bot, command, prompt preview, project, user, age
+
+*Cancelling a Task*:
+1. User runs `/bm agents` or `/bm queue` to see task IDs (displayed as `` `task_xyz123` ``)
+2. User runs `/bm cancel task_xyz123`
+3. Cloud sends `TASK_CANCEL` message to agent via WebSocket
+4. Agent aborts the task using `AbortController`
+5. Agent sends `TASK_CANCELLED` confirmation back
+6. Cloud updates task status to `cancelled` in database
+7. Slack notification posted to task thread
+
+*Clearing Queue*:
+1. User runs `/bm clear-queue` in project channel → cancels all queued tasks for that project
+2. OR runs `/bm clear-queue --all` anywhere → cancels ALL queued tasks across ALL projects (requires `--all` flag as safety)
+3. Each task is cancelled individually and logged in audit trail
+
+**Note**: `/bm-admin` is kept for backwards compatibility but `/bm` is the primary interface.
+
+---
+
 ## Services
 
 | Service | File | Purpose |
 |---------|------|---------|
-| `CommandService` | `command.service.ts` | Orchestrates: bot resolution → command parsing → task creation → agent submission |
+| `CommandService` | `command.service.ts` | Orchestrates: bot resolution → command parsing → task creation → agent submission; handles task cancellation |
 | `NotificationService` | `notification.service.ts` | Slack messaging (progress, completion, errors, stream updates) and emoji reactions |
 | `ProjectService` | `project.service.ts` | CRUD operations for project configuration |
 

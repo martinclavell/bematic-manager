@@ -11,8 +11,13 @@ export class OfflineQueue {
   ) {
     // Listen for agent reconnections and drain queue
     this.agentManager.on('agent:connected', (agentId: string) => {
+      // Drain entries queued for this specific agent
       this.drain(agentId).catch((err) => {
         logger.error({ err, agentId }, 'Failed to drain offline queue');
+      });
+      // Also drain "auto" entries (queued when no agents were available)
+      this.drain('auto').catch((err) => {
+        logger.error({ err, agentId }, 'Failed to drain auto-routed offline queue');
       });
     });
   }
@@ -32,25 +37,32 @@ export class OfflineQueue {
     logger.info({ agentId, messageType: message.type }, 'Message queued for offline agent');
   }
 
-  async drain(agentId: string): Promise<number> {
-    const pending = this.repo.findPendingByAgentId(agentId);
+  async drain(queuedAgentId: string): Promise<number> {
+    const pending = this.repo.findPendingByAgentId(queuedAgentId);
     if (pending.length === 0) return 0;
 
-    logger.info({ agentId, count: pending.length }, 'Draining offline queue');
+    logger.info({ queuedAgentId, count: pending.length }, 'Draining offline queue');
 
     let delivered = 0;
     for (const item of pending) {
-      const sent = this.agentManager.send(agentId, item.payload);
+      // For "auto" entries, resolve to any available agent
+      const targetAgentId = this.agentManager.resolveAgent(queuedAgentId);
+      if (!targetAgentId) {
+        logger.warn({ queuedAgentId, itemId: item.id }, 'No agents available to drain to');
+        break;
+      }
+
+      const sent = this.agentManager.send(targetAgentId, item.payload);
       if (sent) {
         this.repo.markDelivered(item.id);
         delivered++;
       } else {
-        logger.warn({ agentId, itemId: item.id }, 'Failed to send queued message');
-        break; // Stop if agent disconnected
+        logger.warn({ targetAgentId, itemId: item.id }, 'Failed to send queued message');
+        break;
       }
     }
 
-    logger.info({ agentId, delivered, total: pending.length }, 'Offline queue drained');
+    logger.info({ queuedAgentId, delivered, total: pending.length }, 'Offline queue drained');
     return delivered;
   }
 

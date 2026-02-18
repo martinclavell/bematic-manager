@@ -104,25 +104,29 @@ CLAUDE HITS 200-TURN LIMIT
 
 ---
 
-## Task Decomposition (complex tasks)
+## Task Decomposition (FUTURE FEATURE - NOT YET IMPLEMENTED)
+
+> **Note:** This feature is planned but not currently implemented. The following describes the intended design.
 
 ```
 1. USER submits complex feature task (long args or --decompose flag)
-   → CommandService.submit() detects bot.shouldDecompose() = true
-   → Submits lightweight planning task (read-only, command="decompose")
+   → CommandService.submit() would detect bot.shouldDecompose() = true
+   → Would submit lightweight planning task (read-only, command="decompose")
 
 2. PLANNING TASK completes
-   → MessageRouter detects command="decompose"
-   → Calls CommandService.handleDecompositionComplete()
-   → Parses JSON subtask list from planning result
-   → Posts subtask plan to Slack
+   → MessageRouter would detect command="decompose"
+   → Would call CommandService.handleDecompositionComplete()
+   → Would parse JSON subtask list from planning result
+   → Would post subtask plan to Slack
 
 3. SUBTASKS submitted sequentially
-   → Each gets its own taskId with parentTaskId = planning task ID
-   → Each executes independently (with auto-continuation enabled)
+   → Each would get its own taskId with parentTaskId = planning task ID
+   → Each would execute independently (with auto-continuation enabled)
 
 4. ALL SUBTASKS COMPLETE
-   → MessageRouter detects all siblings in terminal state
-   → Posts consolidated summary to Slack
-   → Marks parent task as completed with aggregated metrics
+   → MessageRouter would detect all siblings in terminal state
+   → Would post consolidated summary to Slack
+   → Would mark parent task as completed with aggregated metrics
 ```
+
+**Implementation status:** Stubs exist in `MessageRouter` but core logic is not yet implemented.

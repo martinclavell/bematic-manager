@@ -34,4 +34,11 @@ export const Limits = {
 
   /** Max turns per Claude invocation */
   MAX_TURNS_PER_INVOCATION: 200,
+
+  /** Slack message limits (based on Slack API constraints) */
+  SLACK_MESSAGE_MAX_LENGTH: 40_000, // Slack hard limit
+  SLACK_MESSAGE_RECOMMENDED_LENGTH: 15_000, // Safe limit to avoid truncation issues
+  SLACK_SECTION_BLOCK_MAX_LENGTH: 3_000, // Per section block limit
+  SLACK_STREAMING_DISPLAY_LENGTH: 12_000, // Display limit for streaming messages
+  SLACK_FINAL_DISPLAY_LENGTH: 15_000, // Display limit for final results
 } as const;

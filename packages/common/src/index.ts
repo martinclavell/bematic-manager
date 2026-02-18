@@ -5,6 +5,7 @@ export {
   BOT_KEYWORDS,
   BOT_SLASH_COMMANDS,
   BOT_DEFAULT_BUDGETS,
+  MAIN_SLASH_COMMAND,
   UserRole,
   Permission,
   ROLE_PERMISSIONS,
@@ -43,6 +44,7 @@ export type {
   User,
   AuthRequestPayload,
   AuthResponsePayload,
+  FileAttachment,
   SlackContext,
   SlackBlockMessage,
   SlackBlock,
@@ -98,5 +100,7 @@ export {
   createWSMessage,
   serializeMessage,
   parseMessage,
+  truncateMessage,
+  truncateForSectionBlock,
 } from './utils/index.js';
-export type { Logger, RetryOptions } from './utils/index.js';
+export type { Logger, RetryOptions, TruncationOptions } from './utils/index.js';

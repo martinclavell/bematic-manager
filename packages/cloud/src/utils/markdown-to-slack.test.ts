@@ -34,6 +34,19 @@ describe('markdownToSlack', () => {
       expect(markdownToSlack(null as any)).toBe(null);
       expect(markdownToSlack(undefined as any)).toBe(undefined);
     });
+
+    it('decodes HTML entities from upstream', () => {
+      // Fix for HTML entities that might come from Claude SDK or other sources
+      expect(markdownToSlack('.filter(f =&gt; f.endsWith(&quot;.md&quot;))')).toBe('.filter(f => f.endsWith(".md"))');
+      expect(markdownToSlack('a &amp; b')).toBe('a & b');
+      expect(markdownToSlack('&lt;div&gt;')).toBe('<div>');
+    });
+
+    it('decodes HTML entities in code blocks', () => {
+      const input = '```\nfunction foo() { return x &gt; y &amp;&amp; z; }\n```';
+      const expected = '```\nfunction foo() { return x > y && z; }\n```';
+      expect(markdownToSlack(input)).toBe(expected);
+    });
   });
 
   // ── Headers ────────────────────────────────────────────────────────

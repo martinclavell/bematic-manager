@@ -144,7 +144,7 @@ export function registerAdminListener(app: App, ctx: AppContext) {
                 const promptPreview = task.prompt.length > 40
                   ? task.prompt.slice(0, 40) + '...'
                   : task.prompt;
-                section += `\n>    \u2022 [${task.botName}] ${task.command} — "${promptPreview}" — <@${task.slackUserId}> — ${elapsed}${cost}`;
+                section += `\n>    \u2022 \`${task.id}\` [${task.botName}] ${task.command} — "${promptPreview}" — <@${task.slackUserId}> — ${elapsed}${cost}`;
               }
             } else {
               section += `\n> :white_check_mark: No running tasks`;
@@ -285,6 +285,40 @@ export function registerAdminListener(app: App, ctx: AppContext) {
         }
 
 
+        case 'cancel-task': {
+          const taskId = args[1];
+          if (!taskId) {
+            await respond(':x: Usage: `/bm-admin cancel-task <task-id>`\n\nYou can find task IDs in the `/bm-admin workers` dashboard.');
+            return;
+          }
+
+          const task = ctx.taskRepo.findById(taskId);
+          if (!task) {
+            await respond(`:x: Task not found: \`${taskId}\``);
+            return;
+          }
+
+          if (task.status !== 'running' && task.status !== 'queued' && task.status !== 'pending') {
+            await respond(`:x: Task \`${taskId}\` is already ${task.status} and cannot be cancelled.`);
+            return;
+          }
+
+          // Cancel the task
+          await ctx.commandService.cancel(taskId, `Cancelled by admin <@${user_id}>`);
+
+          await respond(`:octagonal_sign: Task \`${taskId}\` has been cancelled.`);
+
+          // Log audit trail
+          ctx.auditLogRepo.log('task:cancel-admin', 'task', taskId, user_id, {
+            previousStatus: task.status,
+            botName: task.botName,
+            projectId: task.projectId,
+          });
+
+          logger.info({ taskId, userId: user_id }, 'Task cancelled by admin');
+          break;
+        }
+
         case 'logs': {
           const limit = parseInt(args[1] || '20', 10);
           const category = args.find((a, i) => args[i - 1] === '--category');
@@ -332,14 +366,14 @@ export function registerAdminListener(app: App, ctx: AppContext) {
 
             const tags = JSON.parse(prompt.tags) as string[];
             const files = JSON.parse(prompt.relatedFiles) as string[];
-            
+
             const timestamp = new Date(prompt.timestamp);
             const ago = formatDuration(Date.now() - timestamp.getTime());
 
             let line = `\n${statusIcon} *#${prompt.id}* | ${ago} ago`;
             if (prompt.category) line += ` | :file_folder: ${prompt.category}`;
             line += `\n> ${prompt.prompt.length > 100 ? prompt.prompt.slice(0, 100) + '...' : prompt.prompt}`;
-            
+
             if (tags.length > 0) line += `\n> :label: ${tags.join(', ')}`;
             if (prompt.executionNotes) line += `\n> :memo: ${prompt.executionNotes.length > 80 ? prompt.executionNotes.slice(0, 80) + '...' : prompt.executionNotes}`;
             if (files.length > 0) line += `\n> :page_facing_up: ${files.length} file(s)`;
@@ -360,6 +394,7 @@ export function registerAdminListener(app: App, ctx: AppContext) {
           await respond(
             '*Admin Commands:*\n' +
             '`/bm-admin workers` - Dashboard of all agents, projects & active tasks\n' +
+            '`/bm-admin cancel-task <task-id>` - Cancel a running or queued task\n' +
             '`/bm-admin restart-agent` - Restart all connected agents\n' +
             '`/bm-admin restart-agent --rebuild` - Restart with TypeScript rebuild\n' +
             '`/bm-admin agent-status` - Show connected agent status\n' +

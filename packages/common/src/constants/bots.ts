@@ -14,6 +14,10 @@ export const BOT_KEYWORDS: Record<BotName, string[]> = {
   [BotName.PLANNER]: ['plan', 'planner', 'sprint', 'report', 'create-task'],
 };
 
+// Main slash command - all functionality under /bm
+export const MAIN_SLASH_COMMAND = '/bm';
+
+// Legacy slash commands (deprecated, kept for backwards compatibility)
 export const BOT_SLASH_COMMANDS: Record<string, BotName> = {
   '/bm-code': BotName.CODER,
   '/bm-review': BotName.REVIEWER,

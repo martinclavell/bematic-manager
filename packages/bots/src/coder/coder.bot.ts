@@ -11,7 +11,6 @@ export class CoderBot extends BaseBotPlugin {
   name = BotName.CODER;
   displayName = 'Coder';
   description = 'Writes, fixes, and refactors code';
-  slashCommand = '/bm-code';
   defaultCommand = 'fix';
 
   commands: BotCommand[] = [

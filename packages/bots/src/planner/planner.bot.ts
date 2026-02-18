@@ -5,7 +5,6 @@ export class PlannerBot extends BaseBotPlugin {
   name = BotName.PLANNER;
   displayName = 'Planner';
   description = 'Project planning, task management, and reporting';
-  slashCommand = '/bm-plan';
   defaultCommand = 'list';
 
   commands: BotCommand[] = [

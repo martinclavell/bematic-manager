@@ -1,4 +1,4 @@
-import { desc } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { BaseRepository } from './base.repository.js';
 import { auditLogs } from '../schema/audit-logs.js';
 import type { AuditLogInsert, AuditLogRow } from '../schema/audit-logs.js';
@@ -31,5 +31,14 @@ export class AuditLogRepository extends BaseRepository {
       .orderBy(desc(auditLogs.timestamp))
       .limit(limit)
       .all();
+  }
+
+  findAll(): AuditLogRow[] {
+    return this.db.select().from(auditLogs).all();
+  }
+
+  delete(id: number): boolean {
+    const result = this.db.delete(auditLogs).where(eq(auditLogs.id, id)).run();
+    return result.changes > 0;
   }
 }

@@ -1,0 +1,13 @@
+{
+  "skills": [
+    "react-patterns",
+    "typescript-best-practices"
+  ],
+  "auto_detect": true,
+  "project_type": "react-typescript",
+  "metadata": {
+    "created": "2024-01-15",
+    "team": "Frontend Team",
+    "description": "Modern React application with TypeScript"
+  }
+}

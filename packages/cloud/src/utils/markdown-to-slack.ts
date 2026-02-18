@@ -1,4 +1,19 @@
 /**
+ * Decode common HTML entities that might have been accidentally introduced.
+ * This fixes issues where text from upstream (e.g., Claude SDK) contains
+ * HTML entities that should be plain characters.
+ */
+function decodeHTMLEntities(text: string): string {
+  return text
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'");
+}
+
+/**
  * Converts GitHub-flavored Markdown to Slack mrkdwn format.
  *
  * Conversion map:
@@ -20,7 +35,8 @@
 export function markdownToSlack(md: string): string {
   if (!md) return md;
 
-  let result = md;
+  // First, decode any HTML entities that might have been accidentally introduced
+  let result = decodeHTMLEntities(md);
 
   // ── Phase 1: Protect content that must not be modified ──────────────
 

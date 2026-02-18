@@ -5,7 +5,6 @@ export class ReviewerBot extends BaseBotPlugin {
   name = BotName.REVIEWER;
   displayName = 'Reviewer';
   description = 'Reviews code, diffs, and explains implementations';
-  slashCommand = '/bm-review';
   defaultCommand = 'review';
 
   commands: BotCommand[] = [

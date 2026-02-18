@@ -53,16 +53,21 @@
 
 Key limits:
 ```
-MAX_CONCURRENT_TASKS: 3
+MAX_CONCURRENT_TASKS: 5
 RATE_LIMIT_WINDOW_MS: 3600000 (1 hour)
 RATE_LIMIT_MAX_REQUESTS: 50
 WS_HEARTBEAT_INTERVAL_MS: 30000
 WS_AUTH_TIMEOUT_MS: 10000
 OFFLINE_QUEUE_TTL_MS: 86400000 (24 hours)
 MAX_PROMPT_LENGTH: 10000
+MAX_CONTINUATIONS: 3
+MAX_TURNS_PER_INVOCATION: 200
 SLACK_STREAM_UPDATE_INTERVAL_MS: 3000
-DEFAULT_MAX_BUDGET: 5.0
-DEFAULT_MODEL: 'claude-sonnet-4-5-20250929'
+SLACK_MESSAGE_MAX_LENGTH: 40000 (Slack hard limit)
+SLACK_MESSAGE_RECOMMENDED_LENGTH: 15000 (safe display limit)
+SLACK_SECTION_BLOCK_MAX_LENGTH: 3000 (per block limit)
+SLACK_STREAMING_DISPLAY_LENGTH: 12000 (streaming truncation)
+SLACK_FINAL_DISPLAY_LENGTH: 15000 (final result truncation)
 ```
 
 ---
@@ -155,6 +160,35 @@ createLogger(name: string): pino.Logger
 // Production: JSON structured logs
 // Level controlled by LOG_LEVEL env var
 ```
+
+### Message Truncation (`utils/message-truncation.ts`)
+
+Intelligent message truncation for Slack display limits.
+
+```typescript
+truncateMessage(text: string, options?: TruncationOptions): {
+  truncated: string;
+  wasTruncated: boolean;
+  originalLength: number;
+}
+
+truncateForSectionBlock(text: string): string[]
+```
+
+**Truncation Strategies**:
+- `head`: Keep beginning (default for streaming - users see start first)
+- `tail`: Keep end (legacy, avoid for user-facing)
+- `smart`: Preserve structure (code blocks, headers) - best for final results
+
+**Use Cases**:
+- Streaming: HEAD strategy shows progress from beginning
+- Final results: SMART strategy preserves important sections
+- Section blocks: Auto-split long text across multiple 3000-char blocks
+
+**Configuration**:
+- `maxLength`: Custom limit (default: SLACK_MESSAGE_RECOMMENDED_LENGTH)
+- `indicator`: Custom truncation notice
+- `preserveCodeBlocks`: Prioritize keeping code (default: true)
 
 ### Retry (`utils/retry.ts`)
 
