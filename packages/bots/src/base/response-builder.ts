@@ -1,4 +1,5 @@
 import type { SlackBlock, SubtaskDefinition } from '@bematic/common';
+import { truncateMessage, Limits, truncateForSectionBlock } from '@bematic/common';
 
 /** Format milliseconds into human-readable duration (e.g. "2:32 minutes", "45 seconds") */
 function formatDuration(ms: number): string {
@@ -62,31 +63,50 @@ export function actions(
   };
 }
 
-export function taskStartBlocks(taskId: string, botName: string, command: string): SlackBlock[] {
-  return [
-    section(`:hourglass_flowing_sand: *Working on it...* (${botName}/${command})`),
-    context(`Task: \`${taskId}\``),
-  ];
-}
-
 export function taskCompleteBlocks(
   result: string,
   metrics: { inputTokens: number; outputTokens: number; estimatedCost: number; durationMs: number; filesChanged: string[] },
 ): SlackBlock[] {
-  const blocks: SlackBlock[] = [
-    section(result.length > 3000 ? result.slice(0, 3000) + '\n\n_...truncated_' : result),
-    divider(),
+  // Use smart truncation to preserve structure (code blocks, headers)
+  const { truncated, wasTruncated, originalLength } = truncateMessage(result, {
+    maxLength: Limits.SLACK_FINAL_DISPLAY_LENGTH,
+    strategy: 'smart',
+    indicator: `\n\n_...response truncated for Slack display_`,
+    preserveCodeBlocks: true,
+  });
+
+  // Split into multiple section blocks if needed (3000 char limit per block)
+  const textBlocks = truncateForSectionBlock(truncated);
+
+  const blocks: SlackBlock[] = [];
+
+  // Add each text chunk as a section block
+  for (const chunk of textBlocks) {
+    blocks.push(section(chunk));
+  }
+
+  // Add truncation warning if needed
+  if (wasTruncated) {
+    blocks.push(
+      context(`:warning: Full response was ${originalLength.toLocaleString()} characters (truncated to fit Slack limits)`),
+    );
+  }
+
+  blocks.push(divider());
+  blocks.push(
     context(
       `:white_check_mark: Completed in ${formatDuration(metrics.durationMs)}`,
       `Tokens: ${formatNumber(metrics.inputTokens + metrics.outputTokens)}`,
       `Cost: $${metrics.estimatedCost.toFixed(4)}`,
     ),
-  ];
+  );
 
   if (metrics.filesChanged.length > 0) {
     const fileList = metrics.filesChanged.map((f) => `• ${f}`).join('\n');
+    // Truncate file list if extremely long
+    const displayList = fileList.length > 500 ? fileList.slice(0, 500) + `\n...and ${metrics.filesChanged.length - fileList.slice(0, 500).split('\n').length} more` : fileList;
     blocks.push(
-      context(`*Files changed:*\n${fileList}`),
+      context(`*Files changed:*\n${displayList}`),
     );
   }
 

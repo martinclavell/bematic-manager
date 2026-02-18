@@ -106,12 +106,6 @@ export class MessageRouter {
 
     if (parsed.accepted) {
       this.taskRepo.update(parsed.taskId, { status: 'running' });
-      await this.notifier.postBlocks(
-        task.slackChannelId,
-        ResponseBuilder.taskStartBlocks(parsed.taskId, task.botName, task.command),
-        `Working on task ${parsed.taskId}...`,
-        task.slackThreadTs,
-      );
     } else {
       this.taskRepo.update(parsed.taskId, {
         status: 'failed',
