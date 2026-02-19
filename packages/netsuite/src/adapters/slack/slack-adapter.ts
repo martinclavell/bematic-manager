@@ -1,6 +1,6 @@
 import type { App } from '@slack/bolt';
 import type { NetSuiteConfigManager } from '../../core/config/config-manager.js';
-import type { NetSuiteClient } from '../../core/client/netsuite-client.js';
+import { NetSuiteClient } from '../../core/client/netsuite-client.js';
 import { RecordService } from '../../services/record/record-service.js';
 import { NetSuiteSEOService } from '../../services/seo/seo-service.js';
 import type { NetSuiteOAuth1Credentials } from '../../types/common.js';
@@ -218,7 +218,7 @@ export class NetSuiteSlackAdapter {
       // Extract values
       const accountId = vals['account_id']!['value']!.value!;
       const productionUrl = vals['production_url']!['value']!.value!;
-      const sandboxUrl = vals['sandbox_url']?.['value']?.value;
+      const sandboxUrl = vals['sandbox_url']?.['value']?.value ?? undefined;
       const restletUrl = vals['restlet_url']!['value']!.value!;
       let consumerKey = vals['consumer_key']!['value']!.value!;
       let consumerSecret = vals['consumer_secret']!['value']!.value!;

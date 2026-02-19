@@ -43,7 +43,7 @@ export class CredentialEncryption {
   encrypt(plaintext: string): string {
     try {
       const iv = crypto.randomBytes(16);
-      const cipher = crypto.createCipheriv(this.algorithm, this.key, iv);
+      const cipher = crypto.createCipheriv(this.algorithm, this.key, iv) as crypto.CipherGCM;
 
       let encrypted = cipher.update(plaintext, 'utf8', 'hex');
       encrypted += cipher.final('hex');
@@ -75,7 +75,7 @@ export class CredentialEncryption {
       const iv = Buffer.from(ivHex!, 'hex');
       const authTag = Buffer.from(authTagHex!, 'hex');
 
-      const decipher = crypto.createDecipheriv(this.algorithm, this.key, iv);
+      const decipher = crypto.createDecipheriv(this.algorithm, this.key, iv) as crypto.DecipherGCM;
       decipher.setAuthTag(authTag);
 
       let decrypted = decipher.update(encrypted!, 'hex', 'utf8');
