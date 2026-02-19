@@ -278,7 +278,8 @@ function handleDeploy(wsClient: WSClient, payload: DeployRequestPayload) {
     cwd: payload.localPath,
     encoding: 'utf-8',
     timeout: 120_000,
-    shell: process.platform === 'win32' ? 'cmd.exe' : '/bin/bash',
+    shell: process.platform === 'win32' ? (process.env.ComSpec || 'C:\\Windows\\System32\\cmd.exe') : '/bin/bash',
+    env: process.env,
   }, (err, stdout, stderr) => {
     if (err) {
       const message = stderr || err.message;
