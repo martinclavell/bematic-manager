@@ -160,7 +160,25 @@ Primary command interface for development, operations, and configuration:
 | `/bm restart [--rebuild]` | USER_MANAGE | Restart all connected agents (optionally rebuild TypeScript) |
 | `/bm usage` | USER_MANAGE | View session usage & statistics |
 | `/bm logs [limit]` | USER_MANAGE | View prompt history with optional filters |
-| `/bm config` | PROJECT_MANAGE | Configure project settings via modal |
+| `/bm config` | PROJECT_MANAGE | Configure project settings via modal (name, path, agent, model, budget, auto-commit) |
+
+**Project Configuration**:
+
+The `/bm config` modal allows configuring:
+- **Project Name**: Display name for the project
+- **Local Path**: Filesystem path on agent machine
+- **Agent ID**: Which agent handles this project (auto-routing or specific agent)
+- **Default Model**: Claude model to use (Sonnet 4.5, Opus 4.6, Haiku 4.5)
+- **Default Max Budget**: Maximum cost per task in USD
+- **Auto Commit & Push**: Whether to automatically commit and push changes after task completion
+- **Railway Settings**: Optional deployment configuration
+
+When **Auto Commit & Push** is enabled:
+1. After task completion, agent stages all changed files (`git add -A`)
+2. Creates a commit with task metadata (bot name, command, files changed, task ID)
+3. Pushes to the current branch (`git push`)
+4. Progress notifications shown in Slack
+5. If commit/push fails, warning is shown but task completes successfully
 
 **Task & Queue Management Flows**:
 

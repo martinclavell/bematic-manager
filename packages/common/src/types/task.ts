@@ -51,6 +51,8 @@ export interface TaskSubmitPayload {
   maxContinuations?: number;
   /** Parent task ID when this is a subtask from decomposition */
   parentTaskId?: string | null;
+  /** Whether to automatically commit and push changes after completion */
+  autoCommitPush?: boolean;
   /** File attachments from Slack (base64-encoded) */
   attachments?: Array<{
     name: string;

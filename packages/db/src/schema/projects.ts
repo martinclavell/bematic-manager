@@ -11,6 +11,7 @@ export const projects = sqliteTable('projects', {
   railwayProjectId: text('railway_project_id'),
   railwayServiceId: text('railway_service_id'),
   railwayEnvironmentId: text('railway_environment_id'),
+  autoCommitPush: integer('auto_commit_push', { mode: 'boolean' }).notNull().default(false),
   active: integer('active', { mode: 'boolean' }).notNull().default(true),
   createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
   updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),

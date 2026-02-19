@@ -105,6 +105,7 @@ ${slackContext.fileInfo}`
       allowedTools: execConfig.allowedTools,
       resumeSessionId: resumeSessionId ?? null,
       parentTaskId: parentTaskId ?? null,
+      autoCommitPush: project.autoCommitPush ?? false,
       slackContext: {
         channelId: slackContext.channelId,
         threadTs: slackContext.threadTs,

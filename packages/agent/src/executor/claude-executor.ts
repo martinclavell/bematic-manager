@@ -11,6 +11,7 @@ import {
 import { writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { execSync } from 'node:child_process';
 import {
   MessageType,
   Limits,
@@ -245,6 +246,75 @@ export class ClaudeExecutor {
   }
 
   /**
+   * Auto-commit and push changes if enabled for the project
+   */
+  private async autoCommitPush(task: TaskSubmitPayload, filesChanged: Set<string>): Promise<void> {
+    if (!task.autoCommitPush || filesChanged.size === 0) {
+      return;
+    }
+
+    try {
+      logger.info({ taskId: task.taskId, filesChanged: filesChanged.size }, 'Auto-commit enabled, committing changes');
+
+      // Send progress update
+      this.wsClient.send(
+        createWSMessage(MessageType.TASK_PROGRESS, {
+          taskId: task.taskId,
+          type: 'info',
+          message: ':floppy_disk: Auto-committing changes...',
+          timestamp: Date.now(),
+        }),
+      );
+
+      // Stage all changes
+      execSync('git add -A', { cwd: task.localPath, encoding: 'utf-8' });
+
+      // Create commit message
+      const fileList = Array.from(filesChanged).join(', ');
+      const commitMessage = `Auto-commit: ${task.botName} ${task.command}
+
+Files changed: ${fileList}
+
+🤖 Generated with Bematic Manager
+Task: ${task.taskId}`;
+
+      // Commit
+      execSync(`git commit -m "${commitMessage.replace(/"/g, '\\"')}"`, {
+        cwd: task.localPath,
+        encoding: 'utf-8'
+      });
+
+      // Push
+      execSync('git push', { cwd: task.localPath, encoding: 'utf-8' });
+
+      logger.info({ taskId: task.taskId }, 'Successfully committed and pushed changes');
+
+      // Send success notification
+      this.wsClient.send(
+        createWSMessage(MessageType.TASK_PROGRESS, {
+          taskId: task.taskId,
+          type: 'info',
+          message: ':white_check_mark: Changes committed and pushed',
+          timestamp: Date.now(),
+        }),
+      );
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      logger.warn({ taskId: task.taskId, error: errorMessage }, 'Auto-commit failed');
+
+      // Send warning but don't fail the task
+      this.wsClient.send(
+        createWSMessage(MessageType.TASK_PROGRESS, {
+          taskId: task.taskId,
+          type: 'info',
+          message: `:warning: Auto-commit failed: ${errorMessage}`,
+          timestamp: Date.now(),
+        }),
+      );
+    }
+  }
+
+  /**
    * Notify about attachment failures via WebSocket messages
    */
   private async notifyAttachmentFailures(task: TaskSubmitPayload, failedAttachments: AttachmentResult[]): Promise<void> {
@@ -441,6 +511,9 @@ export class ClaudeExecutor {
         const totalTurns = Limits.MAX_TURNS_PER_INVOCATION * (continuationCount + 1);
         const partialResult = `_Reached the maximum turn limit (${totalTurns} turns across ${continuationCount + 1} invocations). Here's what was accomplished so far._\n\nThe task was too complex to complete even with auto-continuation. You can continue by replying in this thread.`;
 
+        // Auto-commit and push if enabled
+        await this.autoCommitPush(task, filesChanged);
+
         const result: ExecutionResult = {
           result: partialResult,
           sessionId,
@@ -497,6 +570,9 @@ export class ClaudeExecutor {
           commandsRun: commandsRun.size,
         },
       });
+
+      // Auto-commit and push if enabled
+      await this.autoCommitPush(task, filesChanged);
 
       // Normal completion (either first-shot or after successful continuation)
       const result: ExecutionResult = {
