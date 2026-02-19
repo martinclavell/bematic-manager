@@ -7,6 +7,15 @@ import {
 } from '@bematic/common';
 import type { AppContext } from '../../context.js';
 import { BotRegistry } from '@bematic/bots';
+import {
+  handleScheduleCommand,
+  handleCronCreateCommand,
+  handleScheduledListCommand,
+  handleScheduledShowCommand,
+  handleScheduledPauseCommand,
+  handleScheduledResumeCommand,
+  handleScheduledCancelCommand,
+} from '../commands/scheduled-commands.js';
 
 const logger = createLogger('slack:bm-command');
 
@@ -751,6 +760,54 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
           break;
         }
 
+        // ===== SCHEDULED TASKS & CRON JOBS =====
+        case 'schedule': {
+          await ctx.authChecker.checkPermission(user_id, Permission.TASK_CREATE);
+          await handleScheduleCommand(command, respond, client, ctx, subArgs);
+          break;
+        }
+
+        case 'cron': {
+          if (subArgs[0] === 'create') {
+            await ctx.authChecker.checkPermission(user_id, Permission.TASK_CREATE);
+            await handleCronCreateCommand(command, respond, client, ctx, subArgs.slice(1));
+          } else {
+            await respond(':x: Usage: `/bm cron create "<expression>" <bot> <command> <prompt>`');
+          }
+          break;
+        }
+
+        case 'scheduled': {
+          const scheduledSubcmd = subArgs[0]?.toLowerCase();
+          switch (scheduledSubcmd) {
+            case 'list':
+              await handleScheduledListCommand(command, respond, ctx, subArgs.slice(1));
+              break;
+            case 'show':
+              await handleScheduledShowCommand(command, respond, ctx, subArgs.slice(1));
+              break;
+            case 'pause':
+              await handleScheduledPauseCommand(command, respond, ctx, subArgs.slice(1));
+              break;
+            case 'resume':
+              await handleScheduledResumeCommand(command, respond, ctx, subArgs.slice(1));
+              break;
+            case 'cancel':
+              await handleScheduledCancelCommand(command, respond, ctx, subArgs.slice(1));
+              break;
+            default:
+              await respond(
+                '*Scheduled Tasks Commands:*\n' +
+                '• `/bm scheduled list` - List all scheduled tasks\n' +
+                '• `/bm scheduled show <id>` - Show task details\n' +
+                '• `/bm scheduled pause <id>` - Pause a task\n' +
+                '• `/bm scheduled resume <id>` - Resume a task\n' +
+                '• `/bm scheduled cancel <id>` - Cancel a task'
+              );
+          }
+          break;
+        }
+
         // ===== HELP =====
         case 'help':
         case '?':
@@ -781,6 +838,12 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
             '*Agent Management:*\n' +
             '`/bm restart` or `/bm restart-agent` - Restart all connected agents\n' +
             '`/bm restart --rebuild` - Restart agents with rebuild\n\n' +
+            '*Scheduled Tasks & Cron Jobs:*\n' +
+            '`/bm schedule "<time>" <bot> <command> <prompt>` - Schedule a one-time task\n' +
+            '`/bm cron create "<expression>" <bot> <command> <prompt>` - Create recurring cron job\n' +
+            '`/bm scheduled list` - List all scheduled tasks\n' +
+            '`/bm scheduled show <id>` - Show task details\n' +
+            '`/bm scheduled pause|resume|cancel <id>` - Manage scheduled tasks\n\n' +
             '*Configuration:*\n' +
             '`/bm config` or `/bm configure` or `/bm setup` - Configure project settings\n\n' +
             '*NetSuite Integration:*\n' +

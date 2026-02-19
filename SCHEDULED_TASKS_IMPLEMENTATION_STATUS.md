@@ -58,61 +58,58 @@
   - Auto-cancels expired tasks
   - forceTick() - Manual execution for testing
 
-## 🔄 Phase 2: Integration (IN PROGRESS)
+## ✅ Phase 2: Integration (COMPLETED)
 
-### Next Steps
+- ✅ Updated AppContext with scheduledTaskRepo and schedulerService
+- ✅ Integrated SchedulerWorker into cloud bootstrap (index.ts)
+- ✅ Added ProjectRepository to SchedulerService constructor
+- ✅ Worker starts after Slack app, stops gracefully on SIGTERM
+- ✅ Updated exports from @bematic/common (TimeParser, CronParser)
 
-1. **Update AppContext** (`packages/cloud/src/context.ts`)
-   - Add ScheduledTaskRepository instantiation
-   - Add SchedulerService instantiation
-   - Export in context type
+## ✅ Phase 3: Slack Commands (COMPLETED)
 
-2. **Bootstrap Integration** (`packages/cloud/src/index.ts`)
-   - Import SchedulerWorker
-   - Instantiate with context.schedulerService
-   - Start worker after WebSocket server
-   - Add graceful shutdown to SIGTERM handler
+**File created**: `packages/cloud/src/slack/commands/scheduled-commands.ts`
 
-3. **Command Service Extension** (`packages/cloud/src/services/command.service.ts`)
-   - Ensure submitTask() accepts metadata field
-   - Log scheduled task ID in audit trail
+### Implemented Commands
 
-## 📋 Phase 3: Slack Commands (TODO)
+1. ✅ **`/bm schedule "<time>" <bot> <command> <prompt>`**
+   - Parses natural language time with timezone support
+   - Validates bot exists and time is in future
+   - Creates one-time scheduled task
+   - Posts formatted confirmation with relative time
 
-### Commands to Implement
+2. ✅ **`/bm cron create "<expression>" <bot> <command> <prompt>`**
+   - Validates cron expression and frequency (min 1 hour)
+   - Creates recurring cron job
+   - Shows next 3 execution times
+   - Human-readable cron description
 
-1. **`/bm schedule`** handler
-   - Parse: `/bm schedule <time> <bot> <command> <prompt>`
-   - Extract timezone from Slack user profile
-   - Call schedulerService.scheduleTask()
-   - Post confirmation with formatted time
+3. ✅ **`/bm scheduled list [--all|--user|--project]`**
+   - Lists active, paused, and recently completed tasks
+   - Grouped by status with relative next execution times
+   - Admin can view all tasks with `--all` flag
 
-2. **`/bm cron create`** handler
-   - Parse: `/bm cron create <expression> <bot> <command> <prompt>`
-   - Validate cron expression
-   - Call schedulerService.createCronJob()
-   - Post confirmation with next 3 execution times
+4. ✅ **`/bm scheduled show <id>`**
+   - Shows full task details (ID, bot, command, prompt, schedule)
+   - Displays execution history for recurring jobs
+   - Formatted timestamps with timezone
 
-3. **`/bm scheduled list`** handler
-   - Show all user's scheduled tasks
-   - Format: ID, type, bot, next execution, status
-   - Pagination if > 10 tasks
+5. ✅ **`/bm scheduled pause <id>`**
+   - Pauses task execution
+   - Users can only pause their own tasks
 
-4. **`/bm scheduled show <id>`** handler
-   - Show full details of scheduled task
-   - Include execution history if recurring
+6. ✅ **`/bm scheduled resume <id>`**
+   - Resumes paused task
 
-5. **`/bm scheduled pause/resume/cancel <id>`** handlers
-   - Call respective schedulerService methods
-   - Post confirmation
+7. ✅ **`/bm scheduled cancel <id>`**
+   - Cancels and removes scheduled task
 
-6. **`/bm scheduled update <id>`** handler
-   - Interactive modal for editing
-   - Update time, prompt, or cron expression
+### Integration
 
-### Slack Command File Locations
-- `packages/cloud/src/slack/commands/bm-command.ts` (extend existing handler)
-- OR create new file: `packages/cloud/src/slack/commands/scheduled-commands.ts`
+- ✅ Commands integrated into `packages/cloud/src/slack/listeners/bm-command.ts`
+- ✅ Updated `/bm help` text with scheduled tasks section
+- ✅ Permission checks (TASK_CREATE for schedule/cron)
+- ✅ Timezone extraction from Slack user profile
 
 ## 🔧 Phase 4: Admin Commands (TODO)
 

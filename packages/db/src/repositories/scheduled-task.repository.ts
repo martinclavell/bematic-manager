@@ -242,8 +242,6 @@ export class ScheduledTaskRepository extends BaseRepository {
     enabled?: boolean;
   }): ScheduledTaskRow[] {
     try {
-      let query = this.db.select().from(scheduledTasks);
-
       const conditions = [];
       if (filters?.projectId) {
         conditions.push(eq(scheduledTasks.projectId, filters.projectId));
@@ -259,10 +257,19 @@ export class ScheduledTaskRepository extends BaseRepository {
       }
 
       if (conditions.length > 0) {
-        query = query.where(and(...conditions));
+        return this.db
+          .select()
+          .from(scheduledTasks)
+          .where(and(...conditions))
+          .orderBy(desc(scheduledTasks.createdAt))
+          .all();
       }
 
-      return query.orderBy(desc(scheduledTasks.createdAt)).all();
+      return this.db
+        .select()
+        .from(scheduledTasks)
+        .orderBy(desc(scheduledTasks.createdAt))
+        .all();
     } catch (error) {
       logger.error({ error, filters }, 'Failed to find all scheduled tasks');
       throw classifySQLiteError(error, {

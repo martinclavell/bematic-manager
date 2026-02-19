@@ -9,8 +9,10 @@ import type {
   NetSuiteConfigRepository,
   PendingActionRepository,
   FeedbackSuggestionRepository,
+  ScheduledTaskRepository,
 } from '@bematic/db';
 import type { CommandService } from './services/command.service.js';
+import type { SchedulerService } from './services/scheduler.service.js';
 import type { ProjectService } from './services/project.service.js';
 import type { NotificationService } from './services/notification.service.js';
 import type { DeployService } from './services/deploy.service.js';
@@ -38,6 +40,7 @@ export interface AppContext {
   netsuiteConfigRepo: NetSuiteConfigRepository;
   pendingActionRepo: PendingActionRepository;
   feedbackSuggestionRepo: FeedbackSuggestionRepository;
+  scheduledTaskRepo: ScheduledTaskRepository;
 
   // Services
   commandService: CommandService;
@@ -49,6 +52,7 @@ export interface AppContext {
   retentionService: RetentionService;
   slackUserService: SlackUserService;
   netsuiteService: NetSuiteService;
+  schedulerService: SchedulerService;
 
   // Gateway
   agentManager: AgentManager;

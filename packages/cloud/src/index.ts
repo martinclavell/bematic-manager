@@ -18,6 +18,7 @@ import {
   NetSuiteConfigRepository,
   PendingActionRepository,
   FeedbackSuggestionRepository,
+  ScheduledTaskRepository,
 } from '@bematic/db';
 import { registerAllBots } from '@bematic/bots';
 import { loadConfig } from './config.js';
@@ -42,6 +43,8 @@ import { NetSuiteService } from './services/netsuite.service.js';
 import { AgentHealthTracker } from './gateway/agent-health-tracker.js';
 import { SyncOrchestrator } from './services/sync-orchestrator.service.js';
 import { OpsService } from './services/ops.service.js';
+import { SchedulerService } from './services/scheduler.service.js';
+import { SchedulerWorker } from './workers/scheduler-worker.js';
 import { metrics, MetricNames } from './utils/metrics.js';
 import { createSecurityHeadersMiddleware, applySecurityHeaders } from './middleware/security-headers.js';
 import type { AppContext } from './context.js';
@@ -68,6 +71,7 @@ async function main() {
   const netsuiteConfigRepo = new NetSuiteConfigRepository(db);
   const pendingActionRepo = new PendingActionRepository(db);
   const feedbackSuggestionRepo = new FeedbackSuggestionRepository(db);
+  const scheduledTaskRepo = new ScheduledTaskRepository(db);
 
   // Register all bots
   registerAllBots();
@@ -99,7 +103,7 @@ async function main() {
   streamAccumulator.start();
 
   // Offline queue
-  const offlineQueue = new OfflineQueue(offlineQueueRepo, agentManager, config);
+  const offlineQueue = new OfflineQueue(offlineQueueRepo, agentManager, config, taskRepo, notifier);
 
   // Message router (handles agent -> Slack responses)
   const messageRouter = new MessageRouter(
@@ -139,6 +143,12 @@ async function main() {
   );
   const slackUserService = new SlackUserService(app.client);
   const netsuiteService = new NetSuiteService(netsuiteConfigRepo);
+  const schedulerService = new SchedulerService(
+    scheduledTaskRepo,
+    auditLogRepo,
+    commandService,
+    projectRepo,
+  );
 
   // Wire up MessageRouter <-> CommandService for decomposition support
   messageRouter.setCommandService(commandService, projectRepo);
@@ -175,6 +185,7 @@ async function main() {
     netsuiteConfigRepo,
     pendingActionRepo,
     feedbackSuggestionRepo,
+    scheduledTaskRepo,
     commandService,
     projectService,
     notifier,
@@ -184,6 +195,7 @@ async function main() {
     retentionService,
     slackUserService,
     netsuiteService,
+    schedulerService,
     agentManager,
     messageRouter,
     agentHealthTracker,
@@ -357,6 +369,11 @@ async function main() {
   await app.start();
   logger.info('Slack app started in socket mode');
 
+  // Start scheduler worker for scheduled tasks and cron jobs
+  const schedulerWorker = new SchedulerWorker(schedulerService, scheduledTaskRepo);
+  await schedulerWorker.start();
+  logger.info('Scheduler worker started');
+
   // Start periodic drain of offline queue (catches anything missed by event-based drains)
   offlineQueue.startPeriodicDrain(30_000);
 
@@ -426,6 +443,7 @@ async function main() {
   // Graceful shutdown
   const shutdown = async () => {
     logger.info('Shutting down...');
+    await schedulerWorker.stop();
     syncOrchestrator.stop();
     offlineQueue.stopPeriodicDrain();
     streamAccumulator.stop();

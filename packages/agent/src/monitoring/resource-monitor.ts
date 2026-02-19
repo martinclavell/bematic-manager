@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events';
-import { cpuUsage, memoryUsage } from 'node:process';
+import { memoryUsage } from 'node:process';
+import * as os from 'node:os';
 import { createLogger } from '@bematic/common';
 
 const logger = createLogger('resource-monitor');
@@ -52,6 +53,12 @@ export interface ResourceEvent {
   status: ResourceStatus;
 }
 
+/** Snapshot of per-core CPU times from os.cpus() */
+interface CpuTimesSnapshot {
+  idle: number;
+  total: number;
+}
+
 /**
  * Monitors system resources and enforces limits to prevent resource exhaustion.
  * Implements graceful degradation strategy based on resource usage thresholds.
@@ -59,8 +66,7 @@ export interface ResourceEvent {
 export class ResourceMonitor extends EventEmitter {
   private memoryCheckInterval?: NodeJS.Timeout;
   private cpuCheckInterval?: NodeJS.Timeout;
-  private lastCpuUsage = cpuUsage();
-  private lastCpuCheck = Date.now();
+  private lastCpuSnapshot: CpuTimesSnapshot;
   private startTime = Date.now();
   private isMonitoring = false;
   private currentStatus: ResourceStatus | null = null;
@@ -79,7 +85,28 @@ export class ResourceMonitor extends EventEmitter {
       throw new Error('taskTimeoutMs must be positive');
     }
 
+    // Take initial CPU snapshot for delta-based measurement
+    this.lastCpuSnapshot = this.takeCpuSnapshot();
+
     logger.info({ limits }, 'Resource monitor initialized');
+  }
+
+  /**
+   * Take a snapshot of aggregate CPU times across all cores.
+   * Used to compute system-wide CPU percentage between two snapshots.
+   */
+  private takeCpuSnapshot(): CpuTimesSnapshot {
+    const cpus = os.cpus();
+    let idle = 0;
+    let total = 0;
+
+    for (const cpu of cpus) {
+      const times = cpu.times;
+      idle += times.idle;
+      total += times.user + times.nice + times.sys + times.idle + times.irq;
+    }
+
+    return { idle, total };
   }
 
   /**
@@ -151,31 +178,30 @@ export class ResourceMonitor extends EventEmitter {
   }
 
   /**
-   * Get current CPU usage status
+   * Get current system-wide CPU usage status.
+   * Uses os.cpus() delta between snapshots for accurate measurement across all cores.
    */
   checkCPUUsage(): CPUStatus {
-    const currentUsage = cpuUsage();
-    const now = Date.now();
+    const current = this.takeCpuSnapshot();
+    const prev = this.lastCpuSnapshot;
 
-    // Calculate CPU usage percentage over the interval
-    const timeDiffMs = now - this.lastCpuCheck;
-    const userDiff = currentUsage.user - this.lastCpuUsage.user;
-    const systemDiff = currentUsage.system - this.lastCpuUsage.system;
+    const idleDelta = current.idle - prev.idle;
+    const totalDelta = current.total - prev.total;
 
-    // Convert from microseconds to percentage
-    const totalCpuTime = (userDiff + systemDiff) / 1000; // Convert to milliseconds
-    const percent = timeDiffMs > 0 ? Math.min((totalCpuTime / timeDiffMs) * 100, 100) : 0;
+    // System-wide CPU percentage (0-100)
+    const percent = totalDelta > 0
+      ? Math.min(((totalDelta - idleDelta) / totalDelta) * 100, 100)
+      : 0;
 
-    this.lastCpuUsage = currentUsage;
-    this.lastCpuCheck = now;
+    this.lastCpuSnapshot = current;
 
     let status: CPUStatus['status'] = 'ok';
     if (percent >= this.limits.maxCpuPercent) status = 'critical';
     else if (percent >= this.limits.maxCpuPercent * 0.8) status = 'warning';
 
     return {
-      user: currentUsage.user,
-      system: currentUsage.system,
+      user: current.total - current.idle, // approximate user+sys
+      system: 0,
       percent,
       limitPercent: this.limits.maxCpuPercent,
       status,

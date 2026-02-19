@@ -1,6 +1,7 @@
-import { Limits, createLogger, type WSMessage } from '@bematic/common';
-import type { OfflineQueueRepository } from '@bematic/db';
+import { Limits, createLogger, MessageType, type WSMessage } from '@bematic/common';
+import type { OfflineQueueRepository, TaskRepository } from '@bematic/db';
 import { AgentManager } from './agent-manager.js';
+import { NotificationService } from '../services/notification.service.js';
 import type { Config } from '../config.js';
 
 const logger = createLogger('offline-queue');
@@ -34,6 +35,8 @@ export class OfflineQueue {
     private readonly repo: OfflineQueueRepository,
     private readonly agentManager: AgentManager,
     private readonly config: Config,
+    private readonly taskRepo?: TaskRepository,
+    private readonly notifier?: NotificationService,
   ) {
     // Listen for agent reconnections and drain the entire queue
     this.agentManager.on('agent:connected', (agentId: string) => {
@@ -258,6 +261,12 @@ export class OfflineQueue {
             { itemId: item.id, queuedAgentId: item.agentId, targetAgentId },
             'Queued message delivered',
           );
+
+          // Update Slack and task status for TASK_SUBMIT messages
+          this.handleTaskDelivery(item.payload).catch(err => {
+            logger.warn({ err, itemId: item.id }, 'Failed to update Slack after task delivery');
+          });
+
           resolve(true);
         } else {
           resolve(false);
@@ -305,6 +314,62 @@ export class OfflineQueue {
       avgDeliveryTimeMs: 0,
       throughputMsgsPerSec: 0,
     };
+  }
+
+  /**
+   * Handle post-delivery updates for TASK_SUBMIT messages
+   */
+  private async handleTaskDelivery(payload: string): Promise<void> {
+    if (!this.taskRepo || !this.notifier) {
+      return; // Dependencies not available
+    }
+
+    try {
+      const message = JSON.parse(payload) as WSMessage;
+
+      // Only handle TASK_SUBMIT messages
+      if (message.type !== MessageType.TASK_SUBMIT) {
+        return;
+      }
+
+      const taskPayload = message.payload as any;
+      const taskId = taskPayload.taskId;
+      const slackContext = taskPayload.slackContext;
+
+      if (!taskId || !slackContext) {
+        return;
+      }
+
+      // Update task status from 'queued' to 'pending'
+      this.taskRepo.update(taskId, { status: 'pending' });
+
+      // Get task to check if it's a root task (no parentTaskId)
+      const task = this.taskRepo.findById(taskId);
+      if (!task || task.parentTaskId) {
+        return; // Skip Slack updates for subtasks
+      }
+
+      const messageTs = slackContext.messageTs || task.slackMessageTs;
+      if (!messageTs) {
+        return; // No message to update
+      }
+
+      // Swap inbox_tray back to hourglass
+      await this.notifier.removeReaction(slackContext.channelId, messageTs, 'inbox_tray');
+      await this.notifier.addReaction(slackContext.channelId, messageTs, 'hourglass_flowing_sand');
+
+      // Update the "Agent is offline" message to "Agent is back online"
+      // Find and update the queued message by searching recent messages in the thread
+      await this.notifier.updateQueuedMessage(
+        slackContext.channelId,
+        slackContext.threadTs,
+        taskId,
+      );
+
+      logger.info({ taskId }, 'Updated Slack after delivering queued task');
+    } catch (error) {
+      logger.warn({ error, payload: payload.slice(0, 100) }, 'Failed to parse queued message for Slack update');
+    }
   }
 
   /**

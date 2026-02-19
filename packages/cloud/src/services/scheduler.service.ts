@@ -4,8 +4,10 @@ import type {
   ScheduledTaskRow,
   ScheduledTaskInsert,
   AuditLogRepository,
+  ProjectRepository,
 } from '@bematic/db';
 import type { CommandService } from './command.service.js';
+import { BotRegistry } from '@bematic/bots';
 
 const logger = createLogger('scheduler-service');
 
@@ -46,6 +48,7 @@ export class SchedulerService {
     private readonly scheduledTaskRepo: ScheduledTaskRepository,
     private readonly auditLogRepo: AuditLogRepository,
     private readonly commandService: CommandService,
+    private readonly projectRepo: ProjectRepository,
   ) {}
 
   /**
@@ -197,18 +200,29 @@ export class SchedulerService {
     logger.info({ taskId: scheduledTask.id }, 'Executing scheduled task');
 
     try {
-      // Submit task to command service (existing flow)
-      await this.commandService.submitTask({
-        projectId: scheduledTask.projectId,
-        botName: scheduledTask.botName,
-        command: scheduledTask.command,
-        prompt: scheduledTask.prompt,
-        slackChannelId: scheduledTask.slackChannelId,
-        slackUserId: scheduledTask.userId,
-        slackThreadTs: scheduledTask.slackThreadTs || undefined,
-        metadata: {
-          scheduledTaskId: scheduledTask.id,
-          ...(JSON.parse(scheduledTask.metadata) as Record<string, any>),
+      // Get project and bot
+      const project = this.projectRepo.findById(scheduledTask.projectId);
+      if (!project) {
+        throw new Error(`Project not found: ${scheduledTask.projectId}`);
+      }
+
+      const bot = BotRegistry.get(scheduledTask.botName as any);
+      if (!bot) {
+        throw new Error(`Bot not found: ${scheduledTask.botName}`);
+      }
+
+      // Parse command
+      const parsedCommand = bot.parseCommand(`${scheduledTask.command} ${scheduledTask.prompt}`);
+
+      // Submit task to command service
+      await this.commandService.submit({
+        bot,
+        command: parsedCommand,
+        project,
+        slackContext: {
+          channelId: scheduledTask.slackChannelId,
+          threadTs: scheduledTask.slackThreadTs || null,
+          userId: scheduledTask.userId,
         },
       });
 

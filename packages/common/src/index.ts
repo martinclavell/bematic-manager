@@ -119,6 +119,8 @@ export {
   parseMessage,
   truncateMessage,
   truncateForSectionBlock,
+  TimeParser,
+  CronParser,
 } from './utils/index.js';
 export type { Logger, RetryOptions, TruncationOptions } from './utils/index.js';
 

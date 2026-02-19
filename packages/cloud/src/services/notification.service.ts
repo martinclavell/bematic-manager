@@ -281,6 +281,49 @@ ${attachmentList}
   }
 
   /**
+   * Update a queued offline message to indicate agent is back online
+   */
+  async updateQueuedMessage(
+    channel: string,
+    threadTs: string,
+    taskId: string,
+  ): Promise<void> {
+    try {
+      // Find the "Agent is offline" message in the thread
+      const result = await withSlackRetry(
+        () => this.client.conversations.replies({
+          channel,
+          ts: threadTs,
+          limit: 20, // Check last 20 messages
+        }),
+        { operation: 'conversationsReplies', channel }
+      );
+
+      // Find message containing the taskId and "Agent is offline"
+      const queuedMessage = result.messages?.find(msg =>
+        msg.text?.includes(taskId) &&
+        msg.text?.includes('Agent is offline')
+      );
+
+      if (queuedMessage?.ts) {
+        // Update the message to indicate agent is back online
+        await withSlackRetry(
+          () => this.client.chat.update({
+            channel,
+            ts: queuedMessage.ts!,
+            text: `:white_check_mark: *Agent is back online.* Your task is now being processed.\n_Task: \`${taskId}\`_`,
+          }),
+          { operation: 'updateQueuedMessage', channel }
+        );
+        logger.debug({ taskId, channel, messageTs: queuedMessage.ts }, 'Updated queued message');
+      }
+    } catch (error) {
+      // Don't fail the entire delivery if we can't update the message
+      logger.warn({ error, taskId, channel }, 'Failed to update queued message');
+    }
+  }
+
+  /**
    * Upload a file to Slack
    */
   async uploadFile(
