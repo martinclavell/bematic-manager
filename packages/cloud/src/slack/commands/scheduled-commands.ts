@@ -166,21 +166,22 @@ export async function handleScheduleCommand(
     remainingArgs = parts.slice(1);
   }
 
-  if (remainingArgs.length < 3) {
+  if (remainingArgs.length === 0) {
     await respond(
-      ':x: Usage: `/bm schedule "<time>" <bot> <command> <prompt>`\n' +
-      'Example: `/bm schedule "tomorrow 3pm" coder fix optimize database`'
+      ':x: Usage:\n' +
+      '• `/bm schedule "<time>" <message>` - Set a reminder\n' +
+      '• `/bm schedule "<time>" <bot> <command> <prompt>` - Schedule a bot task\n\n' +
+      'Examples:\n' +
+      '• `/bm schedule "in 5 minutes" join meeting`\n' +
+      '• `/bm schedule "tomorrow 3pm" coder fix database bug`'
     );
     return;
   }
 
-  const [botName, commandName, ...promptParts] = remainingArgs;
-  const prompt = promptParts.join(' ');
-
-  // Validate time
+  // Validate time first
   const scheduledDate = TimeParser.parseNatural(timeStr, timezone);
   if (!scheduledDate) {
-    await respond(`:x: Could not parse time: "${timeStr}". Try formats like:\n• "tomorrow 3pm"\n• "in 2 hours"\n• "2025-03-01 14:00"`);
+    await respond(`:x: Could not parse time: "${timeStr}". Try formats like:\n• "in 5 minutes"\n• "tomorrow 3pm"\n• "2025-03-01 14:00"`);
     return;
   }
 
@@ -189,13 +190,63 @@ export async function handleScheduleCommand(
     return;
   }
 
-  // Validate bot
-  const bot = BotRegistry.get(botName as any);
+  // Auto-detect: Is this a reminder or a bot task?
+  // Check if first word is a valid bot name
+  const possibleBotName = remainingArgs[0];
+  const bot = BotRegistry.get(possibleBotName as any);
+
+  // If first word is NOT a bot name, treat entire text as a reminder
   if (!bot) {
-    const validBots = ['coder', 'reviewer', 'ops', 'netsuite'].join(', ');
-    await respond(`:x: Unknown bot: "${botName}". Valid bots: ${validBots}`);
+    const reminderMessage = remainingArgs.join(' ');
+
+    // Get project
+    const project = ctx.projectResolver.tryResolve(channel_id);
+    if (!project) {
+      await respond(':x: No project configured for this channel. Use `/bm config` first.');
+      return;
+    }
+
+    try {
+      // Create reminder (not a bot task)
+      const scheduled = await ctx.schedulerService.scheduleTask({
+        projectId: project.id,
+        userId: user_id,
+        slackChannelId: channel_id,
+        taskType: 'reminder',
+        botName: 'system',
+        command: 'remind',
+        prompt: reminderMessage,
+        scheduledFor: timeStr,
+        timezone,
+      });
+
+      await respond(
+        `:white_check_mark: *Reminder set!*\n\n` +
+        `:alarm_clock: When: ${TimeParser.format(scheduledDate, timezone)} (${TimeParser.relative(scheduledDate, timezone)})\n` +
+        `:speech_balloon: Message: "${reminderMessage}"\n` +
+        `:id: Reminder ID: \`${scheduled.id}\`\n\n` +
+        `_Use \`/bm scheduled list\` to view all reminders_`
+      );
+
+      logger.info({ taskId: scheduled.id, user: user_id }, 'Reminder created via schedule command');
+    } catch (error) {
+      logger.error({ error, user: user_id }, 'Failed to create reminder');
+      await respond(`:x: Failed to create reminder: ${error}`);
+    }
     return;
   }
+
+  // It's a bot task - need at least bot + command + prompt
+  if (remainingArgs.length < 3) {
+    await respond(
+      ':x: For bot tasks, use: `/bm schedule "<time>" <bot> <command> <prompt>`\n' +
+      'Example: `/bm schedule "tomorrow 3pm" coder fix optimize database`'
+    );
+    return;
+  }
+
+  const [botName, commandName, ...promptParts] = remainingArgs;
+  const prompt = promptParts.join(' ');
 
   // Get project
   const project = ctx.projectResolver.tryResolve(channel_id);
