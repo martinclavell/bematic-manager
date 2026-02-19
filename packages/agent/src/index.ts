@@ -216,6 +216,7 @@ async function main() {
   const shutdown = createShutdownHandler({
     wsClient,
     queueProcessor,
+    executor,
     agentId: config.agentId,
     resourceMonitor,
   });

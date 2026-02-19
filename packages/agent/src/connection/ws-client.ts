@@ -98,6 +98,12 @@ export class WSClient extends EventEmitter {
       'Connecting to cloud...'
     );
 
+    // Clean up old WebSocket before creating a new one
+    if (this.ws) {
+      this.ws.removeAllListeners();
+      try { this.ws.terminate(); } catch { /* already closed */ }
+    }
+
     this.ws = new WebSocket(wsUrl, wsOptions);
     this.authenticated = false;
 

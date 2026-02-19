@@ -97,6 +97,13 @@ export class ClaudeExecutor {
   }
 
   /**
+   * Stop all background timers and clean up resources
+   */
+  destroy() {
+    this.tempFileManager.stop();
+  }
+
+  /**
    * Process file attachments from Slack with retry logic and failure tracking.
    * Returns results for each attachment including success/failure status.
    */
@@ -549,6 +556,12 @@ Task: ${task.taskId}`;
         this.tempFileManager.cleanupTaskFiles(task.taskId).catch((error) => {
           logger.error({ error, taskId: task.taskId }, 'Failed to cleanup task files');
         });
+
+        // Clear the task timeout to prevent orphaned timer
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
 
         return result;
       }

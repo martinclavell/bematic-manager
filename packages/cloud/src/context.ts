@@ -22,6 +22,7 @@ import type { NetSuiteService } from './services/netsuite.service.js';
 import type { AgentManager } from './gateway/agent-manager.js';
 import type { MessageRouter } from './gateway/message-router.js';
 import type { AgentHealthTracker } from './gateway/agent-health-tracker.js';
+import type { SyncOrchestrator } from './services/sync-orchestrator.service.js';
 
 /** Shared context injected into all Slack listeners */
 export interface AppContext {
@@ -52,6 +53,7 @@ export interface AppContext {
   agentManager: AgentManager;
   messageRouter: MessageRouter;
   agentHealthTracker: AgentHealthTracker;
+  syncOrchestrator: SyncOrchestrator;
 
   // Middleware helpers
   authChecker: {

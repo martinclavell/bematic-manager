@@ -23,6 +23,7 @@ import type { StreamAccumulator } from './stream-accumulator.js';
 import type { NotificationService } from '../services/notification.service.js';
 import type { CommandService } from '../services/command.service.js';
 import type { AgentHealthTracker } from './agent-health-tracker.js';
+import type { SyncOrchestrator } from '../services/sync-orchestrator.service.js';
 import { markdownToSlack } from '../utils/markdown-to-slack.js';
 import { metrics, MetricNames } from '../utils/metrics.js';
 
@@ -52,6 +53,7 @@ export class MessageRouter {
   private pathValidationCallbacks = new Map<string, PathValidationCallback>();
   private commandService: CommandService | null = null;
   private projectRepo: ProjectRepository | null = null;
+  private syncOrchestrator: SyncOrchestrator | null = null;
   private cleanupInterval: NodeJS.Timeout | null = null;
 
   // Configuration
@@ -238,6 +240,14 @@ export class MessageRouter {
     this.projectRepo = projectRepo;
   }
 
+  /**
+   * Inject SyncOrchestrator after construction (avoids circular dependency).
+   * Must be called to enable sync workflow coordination.
+   */
+  setSyncOrchestrator(syncOrchestrator: SyncOrchestrator): void {
+    this.syncOrchestrator = syncOrchestrator;
+  }
+
   /** Swap the hourglass reaction on the user's original message for a final status emoji */
   private async swapReaction(task: TaskRow, emoji: string): Promise<void> {
     if (!task.slackMessageTs) return;
@@ -388,6 +398,13 @@ export class MessageRouter {
 
     // Record agent success
     this.agentHealthTracker.recordSuccess(agentId);
+
+    // Notify sync orchestrator (if task is part of a sync workflow)
+    if (this.syncOrchestrator) {
+      this.syncOrchestrator.onTaskComplete(parsed.taskId, true).catch((err) => {
+        logger.error({ err, taskId: parsed.taskId }, 'Error notifying sync orchestrator of task completion');
+      });
+    }
 
     // Update DB (including session ID for thread continuation)
     this.taskRepo.complete(parsed.taskId, parsed.result, {
@@ -663,6 +680,13 @@ export class MessageRouter {
 
     // Record agent failure
     this.agentHealthTracker.recordFailure(agentId);
+
+    // Notify sync orchestrator (if task is part of a sync workflow)
+    if (this.syncOrchestrator) {
+      this.syncOrchestrator.onTaskComplete(parsed.taskId, false).catch((err) => {
+        logger.error({ err, taskId: parsed.taskId }, 'Error notifying sync orchestrator of task failure');
+      });
+    }
 
     this.taskRepo.fail(parsed.taskId, parsed.error);
     // Save sessionId even on failure so the session can be resumed

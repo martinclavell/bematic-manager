@@ -710,6 +710,15 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
             return;
           }
 
+          // Start orchestrated sync workflow
+          const workflowId = await ctx.syncOrchestrator.startSync(
+            project.id,
+            resolvedAgentId,
+            channel_id,
+            null,
+            user_id,
+          );
+
           // Submit test task
           const testCommand = opsBot.parseCommand('test');
           const testTaskId = await ctx.commandService.submit({
@@ -718,6 +727,7 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
             project,
             slackContext: { channelId: channel_id, threadTs: null, userId: user_id },
           });
+          ctx.syncOrchestrator.registerTestTask(workflowId, testTaskId);
 
           // Submit build task
           const buildCommand = opsBot.parseCommand('build');
@@ -727,52 +737,15 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
             project,
             slackContext: { channelId: channel_id, threadTs: null, userId: user_id },
           });
-
-          // Schedule restart message
-          const restartMsg = createWSMessage(MessageType.SYSTEM_RESTART, {
-            reason: `Sync requested by <@${user_id}> via /bm sync`,
-            rebuild: false,
-          });
-
-          // Schedule deploy request
-          const deployRequestId = generateId('deploy');
-          const deployMsg = createWSMessage(MessageType.DEPLOY_REQUEST, {
-            requestId: deployRequestId,
-            localPath: project.localPath,
-            slackChannelId: channel_id,
-            slackThreadTs: null,
-            requestedBy: user_id,
-          });
-
-          ctx.messageRouter.registerDeployRequest(deployRequestId, channel_id, null, user_id);
+          ctx.syncOrchestrator.registerBuildTask(workflowId, buildTaskId);
 
           await respond(
-            `:arrows_counterclockwise: *Sync started*\n` +
-            `> 1. :white_check_mark: Tests queued (\`${testTaskId}\`)\n` +
-            `> 2. :white_check_mark: Build queued (\`${buildTaskId}\`)\n` +
-            `> 3. :hourglass_flowing_sand: Agent restart will trigger after build\n` +
-            `> 4. :hourglass_flowing_sand: Railway deployment will follow\n\n` +
-            `I'll post updates as each step completes.`
-          );
-
-          // Send restart and deploy messages after a delay to allow test+build to complete
-          // We'll send them immediately and let the agent handle them in sequence
-          setTimeout(() => {
-            ctx.agentManager.send(resolvedAgentId, serializeMessage(restartMsg));
-            logger.info({ agentId: resolvedAgentId, userId: user_id }, 'Restart signal sent as part of sync');
-          }, 5000);
-
-          setTimeout(() => {
-            ctx.agentManager.send(resolvedAgentId, serializeMessage(deployMsg));
-            logger.info({ agentId: resolvedAgentId, requestId: deployRequestId, userId: user_id }, 'Deploy request sent as part of sync');
-          }, 10000);
-
-          ctx.auditLogRepo.log(
-            'sync:requested',
-            'project',
-            project.id,
-            user_id,
-            { agentId: resolvedAgentId, testTaskId, buildTaskId, deployRequestId },
+            `:arrows_counterclockwise: *Sync started* (workflow \`${workflowId}\`)\n` +
+            `> 1. :hourglass_flowing_sand: Tests queued (\`${testTaskId}\`)\n` +
+            `> 2. :hourglass_flowing_sand: Build queued (\`${buildTaskId}\`)\n` +
+            `> 3. :clock1: Agent restart after tests + build pass\n` +
+            `> 4. :clock1: Railway deployment after agent reconnects\n\n` +
+            `Each step proceeds only after the previous one succeeds.`
           );
           break;
         }

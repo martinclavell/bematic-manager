@@ -1,6 +1,7 @@
 import { createLogger, MessageType, createWSMessage } from '@bematic/common';
 import type { WSClient } from './connection/ws-client.js';
 import type { QueueProcessor } from './executor/queue-processor.js';
+import type { ClaudeExecutor } from './executor/claude-executor.js';
 import type { ResourceMonitor } from './monitoring/resource-monitor.js';
 
 const logger = createLogger('agent-shutdown');
@@ -8,6 +9,7 @@ const logger = createLogger('agent-shutdown');
 export interface ShutdownDependencies {
   wsClient: WSClient;
   queueProcessor: QueueProcessor;
+  executor: ClaudeExecutor;
   agentId: string;
   resourceMonitor?: ResourceMonitor;
 }
@@ -55,11 +57,12 @@ export function createShutdownHandler(deps: ShutdownDependencies) {
         }
       }
 
-      // 3. Stop resource monitoring
+      // 3. Stop resource monitoring and executor cleanup timers
       if (deps.resourceMonitor) {
         logger.info('Stopping resource monitoring...');
         deps.resourceMonitor.stopMonitoring();
       }
+      deps.executor.destroy();
 
       // 4. Send final status update to cloud (if still connected)
       try {

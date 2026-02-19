@@ -40,6 +40,7 @@ import { RetentionService } from './services/retention.service.js';
 import { SlackUserService } from './services/slack-user.service.js';
 import { NetSuiteService } from './services/netsuite.service.js';
 import { AgentHealthTracker } from './gateway/agent-health-tracker.js';
+import { SyncOrchestrator } from './services/sync-orchestrator.service.js';
 import { metrics, MetricNames } from './utils/metrics.js';
 import { createSecurityHeadersMiddleware, applySecurityHeaders } from './middleware/security-headers.js';
 import type { AppContext } from './context.js';
@@ -141,6 +142,17 @@ async function main() {
   // Wire up MessageRouter <-> CommandService for decomposition support
   messageRouter.setCommandService(commandService, projectRepo);
 
+  // Sync orchestrator (coordinates test → build → restart → deploy)
+  const syncOrchestrator = new SyncOrchestrator(
+    taskRepo,
+    projectRepo,
+    auditLogRepo,
+    notifier,
+    agentManager,
+    messageRouter,
+  );
+  messageRouter.setSyncOrchestrator(syncOrchestrator);
+
   // Middleware
   const rateLimiter = createRateLimiter(config);
   const authChecker = createAuthChecker(userRepo);
@@ -171,6 +183,7 @@ async function main() {
     agentManager,
     messageRouter,
     agentHealthTracker,
+    syncOrchestrator,
     authChecker,
     rateLimiter,
     projectResolver,
@@ -408,6 +421,7 @@ async function main() {
   // Graceful shutdown
   const shutdown = async () => {
     logger.info('Shutting down...');
+    syncOrchestrator.stop();
     offlineQueue.stopPeriodicDrain();
     streamAccumulator.stop();
     wsServer.close();
