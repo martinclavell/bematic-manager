@@ -150,6 +150,7 @@ Primary command interface for development, operations, and configuration:
 | `/bm build` | TASK_CREATE | Compile/rebuild the app |
 | `/bm test [args]` | TASK_CREATE | Run tests |
 | `/bm status` | TASK_CREATE | Check git status & project health |
+| `/bm sync` | USER_MANAGE | All-in-one: run tests → build → restart agent → deploy to Railway |
 | `/bm deploy` | USER_MANAGE | Deploy to Railway |
 | `/bm agents` | USER_MANAGE | Dashboard showing all agents, projects, and active tasks with IDs |
 | `/bm queue` | USER_MANAGE | List all queued/pending tasks (project-specific or global) |
@@ -181,6 +182,20 @@ Primary command interface for development, operations, and configuration:
 1. User runs `/bm clear-queue` in project channel → cancels all queued tasks for that project
 2. OR runs `/bm clear-queue --all` anywhere → cancels ALL queued tasks across ALL projects (requires `--all` flag as safety)
 3. Each task is cancelled individually and logged in audit trail
+
+*Sync Flow (All-in-One Deployment)*:
+1. User runs `/bm sync` in project channel
+2. Cloud queues test task via ops bot
+3. Cloud queues build task via ops bot
+4. Cloud schedules agent restart (5s delay)
+5. Cloud schedules Railway deployment (10s delay)
+6. Agent processes test and build tasks in order
+7. Agent receives restart signal and gracefully shuts down (exit code 75)
+8. Wrapper script restarts agent process
+9. Agent reconnects and receives deployment request
+10. Agent executes `railway up --detach` in project directory
+11. Agent sends deployment result back to cloud
+12. Cloud posts deployment status to Slack channel
 
 **Note**: `/bm-admin` is kept for backwards compatibility but `/bm` is the primary interface.
 

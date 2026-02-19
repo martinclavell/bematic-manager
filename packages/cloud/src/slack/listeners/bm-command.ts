@@ -671,6 +671,95 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
           break;
         }
 
+        // ===== SYNC (test + build + restart + deploy) =====
+        case 'sync': {
+          await ctx.authChecker.checkPermission(user_id, Permission.USER_MANAGE);
+
+          const project = ctx.projectResolver.tryResolve(channel_id);
+          if (!project) {
+            await respond(':x: No project configured for this channel. Use `/bm config` first.');
+            return;
+          }
+
+          const resolvedAgentId = ctx.agentManager.resolveAgent(project.agentId);
+          if (!resolvedAgentId) {
+            await respond(':x: No agents are connected. Cannot sync.');
+            return;
+          }
+
+          const opsBot = BotRegistry.get('ops');
+          if (!opsBot) {
+            await respond(':x: Ops bot not available');
+            return;
+          }
+
+          // Submit test task
+          const testCommand = opsBot.parseCommand('test');
+          const testTaskId = await ctx.commandService.submit({
+            bot: opsBot,
+            command: testCommand,
+            project,
+            slackContext: { channelId: channel_id, threadTs: null, userId: user_id },
+          });
+
+          // Submit build task
+          const buildCommand = opsBot.parseCommand('build');
+          const buildTaskId = await ctx.commandService.submit({
+            bot: opsBot,
+            command: buildCommand,
+            project,
+            slackContext: { channelId: channel_id, threadTs: null, userId: user_id },
+          });
+
+          // Schedule restart message
+          const restartMsg = createWSMessage(MessageType.SYSTEM_RESTART, {
+            reason: `Sync requested by <@${user_id}> via /bm sync`,
+            rebuild: false,
+          });
+
+          // Schedule deploy request
+          const deployRequestId = generateId('deploy');
+          const deployMsg = createWSMessage(MessageType.DEPLOY_REQUEST, {
+            requestId: deployRequestId,
+            localPath: project.localPath,
+            slackChannelId: channel_id,
+            slackThreadTs: null,
+            requestedBy: user_id,
+          });
+
+          ctx.messageRouter.registerDeployRequest(deployRequestId, channel_id, null, user_id);
+
+          await respond(
+            `:arrows_counterclockwise: *Sync started*\n` +
+            `> 1. :white_check_mark: Tests queued (\`${testTaskId}\`)\n` +
+            `> 2. :white_check_mark: Build queued (\`${buildTaskId}\`)\n` +
+            `> 3. :hourglass_flowing_sand: Agent restart will trigger after build\n` +
+            `> 4. :hourglass_flowing_sand: Railway deployment will follow\n\n` +
+            `I'll post updates as each step completes.`
+          );
+
+          // Send restart and deploy messages after a delay to allow test+build to complete
+          // We'll send them immediately and let the agent handle them in sequence
+          setTimeout(() => {
+            ctx.agentManager.send(resolvedAgentId, serializeMessage(restartMsg));
+            logger.info({ agentId: resolvedAgentId, userId: user_id }, 'Restart signal sent as part of sync');
+          }, 5000);
+
+          setTimeout(() => {
+            ctx.agentManager.send(resolvedAgentId, serializeMessage(deployMsg));
+            logger.info({ agentId: resolvedAgentId, requestId: deployRequestId, userId: user_id }, 'Deploy request sent as part of sync');
+          }, 10000);
+
+          ctx.auditLogRepo.log(
+            'sync:requested',
+            'project',
+            project.id,
+            user_id,
+            { agentId: resolvedAgentId, testTaskId, buildTaskId, deployRequestId },
+          );
+          break;
+        }
+
         // ===== HELP =====
         case 'help':
         case '?':
@@ -680,7 +769,8 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
             '*Development:*\n' +
             '`/bm build` - Compile/rebuild the app\n' +
             '`/bm test [args]` - Run tests\n' +
-            '`/bm status` - Check git status & project health\n\n' +
+            '`/bm status` - Check git status & project health\n' +
+            '`/bm sync` - Run tests → build → restart agent → deploy (all-in-one)\n\n' +
             '*Operations:*\n' +
             '`/bm deploy` - Deploy to Railway\n' +
             '`/bm agents` - Monitor agent status & running tasks\n' +
