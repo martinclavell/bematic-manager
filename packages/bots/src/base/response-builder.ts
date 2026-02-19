@@ -182,8 +182,7 @@ export function subtaskPlanBlocks(parentTaskId: string, subtasks: SubtaskDefinit
     context(`Parent: \`${parentTaskId}\``, 'Review the plan and approve to proceed'),
     actions(
       { text: 'Approve Plan', actionId: `approve_plan_${parentTaskId}`, value: parentTaskId, style: 'primary' },
-      { text: 'Request Changes', actionId: `request_changes_${parentTaskId}`, value: parentTaskId },
-      { text: 'Cancel', actionId: `cancel_plan_${parentTaskId}`, value: parentTaskId, style: 'danger' }
+      { text: 'Suggest a Change', actionId: `request_changes_${parentTaskId}`, value: parentTaskId }
     ),
   ];
 }
