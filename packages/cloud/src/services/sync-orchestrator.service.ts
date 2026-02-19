@@ -1,15 +1,12 @@
 import EventEmitter from 'node:events';
 import {
-  MessageType,
   createLogger,
-  createWSMessage,
-  serializeMessage,
   generateId,
 } from '@bematic/common';
 import type { TaskRepository, ProjectRepository, AuditLogRepository } from '@bematic/db';
 import type { NotificationService } from './notification.service.js';
+import type { OpsService } from './ops.service.js';
 import type { AgentManager } from '../gateway/agent-manager.js';
-import type { MessageRouter } from '../gateway/message-router.js';
 
 const logger = createLogger('sync-orchestrator');
 
@@ -46,8 +43,8 @@ export class SyncOrchestrator extends EventEmitter {
     private readonly projectRepo: ProjectRepository,
     private readonly auditLogRepo: AuditLogRepository,
     private readonly notifier: NotificationService,
+    private readonly opsService: OpsService,
     private readonly agentManager: AgentManager,
-    private readonly messageRouter: MessageRouter,
   ) {
     super();
 
@@ -237,14 +234,13 @@ export class SyncOrchestrator extends EventEmitter {
       workflow.slackThreadTs,
     );
 
-    const restartMsg = createWSMessage(MessageType.SYSTEM_RESTART, {
+    const { restarted } = this.opsService.sendRestart({
+      agentIds: [workflow.agentId],
       reason: `Sync workflow ${workflow.id} requested by <@${workflow.requestedBy}>`,
       rebuild: false,
     });
 
-    const sent = this.agentManager.send(workflow.agentId, serializeMessage(restartMsg));
-
-    if (!sent) {
+    if (restarted === 0) {
       await this.failWorkflow(
         workflow,
         'Failed to send restart signal to agent',
@@ -308,26 +304,14 @@ export class SyncOrchestrator extends EventEmitter {
       return;
     }
 
-    const deployRequestId = generateId('deploy');
-    workflow.deployRequestId = deployRequestId;
-
-    const deployMsg = createWSMessage(MessageType.DEPLOY_REQUEST, {
-      requestId: deployRequestId,
-      localPath: project.localPath,
+    const { requestId: deployRequestId, sent } = this.opsService.sendDeploy({
+      project,
+      agentId: workflow.agentId,
       slackChannelId: workflow.slackChannelId,
       slackThreadTs: workflow.slackThreadTs,
       requestedBy: workflow.requestedBy,
     });
-
-    // Register deploy request with message router
-    this.messageRouter.registerDeployRequest(
-      deployRequestId,
-      workflow.slackChannelId,
-      workflow.slackThreadTs,
-      workflow.requestedBy,
-    );
-
-    const sent = this.agentManager.send(workflow.agentId, serializeMessage(deployMsg));
+    workflow.deployRequestId = deployRequestId;
 
     if (!sent) {
       await this.failWorkflow(

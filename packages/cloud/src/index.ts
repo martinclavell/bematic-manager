@@ -41,6 +41,7 @@ import { SlackUserService } from './services/slack-user.service.js';
 import { NetSuiteService } from './services/netsuite.service.js';
 import { AgentHealthTracker } from './gateway/agent-health-tracker.js';
 import { SyncOrchestrator } from './services/sync-orchestrator.service.js';
+import { OpsService } from './services/ops.service.js';
 import { metrics, MetricNames } from './utils/metrics.js';
 import { createSecurityHeadersMiddleware, applySecurityHeaders } from './middleware/security-headers.js';
 import type { AppContext } from './context.js';
@@ -142,14 +143,17 @@ async function main() {
   // Wire up MessageRouter <-> CommandService for decomposition support
   messageRouter.setCommandService(commandService, projectRepo);
 
+  // Ops service (centralized deploy + restart)
+  const opsService = new OpsService(agentManager, messageRouter, auditLogRepo);
+
   // Sync orchestrator (coordinates test → build → restart → deploy)
   const syncOrchestrator = new SyncOrchestrator(
     taskRepo,
     projectRepo,
     auditLogRepo,
     notifier,
+    opsService,
     agentManager,
-    messageRouter,
   );
   messageRouter.setSyncOrchestrator(syncOrchestrator);
 
@@ -184,6 +188,7 @@ async function main() {
     messageRouter,
     agentHealthTracker,
     syncOrchestrator,
+    opsService,
     authChecker,
     rateLimiter,
     projectResolver,

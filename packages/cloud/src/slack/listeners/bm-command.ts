@@ -1,10 +1,7 @@
 import type { App } from '@slack/bolt';
 import {
   Permission,
-  MessageType,
   createLogger,
-  createWSMessage,
-  serializeMessage,
   generateId,
   MAIN_SLASH_COMMAND,
 } from '@bematic/common';
@@ -73,18 +70,14 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
             return;
           }
 
-          const requestId = generateId('deploy');
-          const msg = createWSMessage(MessageType.DEPLOY_REQUEST, {
-            requestId,
-            localPath: project.localPath,
+          const { requestId, sent } = ctx.opsService.sendDeploy({
+            project,
+            agentId: resolvedAgentId,
             slackChannelId: channel_id,
             slackThreadTs: null,
             requestedBy: user_id,
           });
 
-          ctx.messageRouter.registerDeployRequest(requestId, channel_id, null, user_id);
-
-          const sent = ctx.agentManager.send(resolvedAgentId, serializeMessage(msg));
           if (!sent) {
             await respond(':x: Failed to send deploy request to agent.');
             return;
@@ -636,16 +629,11 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
           }
 
           const rebuild = subArgs.includes('--rebuild');
-          let restarted = 0;
-
-          for (const agentId of agentIds) {
-            const msg = createWSMessage(MessageType.SYSTEM_RESTART, {
-              reason: `Restart requested by <@${user_id}> via Slack`,
-              rebuild,
-            });
-            const sent = ctx.agentManager.send(agentId, serializeMessage(msg));
-            if (sent) restarted++;
-          }
+          const { restarted } = ctx.opsService.sendRestart({
+            agentIds,
+            reason: `Restart requested by <@${user_id}> via Slack`,
+            rebuild,
+          });
 
           await respond(
             `:arrows_counterclockwise: Restart signal sent to ${restarted}/${agentIds.length} agent(s).${rebuild ? ' (with rebuild)' : ''} They will reconnect shortly.`,

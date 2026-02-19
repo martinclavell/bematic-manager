@@ -6,3 +6,4 @@ export { RetentionService } from './retention.service.js';
 export type { RetentionConfig } from './retention.service.js';
 export { HealthService } from './health.service.js';
 export type { HealthStatus } from './health.service.js';
+export { OpsService } from './ops.service.js';
