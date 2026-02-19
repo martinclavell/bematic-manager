@@ -9,6 +9,9 @@ import { offlineQueue } from './schema/offline-queue.js';
 import { promptHistory } from './schema/prompt-history.js';
 import { apiKeys } from './schema/api-keys.js';
 import { netsuiteConfigs } from './schema/netsuite-configs.js';
+import { archivedTasks } from './schema/archived-tasks.js';
+import { pendingActions } from './schema/pending-actions.js';
+import { feedbackSuggestions } from './schema/feedback-suggestions.js';
 
 /**
  * Push schema to database (create tables if not exist).
@@ -31,13 +34,20 @@ export function pushSchema(dbUrl?: string) {
     updated_at TEXT NOT NULL
   )`);
 
-  // Add railway columns if they don't exist (migration for existing DBs)
+  // Add columns if they don't exist (migration for existing DBs)
   for (const col of ['railway_project_id', 'railway_service_id', 'railway_environment_id']) {
     try {
       db.run(sql.raw(`ALTER TABLE projects ADD COLUMN ${col} TEXT`));
     } catch {
       // Column already exists, ignore
     }
+  }
+
+  // Add auto_commit_push column (migration for existing DBs)
+  try {
+    db.run(sql.raw(`ALTER TABLE projects ADD COLUMN auto_commit_push INTEGER NOT NULL DEFAULT 0`));
+  } catch {
+    // Column already exists, ignore
   }
 
   db.run(sql`CREATE TABLE IF NOT EXISTS ${tasks} (
@@ -166,6 +176,49 @@ export function pushSchema(dbUrl?: string) {
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+  )`);
+
+  db.run(sql`CREATE TABLE IF NOT EXISTS ${archivedTasks} (
+    id TEXT PRIMARY KEY,
+    original_id TEXT NOT NULL,
+    archived_at INTEGER NOT NULL,
+    task_data TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    project_id TEXT,
+    user_id TEXT,
+    status TEXT,
+    created_at INTEGER
+  )`);
+
+  db.run(sql`CREATE TABLE IF NOT EXISTS ${pendingActions} (
+    id TEXT PRIMARY KEY,
+    type TEXT NOT NULL,
+    task_id TEXT,
+    user_id TEXT NOT NULL,
+    channel_id TEXT NOT NULL,
+    thread_ts TEXT,
+    message_ts TEXT,
+    metadata TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    expires_at INTEGER,
+    created_at INTEGER NOT NULL,
+    completed_at INTEGER
+  )`);
+
+  db.run(sql`CREATE TABLE IF NOT EXISTS ${feedbackSuggestions} (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    task_id TEXT,
+    bot_name TEXT,
+    category TEXT NOT NULL,
+    suggestion TEXT NOT NULL,
+    context TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at INTEGER NOT NULL,
+    reviewed_at INTEGER,
+    reviewed_by TEXT,
+    applied_at INTEGER,
+    applied_notes TEXT
   )`);
 
   return db;

@@ -15,6 +15,8 @@ export {
   apiKeys,
   archivedTasks,
   netsuiteConfigs,
+  pendingActions,
+  feedbackSuggestions,
 } from './schema/index.js';
 export type {
   ProjectRow,
@@ -38,6 +40,10 @@ export type {
   ArchivedTaskInsert,
   NetSuiteConfigRow,
   NetSuiteConfigInsert,
+  PendingActionRow,
+  PendingActionInsert,
+  FeedbackSuggestionRow,
+  FeedbackSuggestionInsert,
 } from './schema/index.js';
 
 // Repositories
@@ -52,4 +58,6 @@ export {
   ApiKeyRepository,
   ArchivedTaskRepository,
   NetSuiteConfigRepository,
+  PendingActionRepository,
+  FeedbackSuggestionRepository,
 } from './repositories/index.js';

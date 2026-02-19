@@ -29,29 +29,22 @@ export function createWSServer(
     server,
     path: '/ws/agent',
     verifyClient: (info: { origin: string; secure: boolean; req: any }) => {
+      // Check if connection is secure either directly or via reverse proxy (Railway, etc.)
+      const forwardedProto = info.req.headers['x-forwarded-proto'];
+      const isSecure = info.secure || forwardedProto === 'https';
+
       // Enforce WSS in production if configured
-      if (config.ssl.enforceWss && !info.secure) {
+      if (config.ssl.enforceWss && !isSecure) {
         logger.warn(
           {
             origin: info.origin,
             secure: info.secure,
-            headers: info.req.headers
+            forwardedProto,
           },
           'Rejected insecure WebSocket connection - WSS required'
         );
         return false;
       }
-
-      // Log connection security status
-      logger.debug(
-        {
-          secure: info.secure,
-          protocol: info.secure ? 'wss' : 'ws',
-          origin: info.origin,
-          enforceWss: config.ssl.enforceWss
-        },
-        'WebSocket connection verification'
-      );
 
       return true;
     }

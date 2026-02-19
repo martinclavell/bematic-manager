@@ -1,6 +1,7 @@
 import { ActionRegistry } from '../action-registry.js';
 import type { AppContext } from '../../context.js';
-import { createLogger } from '@bematic/common';
+import { createLogger, type BotName } from '@bematic/common';
+import { BotRegistry } from '@bematic/bots';
 
 const logger = createLogger('plan-approval-actions');
 
@@ -44,9 +45,28 @@ export function registerPlanApprovalActions(ctx: AppContext): void {
         };
       }
 
+      const bot = BotRegistry.get(task.botName as BotName);
+      if (!bot) {
+        return {
+          success: false,
+          message: ':x: Bot not found for this task',
+          ephemeral: true,
+        };
+      }
+
       try {
         // Execute the plan by creating subtasks
-        await ctx.commandService.handleDecompositionComplete(task, task.result || '', project);
+        await ctx.commandService.handleDecompositionComplete(
+          task.id,
+          task.result || '',
+          project,
+          bot,
+          {
+            channelId: task.slackChannelId,
+            threadTs: task.slackThreadTs,
+            userId: task.slackUserId,
+          },
+        );
 
         logger.info({ taskId, userId }, 'Plan approved and submitted');
 

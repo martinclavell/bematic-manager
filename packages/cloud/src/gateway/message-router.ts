@@ -680,7 +680,7 @@ export class MessageRouter {
     const bot = BotRegistry.get(task.botName as BotName);
     const blocks = bot
       ? bot.formatError(parsed.error, parsed.taskId)
-      : ResponseBuilder.taskErrorBlocks(parsed.error, parsed.taskId);
+      : ResponseBuilder.taskErrorBlocks(parsed.error, parsed.recoverable, parsed.taskId);
 
     // Swap hourglass for error on the user's original message (only for root tasks)
     if (!task.parentTaskId) {

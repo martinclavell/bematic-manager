@@ -299,14 +299,18 @@ ${attachmentList}
           const fs = await import('node:fs/promises');
           const fileContent = await fs.readFile(filePath);
 
-          return this.client.files.uploadV2({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const uploadArgs: any = {
             channel_id: channel,
             file: fileContent,
             filename,
             title: title || filename,
             initial_comment: initialComment,
-            thread_ts: threadTs ?? undefined,
-          });
+          };
+          if (threadTs) {
+            uploadArgs.thread_ts = threadTs;
+          }
+          return this.client.files.uploadV2(uploadArgs);
         },
         { operation: 'uploadFile', channel },
       );

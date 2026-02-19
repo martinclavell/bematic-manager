@@ -782,25 +782,36 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
         case '?':
         default:
           await respond(
-            '*Bematic Manager - /bm Commands*\n\n' +
+            '*Bematic Manager - /bm Commands Reference*\n\n' +
             '*Development:*\n' +
-            '`/bm build` - Compile/rebuild the app\n' +
-            '`/bm test [args]` - Run tests\n' +
-            '`/bm status` - Check git status & project health\n' +
-            '`/bm sync` - Run tests → build → restart agent → deploy (all-in-one)\n\n' +
-            '*Operations:*\n' +
-            '`/bm deploy` - Deploy to Railway\n' +
-            '`/bm agents` - Monitor agent status & running tasks\n' +
-            '`/bm queue` - List all queued/pending tasks\n' +
-            '`/bm cancel <task-id>` - Cancel a specific task\n' +
+            '`/bm build` or `/bm compile` - Compile/rebuild the app\n' +
+            '`/bm test [args]` or `/bm tests [args]` - Run tests with optional arguments\n' +
+            '`/bm status` or `/bm info` - Check git status & project health\n' +
+            '`/bm sync` - All-in-one: test → build → restart agent → deploy\n\n' +
+            '*Deployment:*\n' +
+            '`/bm deploy` or `/bm ship` - Deploy to Railway\n\n' +
+            '*Monitoring & Queue:*\n' +
+            '`/bm agents` or `/bm workers` - Monitor agent status & running tasks\n' +
+            '`/bm queue` or `/bm queued` - List all queued/pending tasks\n' +
+            '`/bm cancel <task-id>` or `/bm stop <task-id>` - Cancel a specific task\n' +
             '`/bm clear-queue` - Clear all queued tasks (project-specific)\n' +
-            '`/bm clear-queue --all` - Clear ALL queued tasks (all projects)\n' +
-            '`/bm usage` - View session usage & statistics\n' +
-            '`/bm logs [limit]` - View prompt history\n' +
-            '`/bm restart [--rebuild]` - Restart agents\n\n' +
+            '`/bm clear-queue --all` or `/bm purge-queue --all` - Clear ALL queued tasks (all projects)\n\n' +
+            '*Logs & Statistics:*\n' +
+            '`/bm usage` or `/bm sessions` or `/bm stats` - View session usage & statistics\n' +
+            '`/bm logs [limit]` or `/bm log [limit]` - View prompt history (default: 20)\n' +
+            '`/bm logs --stats` - View detailed prompt history statistics\n' +
+            '`/bm logs [limit] --category <cat>` - Filter logs by category\n' +
+            '`/bm logs [limit] --status <status>` - Filter logs by status\n' +
+            '`/bm logs [limit] --tag <tag>` - Filter logs by tag\n' +
+            '`/bm logs [limit] --search <text>` - Search logs by text\n\n' +
+            '*Agent Management:*\n' +
+            '`/bm restart` or `/bm restart-agent` - Restart all connected agents\n' +
+            '`/bm restart --rebuild` - Restart agents with rebuild\n\n' +
             '*Configuration:*\n' +
-            '`/bm config` - Configure project settings\n\n' +
-            '*For coding tasks*, use natural language:\n' +
+            '`/bm config` or `/bm configure` or `/bm setup` - Configure project settings\n\n' +
+            '*Help:*\n' +
+            '`/bm help` or `/bm ?` - Show this help message\n\n' +
+            '*For coding tasks*, use natural language mentions:\n' +
             '• `@BematicManager fix the login bug`\n' +
             '• `@BematicManager review this PR`\n' +
             '• `code refactor the auth module`\n' +

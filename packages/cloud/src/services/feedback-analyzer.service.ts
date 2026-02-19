@@ -149,7 +149,7 @@ export class FeedbackAnalyzerService {
 
     // Sort by priority
     const priorityOrder = { high: 0, medium: 1, low: 2 };
-    improvements.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+    improvements.sort((a: { priority: 'high' | 'medium' | 'low' }, b: { priority: 'high' | 'medium' | 'low' }) => priorityOrder[a.priority] - priorityOrder[b.priority]);
 
     return improvements;
   }

@@ -43,9 +43,12 @@ export function registerActionListeners(app: App, ctx: AppContext) {
 
     if (action.type !== 'button') return;
 
-    const { type, entityId } = parseActionId(action.action_id);
+    // Cast to access action_id which exists on button actions
+    const buttonAction = action as { action_id: string; value?: string; type: string };
 
-    logger.info({ actionId: action.action_id, type, entityId }, 'Action received');
+    const { type, entityId } = parseActionId(buttonAction.action_id);
+
+    logger.info({ actionId: buttonAction.action_id, type, entityId }, 'Action received');
 
     // Check if this action type is registered
     if (!ActionRegistry.has(type as any)) {
@@ -62,13 +65,13 @@ export function registerActionListeners(app: App, ctx: AppContext) {
 
       // Execute the action
       const result = await ActionRegistry.execute(type as any, {
-        actionId: action.action_id,
+        actionId: buttonAction.action_id,
         userId,
         channelId,
         threadTs,
         messageTs,
-        taskId: entityId || action.value,
-        value: action.value,
+        taskId: entityId || buttonAction.value,
+        value: buttonAction.value,
       });
 
       // Respond based on result
@@ -96,7 +99,7 @@ export function registerActionListeners(app: App, ctx: AppContext) {
         });
       }
     } catch (error) {
-      logger.error({ error, actionId: action.action_id }, 'Error handling action');
+      logger.error({ error, actionId: buttonAction.action_id }, 'Error handling action');
       await respond(':x: Failed to process action.');
     }
   });

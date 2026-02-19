@@ -26,23 +26,30 @@ interface OAuth1Params {
 }
 
 export class NetSuiteService {
-  private readonly encryptionKey: Buffer;
+  private _encryptionKey: Buffer | null = null;
 
   constructor(
     private readonly netsuiteConfigRepo: NetSuiteConfigRepository,
-    encryptionKeyHex?: string,
+    private readonly encryptionKeyHex?: string,
   ) {
+    // Lazy initialization - don't throw on startup if key is missing
     const key = encryptionKeyHex || process.env.NETSUITE_ENCRYPTION_KEY;
-    if (!key) {
-      throw new Error('NETSUITE_ENCRYPTION_KEY environment variable is required');
+    if (key) {
+      if (key.length !== 64) {
+        logger.warn('NETSUITE_ENCRYPTION_KEY must be 64 hex characters (32 bytes) — NetSuite features disabled');
+      } else {
+        this._encryptionKey = Buffer.from(key, 'hex');
+      }
+    } else {
+      logger.info('NETSUITE_ENCRYPTION_KEY not set — NetSuite features disabled');
     }
+  }
 
-    // Ensure key is 32 bytes (256 bits) for AES-256
-    if (key.length !== 64) {
-      throw new Error('NETSUITE_ENCRYPTION_KEY must be 64 hex characters (32 bytes)');
+  private get encryptionKey(): Buffer {
+    if (!this._encryptionKey) {
+      throw new Error('NETSUITE_ENCRYPTION_KEY environment variable is required for NetSuite features');
     }
-
-    this.encryptionKey = Buffer.from(key, 'hex');
+    return this._encryptionKey;
   }
 
   /**
