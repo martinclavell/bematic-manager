@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SEO Audit — ChristianArtGifts.com | Bematic Manager (SAMPLE)</title>
+<style>
+  /* ── Reset & Base ──────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; font-size: 16px; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: #1e293b; background: #f8fafc; line-height: 1.6;
+  }
+  img { max-width: 100%; }
+  a { color: #2563eb; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code, pre { font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+  pre { overflow-x: auto; }
+
+  /* ── Layout ────────────────────────────────────────── */
+  .container { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+  section { padding: 56px 0; }
+  section + section { border-top: 1px solid #e2e8f0; }
+
+  /* ── Header / Branding ─────────────────────────────── */
+  .site-header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+    color: #fff; padding: 28px 0; position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 12px rgba(0,0,0,.25);
+  }
+  .site-header .container {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-icon {
+    width: 44px; height: 44px; border-radius: 10px;
+    background: linear-gradient(135deg, #38bdf8, #3b82f6);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 20px; color: #fff;
+  }
+  .brand-name { font-size: 18px; font-weight: 700; letter-spacing: -.3px; }
+  .header-meta { text-align: right; font-size: 13px; opacity: .75; }
+  .header-meta strong { display: block; font-size: 14px; opacity: 1; }
+
+  /* ── Cover ─────────────────────────────────────────── */
+  .cover {
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
+    color: #fff; padding: 80px 0 72px; text-align: center;
+  }
+  .cover h1 { font-size: 42px; font-weight: 800; letter-spacing: -.8px; margin-bottom: 12px; }
+  .cover h1 span { color: #38bdf8; }
+  .cover .subtitle { font-size: 20px; opacity: .8; max-width: 640px; margin: 0 auto 28px; }
+  .cover-meta { display: flex; justify-content: center; gap: 32px; font-size: 14px; opacity: .6; flex-wrap: wrap; }
+
+  /* ── Typography ────────────────────────────────────── */
+  h2.section-title {
+    font-size: 30px; font-weight: 800; letter-spacing: -.5px; margin-bottom: 8px;
+  }
+  h2.section-title .num { color: #94a3b8; margin-right: 8px; }
+  .section-lead { font-size: 17px; color: #64748b; margin-bottom: 32px; max-width: 720px; }
+  h3 { font-size: 22px; font-weight: 700; margin: 32px 0 12px; }
+  h4 { font-size: 17px; font-weight: 700; margin: 20px 0 8px; }
+
+  /* ── Grade Badge ───────────────────────────────────── */
+  .grade-row {
+    display: flex; align-items: center; gap: 32px; flex-wrap: wrap;
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 16px;
+    padding: 32px; margin-bottom: 32px; box-shadow: 0 4px 24px rgba(0,0,0,.05);
+  }
+  .grade-badge {
+    width: 120px; height: 120px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 48px; font-weight: 900; color: #fff; flex-shrink: 0;
+  }
+  .grade-c { background: linear-gradient(135deg, #f59e0b, #d97706); box-shadow: 0 6px 20px rgba(245,158,11,.35); }
+
+  /* ── Pills ─────────────────────────────────────────── */
+  .pill {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px;
+  }
+  .pill-critical { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+  .pill-high { background: #fff7ed; color: #ea580c; border: 1px solid #fed7aa; }
+  .pill-medium { background: #fefce8; color: #ca8a04; border: 1px solid #fef08a; }
+  .pill-low { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+
+  /* ── Stat Cards ────────────────────────────────────── */
+  .stat-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px; margin: 24px 0;
+  }
+  .stat-card {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+    padding: 20px; text-align: center;
+  }
+  .stat-card .stat-value { font-size: 36px; font-weight: 800; letter-spacing: -1px; }
+  .stat-card .stat-label { font-size: 13px; color: #64748b; margin-top: 4px; }
+  .stat-red .stat-value { color: #dc2626; }
+  .stat-amber .stat-value { color: #ea580c; }
+
+  /* ── Tables ────────────────────────────────────────── */
+  .summary-table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 15px; }
+  .summary-table th { background: #f1f5f9; text-align: left; padding: 12px 16px; font-weight: 700; border-bottom: 2px solid #e2e8f0; }
+  .summary-table td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+  .summary-table tr:hover td { background: #f8fafc; }
+
+  /* ── Callouts ──────────────────────────────────────── */
+  .callout {
+    border-radius: 10px; padding: 16px 20px; margin: 16px 0;
+    font-size: 14px; display: flex; gap: 12px;
+  }
+  .callout-icon { font-size: 20px; flex-shrink: 0; line-height: 1.4; }
+  .callout-critical { background: #fef2f2; border-left: 4px solid #dc2626; }
+  .callout-warning { background: #fffbeb; border-left: 4px solid #f59e0b; }
+
+  /* ── Page Cards ───────────────────────────────────── */
+  .page-card {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 16px;
+    overflow: hidden; margin-bottom: 36px; box-shadow: 0 4px 24px rgba(0,0,0,.04);
+  }
+  .page-card-header {
+    padding: 24px 28px; display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px; border-bottom: 1px solid #e2e8f0;
+    background: linear-gradient(135deg, #fef2f2, #fff1f2);
+  }
+  .page-card-header h3 { margin: 0; font-size: 20px; }
+  .page-card-header .url { font-size: 13px; color: #64748b; word-break: break-all; }
+  .page-card-body { padding: 28px; }
+
+  /* ── Issue Lists ───────────────────────────────────── */
+  .issue-list { list-style: none; padding: 0; }
+  .issue-list li {
+    padding: 12px 16px; margin-bottom: 8px;
+    background: #f8fafc; border-left: 4px solid #dc2626;
+    border-radius: 6px; font-size: 14px;
+  }
+  .issue-list li code { background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+
+  /* ── Footer ────────────────────────────────────────── */
+  .site-footer {
+    background: #0f172a; color: #94a3b8; padding: 40px 0; font-size: 14px; text-align: center;
+  }
+  .site-footer strong { color: #fff; }
+
+  /* ── Sample Notice ────────────────────────────────── */
+  .sample-notice {
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    color: #000; padding: 16px 0; text-align: center;
+    font-weight: 700; font-size: 15px; letter-spacing: .5px;
+  }
+</style>
+</head>
+<body>
+
+<div class="sample-notice">
+  ⚠️ SAMPLE REPORT — This demonstrates the COMPLETE audit format your customers should receive
+</div>
+
+<header class="site-header">
+  <div class="container">
+    <div class="brand">
+      <div class="brand-icon">B</div>
+      <div>
+        <div class="brand-name">Bematic Manager</div>
+      </div>
+    </div>
+    <div class="header-meta">
+      <strong>Comprehensive SEO Audit</strong>
+      ChristianArtGifts.com &middot; February 20, 2026
+    </div>
+  </div>
+</header>
+
+<section class="cover">
+  <div class="container">
+    <h1>Comprehensive <span>SEO Audit</span></h1>
+    <p class="subtitle">In-depth analysis of SEO fundamentals, structured data, images, headings, links, meta tags, and performance for www.christianartgifts.com</p>
+    <div class="cover-meta">
+      <span>Audit Date<br>Feb 20, 2026</span>
+      <span>Pages Analyzed<br>7</span>
+      <span>Total Issues<br>87</span>
+      <span>Critical Issues<br>15</span>
+    </div>
+  </div>
+</section>
+
+<section id="executive-summary">
+  <div class="container">
+    <h2 class="section-title"><span class="num">01</span> Executive Summary</h2>
+    <p class="section-lead">Overall SEO health and key findings for ChristianArtGifts.com</p>
+
+    <div class="grade-row">
+      <div class="grade-badge grade-c">C</div>
+      <div class="grade-info">
+        <h3>Overall SEO Grade: C</h3>
+        <p>Analyzed 7 pages (homepage, 3 categories, 3 products). Site has strong content but significant technical SEO issues requiring attention. Primary concerns: missing image alt tags, multiple H1 tags per page, incomplete schema markup.</p>
+      </div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card stat-red">
+        <div class="stat-value">15</div>
+        <div class="stat-label">Critical Issues (P0)</div>
+      </div>
+      <div class="stat-card stat-amber">
+        <div class="stat-value">27</div>
+        <div class="stat-label">High Priority Issues (P1)</div>
+      </div>
+      <div class="stat-card stat-amber">
+        <div class="stat-value">45</div>
+        <div class="stat-label">Medium Priority Issues (P2)</div>
+      </div>
+    </div>
+
+    <h3>Top Issues by Priority</h3>
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Issue</th>
+          <th>Priority</th>
+          <th>Count</th>
+          <th>Impact</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Missing image alt tags</td>
+          <td><span class="pill pill-critical">P0</span></td>
+          <td>47 images</td>
+          <td>Accessibility + SEO rankings</td>
+        </tr>
+        <tr>
+          <td>Multiple H1 tags per page</td>
+          <td><span class="pill pill-critical">P0</span></td>
+          <td>5 pages</td>
+          <td>Confuses search engines about page topic</td>
+        </tr>
+        <tr>
+          <td>Missing product schema properties</td>
+          <td><span class="pill pill-high">P1</span></td>
+          <td>3 products</td>
+          <td>Reduces rich snippet eligibility</td>
+        </tr>
+        <tr>
+          <td>Meta descriptions too short</td>
+          <td><span class="pill pill-high">P1</span></td>
+          <td>4 pages</td>
+          <td>Reduced click-through from SERPs</td>
+        </tr>
+        <tr>
+          <td>Empty anchor text in links</td>
+          <td><span class="pill pill-medium">P2</span></td>
+          <td>12 links</td>
+          <td>Poor user experience + crawlability</td>
+        </tr>
+      </tbody>
+    </table>
+
+  </div>
+</section>
+
+<section id="homepage">
+  <div class="container">
+    <h2 class="section-title"><span class="num">02</span> Homepage Audit</h2>
+    <p class="section-lead">Comprehensive analysis of https://www.christianartgifts.com/</p>
+
+    <div class="page-card">
+      <div class="page-card-header">
+        <div>
+          <h3>Homepage</h3>
+          <div class="url">https://www.christianartgifts.com/</div>
+        </div>
+        <div>
+          <span class="pill pill-critical">CRITICAL</span>
+        </div>
+      </div>
+      <div class="page-card-body">
+
+        <h4>1. Meta Tags Analysis</h4>
+        <table class="summary-table">
+          <thead>
+            <tr><th>Element</th><th>Status</th><th>Content</th><th>Issue</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>&lt;title&gt;</code></td>
+              <td><span class="pill pill-medium">⚠️ Warning</span></td>
+              <td>Christian Art Gifts - Inspirational Home Decor, Wall Art, Bibles &amp; More | Free Shipping</td>
+              <td>Title is 92 characters (optimal: 50-60). Too long, will be truncated in SERPs.</td>
+            </tr>
+            <tr>
+              <td><code>meta description</code></td>
+              <td><span class="pill pill-high">⚠️ Warning</span></td>
+              <td>Shop Christian gifts and home decor.</td>
+              <td>Description is 39 characters (optimal: 150-160). Too short, underutilizes SERP space.</td>
+            </tr>
+            <tr>
+              <td><code>canonical</code></td>
+              <td><span class="pill pill-low">✅ OK</span></td>
+              <td>https://www.christianartgifts.com/</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td><code>viewport</code></td>
+              <td><span class="pill pill-low">✅ OK</span></td>
+              <td>width=device-width, initial-scale=1</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td><code>og:image</code></td>
+              <td><span class="pill pill-critical">❌ Missing</span></td>
+              <td>—</td>
+              <td>No Open Graph image specified. Social shares will use default/no image.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4>2. Image Audit</h4>
+        <div class="callout callout-critical">
+          <div class="callout-icon">🚨</div>
+          <div><strong>Critical Issue:</strong> 15 out of 23 images are missing alt attributes. This impacts both accessibility (screen readers) and SEO (image search).</div>
+        </div>
+
+        <p><strong>Missing Alt Tags:</strong></p>
+        <ul class="issue-list">
+          <li><code>&lt;img src="/images/hero-banner.jpg"&gt;</code> — Missing alt (decorative image should have alt="")</li>
+          <li><code>&lt;img src="/products/bible-cover-brown.jpg"&gt;</code> — Missing alt (product image MUST have descriptive alt)</li>
+          <li><code>&lt;img src="/products/wall-cross-wood.jpg"&gt;</code> — Missing alt</li>
+          <li><code>&lt;img src="/category/home-decor-thumbnail.jpg"&gt;</code> — Missing alt</li>
+          <li>... and 11 more images</li>
+        </ul>
+
+        <p><strong>Recommendation:</strong></p>
+        <div class="callout callout-warning">
+          <div class="callout-icon">i</div>
+          <div>Add descriptive alt text to all product and content images. Format: "Product Name - Key Feature". For decorative images, use empty alt (alt="") to indicate they should be ignored by screen readers.</div>
+        </div>
+
+        <h4>3. Heading Structure</h4>
+        <div class="callout callout-critical">
+          <div class="callout-icon">🚨</div>
+          <div><strong>Critical Issue:</strong> Page has 2 H1 tags. Each page should have exactly ONE H1 that describes the main topic.</div>
+        </div>
+
+        <table class="summary-table">
+          <thead>
+            <tr><th>Level</th><th>Text</th><th>Issue</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>H1</code></td>
+              <td>Christian Art Gifts</td>
+              <td><span class="pill pill-critical">Duplicate H1 (1/2)</span></td>
+            </tr>
+            <tr>
+              <td><code>H1</code></td>
+              <td>Welcome to Our Store</td>
+              <td><span class="pill pill-critical">Duplicate H1 (2/2)</span></td>
+            </tr>
+            <tr>
+              <td><code>H2</code></td>
+              <td>Shop by Category</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td><code>H2</code></td>
+              <td>Featured Products</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td><code>H4</code></td>
+              <td>Free Shipping on Orders Over $50</td>
+              <td><span class="pill pill-medium">Skipped H3 level</span></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p><strong>Recommendation:</strong></p>
+        <div class="callout callout-warning">
+          <div class="callout-icon">i</div>
+          <div>Remove one H1 tag. Keep "Christian Art Gifts" as the sole H1. Change "Welcome to Our Store" to H2. Fix H4 to H3 (don't skip heading levels).</div>
+        </div>
+
+        <h4>4. Link Audit</h4>
+        <table class="summary-table">
+          <thead>
+            <tr><th>Metric</th><th>Count</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Total Links</td><td>234</td></tr>
+            <tr><td>Internal Links</td><td>187</td></tr>
+            <tr><td>External Links</td><td>47</td></tr>
+            <tr><td>Nofollow Links</td><td>5</td></tr>
+            <tr><td><span class="pill pill-medium">⚠️</span> Empty Anchor Text</td><td>12</td></tr>
+          </tbody>
+        </table>
+
+        <p><strong>Empty Anchor Text Issues:</strong></p>
+        <ul class="issue-list">
+          <li><code>&lt;a href="/cart"&gt;&lt;i class="icon-cart"&gt;&lt;/i&gt;&lt;/a&gt;</code> — Icon-only link, needs aria-label or text</li>
+          <li><code>&lt;a href="/search"&gt;&lt;img src="search-icon.png"&gt;&lt;/a&gt;</code> — Image link without alt text</li>
+          <li>... and 10 more links</li>
+        </ul>
+
+        <h4>5. Schema.org Analysis</h4>
+        <p><strong>Found Schemas:</strong> Organization, WebSite, SearchAction</p>
+        <p><strong>Missing Schemas:</strong> BreadcrumbList, LocalBusiness (if applicable)</p>
+
+        <div class="callout callout-warning">
+          <div class="callout-icon">i</div>
+          <div><strong>Recommendation:</strong> Add BreadcrumbList schema to improve navigation breadcrumbs in SERPs.</div>
+        </div>
+
+        <h4>6. Performance Metrics</h4>
+        <table class="summary-table">
+          <thead>
+            <tr><th>Metric</th><th>Value</th><th>Grade</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Page Load Time</td><td>2.3 seconds</td><td><span class="pill pill-medium">B</span></td></tr>
+            <tr><td>HTML Size</td><td>142 KB</td><td><span class="pill pill-low">A</span></td></tr>
+            <tr><td>Total Images</td><td>23</td><td>—</td></tr>
+            <tr><td>Total Scripts</td><td>12</td><td>—</td></tr>
+            <tr><td>Compression (gzip)</td><td>✅ Enabled</td><td><span class="pill pill-low">A</span></td></tr>
+          </tbody>
+        </table>
+
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section id="category-example">
+  <div class="container">
+    <h2 class="section-title"><span class="num">03</span> Category Page Example: Bibles</h2>
+    <p class="section-lead">https://www.christianartgifts.com/bibles/</p>
+
+    <div class="page-card">
+      <div class="page-card-header">
+        <div>
+          <h3>Bibles Category</h3>
+          <div class="url">https://www.christianartgifts.com/bibles/</div>
+        </div>
+        <div>
+          <span class="pill pill-high">HIGH</span>
+        </div>
+      </div>
+      <div class="page-card-body">
+
+        <h4>Key Issues</h4>
+        <ul class="issue-list">
+          <li><span class="pill pill-critical">P0</span> 8 product images missing alt tags</li>
+          <li><span class="pill pill-high">P1</span> Missing ItemList schema for product grid</li>
+          <li><span class="pill pill-high">P1</span> Meta description is generic ("Browse our bibles")</li>
+          <li><span class="pill pill-medium">P2</span> No breadcrumb schema</li>
+        </ul>
+
+        <h4>Recommendations</h4>
+        <div class="callout callout-warning">
+          <div class="callout-icon">i</div>
+          <div>
+            <strong>Priority actions:</strong>
+            <ol style="margin: 8px 0 0 20px; font-size: 14px;">
+              <li>Add alt text to all product images (format: "Product Name - Category")</li>
+              <li>Implement ItemList schema to list all products on category page (improves rich snippets)</li>
+              <li>Rewrite meta description to include target keywords: "Shop KJV, NIV, ESV Bibles | Study Bibles, Devotional Bibles | Free Shipping Over $50"</li>
+            </ol>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section id="product-example">
+  <div class="container">
+    <h2 class="section-title"><span class="num">04</span> Product Page Example: Brown Leather Bible Cover</h2>
+    <p class="section-lead">https://www.christianartgifts.com/brown-leather-bible-cover/</p>
+
+    <div class="page-card">
+      <div class="page-card-header">
+        <div>
+          <h3>Brown Leather Bible Cover</h3>
+          <div class="url">https://www.christianartgifts.com/brown-leather-bible-cover/</div>
+        </div>
+        <div>
+          <span class="pill pill-critical">CRITICAL</span>
+        </div>
+      </div>
+      <div class="page-card-body">
+
+        <h4>Schema.org Analysis</h4>
+        <p><strong>Found:</strong> Product schema ✅</p>
+        <p><strong>Missing Properties (P1 - High Priority):</strong></p>
+        <ul class="issue-list">
+          <li><code>aggregateRating</code> — Customer reviews exist on page but not in schema (missed rich snippet opportunity)</li>
+          <li><code>review</code> — Individual reviews not marked up (Google can't display review snippets)</li>
+          <li><code>brand</code> — Product brand not specified in schema</li>
+          <li><code>sku</code> — SKU not included (helps Google Shopping)</li>
+        </ul>
+
+        <h4>Image Audit</h4>
+        <ul class="issue-list">
+          <li><span class="pill pill-critical">P0</span> Main product image missing alt tag</li>
+          <li><span class="pill pill-critical">P0</span> 4 gallery images missing alt tags</li>
+        </ul>
+
+        <h4>Impact of Missing Review Schema</h4>
+        <div class="callout callout-critical">
+          <div class="callout-icon">⭐</div>
+          <div>
+            <strong>High Impact Issue:</strong> This product has 47 customer reviews visible on the page, but they're NOT marked up with schema. This means Google cannot display star ratings in search results, significantly reducing click-through rate. Competitors with review schema will have a visual advantage in SERPs.
+          </div>
+        </div>
+
+        <h4>Recommendations</h4>
+        <div class="callout callout-warning">
+          <div class="callout-icon">i</div>
+          <div>
+            <strong>Immediate actions:</strong>
+            <ol style="margin: 8px 0 0 20px; font-size: 14px;">
+              <li>Add alt text to all 5 product images (main + gallery)</li>
+              <li>Add aggregateRating schema with ratingValue (4.8) and reviewCount (47)</li>
+              <li>Add review schema for top 5 reviews (improves rich snippet quality)</li>
+              <li>Add brand, sku, and gtin (if available) to Product schema</li>
+            </ol>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section id="roadmap">
+  <div class="container">
+    <h2 class="section-title"><span class="num">05</span> Priority Roadmap &amp; Expected ROI</h2>
+    <p class="section-lead">Phased implementation plan ordered by SEO impact and implementation effort</p>
+
+    <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+      <h3 style="margin-top: 0;"><span class="pill pill-critical">Phase 1 — P0 Critical (Week 1)</span></h3>
+      <p style="font-size: 14px; color: #64748b; margin-bottom: 12px;">Estimated effort: 4-6 hours &middot; Impact: High SEO + Accessibility</p>
+      <ul style="padding-left: 20px; font-size: 14px; color: #475569;">
+        <li>Add alt attributes to all 47 images missing alt tags across site</li>
+        <li>Fix multiple H1 tags on 5 pages (consolidate to single H1)</li>
+        <li>Add aggregateRating schema to all 3 product pages with reviews</li>
+      </ul>
+      <div class="callout callout-warning" style="margin: 12px 0 0;">
+        <div class="callout-icon">📈</div>
+        <div><strong>Expected Impact:</strong> +15-20% improvement in image search visibility, resolves accessibility violations, enables star ratings in product SERPs (estimated +8-12% CTR boost)</div>
+      </div>
+    </div>
+
+    <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+      <h3 style="margin-top: 0;"><span class="pill pill-high">Phase 2 — P1 High Priority (Week 2)</span></h3>
+      <p style="font-size: 14px; color: #64748b; margin-bottom: 12px;">Estimated effort: 6-8 hours &middot; Impact: Medium-High SEO</p>
+      <ul style="padding-left: 20px; font-size: 14px; color: #475569;">
+        <li>Rewrite meta descriptions for 4 pages (optimize length + keywords)</li>
+        <li>Add ItemList schema to 3 category pages</li>
+        <li>Add BreadcrumbList schema site-wide</li>
+        <li>Fix empty anchor text in 12 icon/image links (add aria-label)</li>
+      </ul>
+      <div class="callout callout-warning" style="margin: 12px 0 0;">
+        <div class="callout-icon">📈</div>
+        <div><strong>Expected Impact:</strong> Improved SERP appearance with breadcrumbs, better category page rich snippets, +5-8% CTR from optimized meta descriptions</div>
+      </div>
+    </div>
+
+    <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+      <h3 style="margin-top: 0;"><span class="pill pill-medium">Phase 3 — P2 Medium Priority (Week 3-4)</span></h3>
+      <p style="font-size: 14px; color: #64748b; margin-bottom: 12px;">Estimated effort: 8-12 hours &middot; Impact: Medium SEO + Technical</p>
+      <ul style="padding-left: 20px; font-size: 14px; color: #475569;">
+        <li>Add Open Graph images to all pages (social sharing optimization)</li>
+        <li>Implement lazy loading for images below fold (performance)</li>
+        <li>Add Review schema to top 5 reviews per product page</li>
+        <li>Fix heading hierarchy issues (H3 → H4 jumps)</li>
+        <li>Optimize page load time (target sub-2 seconds)</li>
+      </ul>
+      <div class="callout callout-warning" style="margin: 12px 0 0;">
+        <div class="callout-icon">📈</div>
+        <div><strong>Expected Impact:</strong> Better social sharing appearance, improved page speed scores (SEO ranking factor), enhanced review snippets, cleaner heading structure for crawlers</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="container">
+    <p><strong>Generated by Bematic Manager</strong> &middot; Comprehensive SEO Audit Tool</p>
+    <p style="margin-top:12px; font-size:12px; opacity:.6;">&copy; 2026 Bematic. Automated SEO analysis powered by Claude AI.</p>
+  </div>
+</footer>
+
+</body>
+</html>

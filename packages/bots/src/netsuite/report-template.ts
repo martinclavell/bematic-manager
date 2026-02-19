@@ -5,6 +5,17 @@
  * based on audit data collected from website crawling.
  */
 
+// Import enhanced interfaces
+import type {
+  ImageAuditData,
+  HeadingAuditData,
+  LinkAuditData,
+  MetaTagsAuditData,
+  PerformanceAuditData,
+  CrawledUrl,
+  SchemaData,
+} from './enhanced-report-interfaces.js';
+
 export interface AuditData {
   siteName: string;
   siteUrl: string;
@@ -15,10 +26,15 @@ export interface AuditData {
     schemasEvaluated: number;
     richResultEligibility: string;
     reviewsFound: number;
+    totalIssues?: number;
+    criticalIssues?: number;
+    highPriorityIssues?: number;
+    mediumPriorityIssues?: number;
   };
   pages: PageAudit[];
   competitors: CompetitorData[];
   roadmap: RoadmapPhase[];
+  crawledUrls: CrawledUrl[];
 }
 
 export interface PageAudit {
@@ -26,9 +42,18 @@ export interface PageAudit {
   url: string;
   title: string;
   severity: 'critical' | 'high' | 'medium' | 'low';
-  currentSchema: any;
-  missingFields: MissingField[];
-  visibleContent: ContentItem[];
+  schemas?: SchemaData[]; // NEW: Support for multiple JSON-LD schemas
+  currentSchema?: any; // Deprecated - kept for backward compatibility
+  missingFields?: MissingField[];
+  visibleContent?: ContentItem[];
+
+  // NEW: Comprehensive SEO audits
+  images?: ImageAuditData;
+  headings?: HeadingAuditData;
+  links?: LinkAuditData;
+  metaTags?: MetaTagsAuditData;
+  performance?: PerformanceAuditData;
+
   recommendations: string;
 }
 
@@ -67,7 +92,7 @@ export function generateAuditReport(data: AuditData): string {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>JSON-LD SEO Audit — ${data.siteName} | Bematic Manager</title>
+<title>Comprehensive SEO Audit — ${data.siteName} | Bematic Manager</title>
 ${getStyles()}
 </head>
 <body>
@@ -75,10 +100,43 @@ ${getStyles()}
 ${getHeader(data)}
 ${getCover(data)}
 ${getTableOfContents(data)}
-${getExecutiveSummary(data)}
-${getPageAudits(data)}
-${getCompetitiveAnalysis(data)}
-${getRoadmap(data)}
+
+<div class="tabs">
+  <input type="radio" id="tab-home" name="tabs" checked>
+  <label for="tab-home">🏠 Home</label>
+  <input type="radio" id="tab-categories" name="tabs">
+  <label for="tab-categories">🏷️ Categories (${data.pages.filter(p => p.type === 'category').length})</label>
+  <input type="radio" id="tab-products" name="tabs">
+  <label for="tab-products">🛍️ Products (${data.pages.filter(p => p.type === 'product').length})</label>
+  <input type="radio" id="tab-competitive" name="tabs">
+  <label for="tab-competitive">⚔️ Competitive</label>
+  <input type="radio" id="tab-roadmap" name="tabs">
+  <label for="tab-roadmap">🛣️ Roadmap</label>
+</div>
+
+<div class="tab-content">
+  <div class="tab-pane" id="content-home">
+    ${getExecutiveSummary(data)}
+    ${getCrawledUrlsSection(data)}
+  </div>
+
+  <div class="tab-pane" id="content-categories">
+    ${getCategoryPageAudits(data)}
+  </div>
+
+  <div class="tab-pane" id="content-products">
+    ${getProductPageAudits(data)}
+  </div>
+
+  <div class="tab-pane" id="content-competitive">
+    ${getCompetitiveAnalysis(data)}
+  </div>
+
+  <div class="tab-pane" id="content-roadmap">
+    ${getRoadmap(data)}
+  </div>
+</div>
+
 ${getFooter()}
 
 </body>
@@ -276,6 +334,105 @@ function getStyles(): string {
   .callout-info { background: #eff6ff; border-left: 4px solid #2563eb; }
   .callout-success { background: #f0fdf4; border-left: 4px solid #16a34a; }
   .callout-warning { background: #fffbeb; border-left: 4px solid #f59e0b; }
+
+  /* ── Issue Lists ───────────────────────────────────── */
+  .issue-list { list-style: none; padding: 0; }
+  .issue-list li {
+    padding: 12px 16px; margin-bottom: 8px;
+    background: #f8fafc; border-left: 4px solid #dc2626;
+    border-radius: 6px; font-size: 14px;
+  }
+  .issue-list li code { background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+
+  /* ── Tabbed Interface ──────────────────────────────── */
+  .tabs {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 12px 12px 0 0;
+    margin: 40px auto 0; max-width: 1120px; padding: 0 24px;
+    display: flex; overflow-x: auto;
+  }
+
+  .tabs input[type="radio"] {
+    display: none;
+  }
+
+  .tabs label {
+    display: block; padding: 16px 24px; cursor: pointer;
+    font-weight: 600; font-size: 14px; color: #64748b;
+    border-bottom: 3px solid transparent; transition: all 0.2s ease;
+    white-space: nowrap; user-select: none;
+  }
+
+  .tabs label:hover {
+    color: #2563eb; background: #f8fafc;
+  }
+
+  .tabs input[type="radio"]:checked + label {
+    color: #2563eb; border-bottom-color: #2563eb;
+    background: linear-gradient(135deg, #eff6ff, #f8fafc);
+  }
+
+  .tab-content {
+    max-width: 1120px; margin: 0 auto; padding: 0 24px;
+    background: #fff; border: 1px solid #e2e8f0; border-top: none;
+    border-radius: 0 0 12px 12px; box-shadow: 0 4px 24px rgba(0,0,0,.04);
+  }
+
+  .tab-pane {
+    display: none; opacity: 0; transition: opacity 0.3s ease-in-out;
+  }
+
+  /* Show active tab content */
+  #tab-home:checked ~ .tab-content #content-home { display: block; opacity: 1; }
+  #tab-categories:checked ~ .tab-content #content-categories { display: block; opacity: 1; }
+  #tab-products:checked ~ .tab-content #content-products { display: block; opacity: 1; }
+  #tab-competitive:checked ~ .tab-content #content-competitive { display: block; opacity: 1; }
+  #tab-roadmap:checked ~ .tab-content #content-roadmap { display: block; opacity: 1; }
+
+  /* ── Crawled URLs Table ────────────────────────────── */
+  .crawled-urls-table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px; }
+  .crawled-urls-table th {
+    background: #f1f5f9; text-align: left; padding: 12px 16px;
+    font-weight: 700; border-bottom: 2px solid #e2e8f0;
+  }
+  .crawled-urls-table td {
+    padding: 12px 16px; border-bottom: 1px solid #e2e8f0;
+    vertical-align: top; word-break: break-word;
+  }
+  .crawled-urls-table tr:hover td { background: #f8fafc; }
+  .crawled-urls-table .url-cell { max-width: 400px; }
+  .crawled-urls-table .status-200 { color: #16a34a; font-weight: 700; }
+  .crawled-urls-table .status-error { color: #dc2626; font-weight: 700; }
+  .crawled-urls-table .response-time { text-align: right; }
+
+  /* ── Print Styles (Show all tabs when printing) ─────── */
+  @media print {
+    .tabs { display: none !important; }
+    .tab-content {
+      border: none !important; border-radius: 0 !important;
+      box-shadow: none !important;
+    }
+    .tab-pane {
+      display: block !important; opacity: 1 !important;
+      page-break-before: always;
+    }
+    .tab-pane:first-child { page-break-before: avoid; }
+  }
+
+  /* ── Responsive Design ─────────────────────────────── */
+  @media (max-width: 768px) {
+    .tabs {
+      padding: 0 12px; margin: 20px 12px 0;
+    }
+    .tabs label {
+      padding: 12px 16px; font-size: 13px;
+    }
+    .tab-content {
+      margin: 0 12px; padding: 0 12px;
+    }
+    .crawled-urls-table .url-cell {
+      max-width: 200px; font-size: 12px;
+    }
+  }
 </style>`;
 }
 
@@ -299,8 +456,8 @@ function getHeader(data: AuditData): string {
 function getCover(data: AuditData): string {
   return `<section class="cover">
   <div class="container">
-    <h1>JSON-LD <span>Schema.org</span> Audit</h1>
-    <p class="subtitle">Comprehensive analysis of structured data on ${data.siteUrl} and opportunities for enhanced rich results in search engines and AI answers.</p>
+    <h1>Comprehensive <span>SEO Audit</span></h1>
+    <p class="subtitle">In-depth analysis of SEO fundamentals, structured data, images, headings, links, meta tags, and performance for ${data.siteUrl}.</p>
     <div class="cover-meta">
       <span>Audit Date<br>${data.auditDate}</span>
       <span>Pages Analyzed<br>${data.summary.totalPagesAnalyzed}</span>
@@ -340,13 +497,27 @@ function getExecutiveSummary(data: AuditData): string {
     </div>
 
     <div class="stat-grid">
+      ${data.summary.criticalIssues !== undefined ? `
       <div class="stat-card stat-red">
-        <div class="stat-value">${data.summary.richResultEligibility}</div>
-        <div class="stat-label">Current Rich Result Eligibility</div>
+        <div class="stat-value">${data.summary.criticalIssues}</div>
+        <div class="stat-label">Critical Issues (P0)</div>
       </div>
+      ` : ''}
+      ${data.summary.highPriorityIssues !== undefined ? `
       <div class="stat-card stat-amber">
-        <div class="stat-value">${data.summary.reviewsFound}</div>
-        <div class="stat-label">Reviews Not Visible to Google</div>
+        <div class="stat-value">${data.summary.highPriorityIssues}</div>
+        <div class="stat-label">High Priority Issues (P1)</div>
+      </div>
+      ` : ''}
+      ${data.summary.mediumPriorityIssues !== undefined ? `
+      <div class="stat-card stat-amber">
+        <div class="stat-value">${data.summary.mediumPriorityIssues}</div>
+        <div class="stat-label">Medium Priority Issues (P2)</div>
+      </div>
+      ` : ''}
+      <div class="stat-card stat-amber">
+        <div class="stat-value">${data.summary.reviewsFound || 0}</div>
+        <div class="stat-label">Reviews Not in Schema</div>
       </div>
     </div>
 
@@ -375,11 +546,21 @@ function getPageAudits(data: AuditData): string {
         </div>
       </div>
       <div class="page-card-body">
-        <h4>Current JSON-LD</h4>
-        <div class="code-block">${formatJson(page.currentSchema)}</div>
 
-        ${page.missingFields.length > 0 ? `
-        <h4>Missing Fields</h4>
+        ${page.metaTags ? getMetaTagsAuditSection(page.metaTags) : ''}
+
+        ${page.images ? getImageAuditSection(page.images) : ''}
+
+        ${page.headings ? getHeadingAuditSection(page.headings) : ''}
+
+        ${page.links ? getLinkAuditSection(page.links) : ''}
+
+        ${page.performance ? getPerformanceAuditSection(page.performance) : ''}
+
+        ${getSchemasSection(page)}
+
+        ${page.missingFields && page.missingFields.length > 0 ? `
+        <h4>Missing Schema Fields</h4>
         <table class="summary-table">
           <thead>
             <tr>
@@ -500,6 +681,391 @@ function getFooter(): string {
 </footer>`;
 }
 
+/**
+ * Generate image audit section for a page
+ */
+function getImageAuditSection(images: ImageAuditData | undefined): string {
+  if (!images || images.totalImages === 0) return '';
+
+  const severityClass = images.severity === 'critical' ? 'callout-critical' : images.severity === 'high' ? 'callout-warning' : 'callout-info';
+
+  return `
+    <h4>Image SEO Audit</h4>
+    ${images.missingAlt > 0 ? `
+    <div class="callout ${severityClass}">
+      <div class="callout-icon">🚨</div>
+      <div><strong>${images.severity === 'critical' ? 'Critical Issue' : 'Warning'}:</strong> ${images.missingAlt} out of ${images.totalImages} images are missing alt attributes. This impacts both accessibility (screen readers) and SEO (image search).</div>
+    </div>
+    ` : ''}
+
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Count</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Images</td>
+          <td>${images.totalImages}</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Missing Alt Tags</td>
+          <td>${images.missingAlt}</td>
+          <td><span class="pill ${images.missingAlt > 0 ? 'pill-critical' : 'pill-low'}">${images.missingAlt > 0 ? 'CRITICAL' : 'OK'}</span></td>
+        </tr>
+        <tr>
+          <td>Missing Dimensions (width/height)</td>
+          <td>${images.missingDimensions}</td>
+          <td><span class="pill ${images.missingDimensions > 0 ? 'pill-medium' : 'pill-low'}">${images.missingDimensions > 0 ? 'WARNING' : 'OK'}</span></td>
+        </tr>
+        <tr>
+          <td>Lazy Loaded</td>
+          <td>${images.lazyLoaded}</td>
+          <td><span class="pill pill-low">GOOD</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    ${images.issues && images.issues.length > 0 ? `
+    <p><strong>Issues Found:</strong></p>
+    <ul class="issue-list">
+      ${images.issues.slice(0, 20).map(issue => `<li>
+        <div><strong>File:</strong> <code>${escapeHtml(issue.src)}</code></div>
+        <div><strong>Issue:</strong> ${escapeHtml(issue.issue)}</div>
+        <div><strong>HTML Tag:</strong> <code>${escapeHtml(issue.htmlTag)}</code></div>
+      </li>`).join('\n')}
+      ${images.issues.length > 20 ? `<li><em>... and ${images.issues.length - 20} more images with issues</em></li>` : ''}
+    </ul>
+    ` : ''}
+  `;
+}
+
+/**
+ * Generate heading structure audit section for a page
+ */
+function getHeadingAuditSection(headings: HeadingAuditData | undefined): string {
+  if (!headings || headings.totalHeadings === 0) return '';
+
+  const severityClass = headings.severity === 'critical' ? 'callout-critical' : headings.severity === 'high' ? 'callout-warning' : 'callout-info';
+
+  return `
+    <h4>Heading Structure Audit</h4>
+    ${headings.hasMultipleH1 || headings.hasNoH1 ? `
+    <div class="callout ${severityClass}">
+      <div class="callout-icon">🚨</div>
+      <div><strong>Critical Issue:</strong> ${headings.hasMultipleH1 ? `Page has ${headings.h1Count} H1 tags. Each page should have exactly ONE H1.` : 'Page is missing an H1 tag. Every page should have exactly one H1 that describes the main topic.'}</div>
+    </div>
+    ` : ''}
+
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Level</th>
+          <th>Count</th>
+          <th>Text Preview</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${Array.from({length: 6}, (_, i) => i + 1).map(level => {
+          const levelHeadings = headings.headings.filter(h => h.level === level);
+          return levelHeadings.length > 0 ? `
+        <tr>
+          <td><code>H${level}</code></td>
+          <td>${levelHeadings.length}</td>
+          <td>${levelHeadings.slice(0, 3).map(h => escapeHtml(h.text.slice(0, 60) + (h.text.length > 60 ? '...' : ''))).join('<br>')}</td>
+        </tr>
+          ` : '';
+        }).join('')}
+      </tbody>
+    </table>
+
+    ${headings.hierarchyIssues && headings.hierarchyIssues.length > 0 ? `
+    <p><strong>Hierarchy Issues:</strong></p>
+    <ul class="issue-list">
+      ${headings.hierarchyIssues.map(issue => `<li>${issue}</li>`).join('\n')}
+    </ul>
+    ` : ''}
+  `;
+}
+
+/**
+ * Generate link audit section for a page
+ */
+function getLinkAuditSection(links: LinkAuditData | undefined): string {
+  if (!links || links.totalLinks === 0) return '';
+
+  return `
+    <h4>Link Audit</h4>
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Count</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Links</td>
+          <td>${links.totalLinks}</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Internal Links</td>
+          <td>${links.internalLinks}</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>External Links</td>
+          <td>${links.externalLinks}</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Nofollow Links</td>
+          <td>${links.nofollowLinks}</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Empty Anchor Text</td>
+          <td>${links.emptyAnchors}</td>
+          <td><span class="pill ${links.emptyAnchors > 0 ? 'pill-medium' : 'pill-low'}">${links.emptyAnchors > 0 ? 'WARNING' : 'OK'}</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    ${links.emptyAnchors > 0 ? `
+    <div class="callout callout-warning">
+      <div class="callout-icon">i</div>
+      <div><strong>Recommendation:</strong> ${links.emptyAnchors} link(s) have empty anchor text. Add descriptive text or aria-label attributes for accessibility and SEO.</div>
+    </div>
+    ` : ''}
+  `;
+}
+
+/**
+ * Generate meta tags audit section for a page
+ */
+function getMetaTagsAuditSection(metaTags: MetaTagsAuditData | undefined): string {
+  if (!metaTags) return '';
+
+  return `
+    <h4>Meta Tags Analysis</h4>
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Element</th>
+          <th>Status</th>
+          <th>Content</th>
+          <th>Issue</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>&lt;title&gt;</code></td>
+          <td><span class="pill pill-${metaTags.title.severity}">${metaTags.title.severity.toUpperCase()}</span></td>
+          <td>${escapeHtml(metaTags.title.text.slice(0, 80))}${metaTags.title.text.length > 80 ? '...' : ''}</td>
+          <td>${metaTags.title.issues.join(', ') || '—'}</td>
+        </tr>
+        <tr>
+          <td><code>meta description</code></td>
+          <td><span class="pill pill-${metaTags.description.severity}">${metaTags.description.severity.toUpperCase()}</span></td>
+          <td>${escapeHtml(metaTags.description.text.slice(0, 80))}${metaTags.description.text.length > 80 ? '...' : ''}</td>
+          <td>${metaTags.description.issues.join(', ') || '—'}</td>
+        </tr>
+        <tr>
+          <td><code>canonical</code></td>
+          <td><span class="pill ${metaTags.canonical.present ? 'pill-low' : 'pill-medium'}">${metaTags.canonical.present ? 'OK' : 'MISSING'}</span></td>
+          <td>${metaTags.canonical.url ? escapeHtml(metaTags.canonical.url) : '—'}</td>
+          <td>${!metaTags.canonical.present ? 'Missing canonical URL' : '—'}</td>
+        </tr>
+        <tr>
+          <td><code>viewport</code></td>
+          <td><span class="pill ${metaTags.viewport.isMobileFriendly ? 'pill-low' : 'pill-high'}">${metaTags.viewport.isMobileFriendly ? 'OK' : 'WARNING'}</span></td>
+          <td>${metaTags.viewport.present ? '✓ Present' : '✗ Missing'}</td>
+          <td>${!metaTags.viewport.isMobileFriendly ? 'Not mobile-friendly' : '—'}</td>
+        </tr>
+        <tr>
+          <td><code>Open Graph</code></td>
+          <td><span class="pill ${metaTags.openGraph.hasCompleteOG ? 'pill-low' : 'pill-medium'}">${metaTags.openGraph.hasCompleteOG ? 'COMPLETE' : 'INCOMPLETE'}</span></td>
+          <td>—</td>
+          <td>${metaTags.openGraph.missingTags.length > 0 ? `Missing: ${metaTags.openGraph.missingTags.join(', ')}` : '—'}</td>
+        </tr>
+        <tr>
+          <td><code>Twitter Card</code></td>
+          <td><span class="pill ${metaTags.twitterCard.hasTwitterCard ? 'pill-low' : 'pill-medium'}">${metaTags.twitterCard.hasTwitterCard ? 'COMPLETE' : 'INCOMPLETE'}</span></td>
+          <td>—</td>
+          <td>${metaTags.twitterCard.missingTags.length > 0 ? `Missing: ${metaTags.twitterCard.missingTags.join(', ')}` : '—'}</td>
+        </tr>
+        ${metaTags.robots.isNoindex ? `
+        <tr>
+          <td><code>robots</code></td>
+          <td><span class="pill pill-critical">WARNING</span></td>
+          <td>${escapeHtml(metaTags.robots.content)}</td>
+          <td>Page is set to noindex - will not be indexed by search engines!</td>
+        </tr>
+        ` : ''}
+      </tbody>
+    </table>
+  `;
+}
+
+/**
+ * Generate performance audit section for a page
+ */
+function getPerformanceAuditSection(performance: PerformanceAuditData | undefined): string {
+  if (!performance) return '';
+
+  const gradeClass = performance.grade === 'A' ? 'stat-green' : performance.grade === 'B' ? 'stat-blue' : performance.grade === 'C' ? 'stat-amber' : 'stat-red';
+
+  return `
+    <h4>Performance Metrics (SPA Total Page Weight)</h4>
+    <div class="stat-grid" style="margin: 20px 0;">
+      <div class="stat-card ${gradeClass}">
+        <div class="stat-value">${performance.grade}</div>
+        <div class="stat-label">Performance Grade</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${performance.responseTimeMs}ms</div>
+        <div class="stat-label">Response Time</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${performance.totalPageWeightKB.toFixed(1)} KB</div>
+        <div class="stat-label">Total Page Weight</div>
+      </div>
+    </div>
+
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Component</th>
+          <th>Size (KB)</th>
+          <th>Percentage</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>HTML</strong></td>
+          <td>${performance.htmlSizeKB}</td>
+          <td>${((parseFloat(performance.htmlSizeKB) / performance.totalPageWeightKB) * 100).toFixed(1)}%</td>
+        </tr>
+        <tr>
+          <td><strong>JavaScript</strong> (${performance.scriptCount} files)</td>
+          <td>${performance.jsSizeKB.toFixed(1)}</td>
+          <td>${((performance.jsSizeKB / performance.totalPageWeightKB) * 100).toFixed(1)}%</td>
+        </tr>
+        <tr>
+          <td><strong>CSS</strong> (${performance.stylesheetCount} files)</td>
+          <td>${performance.cssSizeKB.toFixed(1)}</td>
+          <td>${((performance.cssSizeKB / performance.totalPageWeightKB) * 100).toFixed(1)}%</td>
+        </tr>
+        <tr style="border-top: 2px solid #e2e8f0; font-weight: bold;">
+          <td><strong>Total Page Weight</strong></td>
+          <td><strong>${performance.totalPageWeightKB.toFixed(1)} KB</strong></td>
+          <td><strong>100%</strong></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <table class="summary-table" style="margin-top: 16px;">
+      <thead>
+        <tr>
+          <th>Additional Metrics</th>
+          <th>Value</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Images</td>
+          <td>${performance.imageCount}</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Compression (gzip/br)</td>
+          <td>${performance.isCompressed ? '✓ Enabled' : '✗ Disabled'}</td>
+          <td><span class="pill ${performance.isCompressed ? 'pill-low' : 'pill-medium'}">${performance.isCompressed ? 'GOOD' : 'OPTIMIZE'}</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    ${performance.totalPageWeightKB > 1000 ? `
+    <div class="callout callout-warning">
+      <div class="callout-icon">⚠️</div>
+      <div><strong>Large Page Weight:</strong> Total page weight (${performance.totalPageWeightKB.toFixed(1)} KB) exceeds 1 MB. Consider optimizing JavaScript bundles, implementing code splitting, or enabling compression to improve load times.</div>
+    </div>
+    ` : performance.totalPageWeightKB > 500 ? `
+    <div class="callout callout-info">
+      <div class="callout-icon">💡</div>
+      <div><strong>Moderate Page Weight:</strong> Total page weight is ${performance.totalPageWeightKB.toFixed(1)} KB. Consider optimizing assets for better performance on slower connections.</div>
+    </div>
+    ` : ''}
+  `;
+}
+
+/**
+ * Generate schemas section for a page - supports multiple JSON-LD blocks
+ */
+function getSchemasSection(page: PageAudit): string {
+  // Handle new schemas array format
+  if (page.schemas && page.schemas.length > 0) {
+    const validSchemas = page.schemas.filter(schema => schema.hasValidJson);
+    const invalidSchemas = page.schemas.filter(schema => !schema.hasValidJson);
+
+    let html = `<h4>Schema.org (JSON-LD) Analysis</h4>`;
+
+    if (validSchemas.length === 0 && invalidSchemas.length === 0) {
+      html += `<div class="callout callout-warning">
+        <div class="callout-icon">!</div>
+        <div><strong>No JSON-LD schemas found.</strong> Consider adding structured data to improve search visibility.</div>
+      </div>`;
+    } else {
+      html += `<div class="callout callout-info">
+        <div class="callout-icon">ℹ</div>
+        <div>Found <strong>${page.schemas.length} JSON-LD block(s)</strong> on this page. ${validSchemas.length} valid, ${invalidSchemas.length} with parsing errors.</div>
+      </div>`;
+    }
+
+    // Display each valid schema
+    validSchemas.forEach((schema, index) => {
+      html += `<div style="margin: 20px 0;">
+        <h5>Schema ${index + 1}: ${schema.type ? `<code>${schema.type}</code>` : '<em>Unknown Type</em>'}</h5>
+        <div class="code-block">${formatJson(schema.data)}</div>
+      </div>`;
+    });
+
+    // Display parsing errors
+    if (invalidSchemas.length > 0) {
+      html += `<div class="callout callout-critical">
+        <div class="callout-icon">🚨</div>
+        <div><strong>JSON Parsing Errors:</strong></div>
+      </div>`;
+      invalidSchemas.forEach((schema, index) => {
+        html += `<div style="margin: 12px 0; padding: 12px; background: #fef2f2; border-left: 4px solid #dc2626; border-radius: 6px;">
+          <strong>Block ${validSchemas.length + index + 1}:</strong> ${escapeHtml(schema.parseError || 'Invalid JSON')}
+        </div>`;
+      });
+    }
+
+    return html;
+  }
+
+  // Fallback to legacy currentSchema for backward compatibility
+  if (page.currentSchema) {
+    return `<h4>Schema.org (JSON-LD) Analysis</h4>
+    <div class="code-block">${formatJson(page.currentSchema)}</div>`;
+  }
+
+  return `<h4>Schema.org (JSON-LD) Analysis</h4>
+  <div class="callout callout-warning">
+    <div class="callout-icon">!</div>
+    <div><strong>No JSON-LD schemas found.</strong> Consider adding structured data to improve search visibility.</div>
+  </div>`;
+}
+
 function formatJson(obj: any): string {
   if (!obj) return '<span class="comment">// No schema found</span>';
 
@@ -518,4 +1084,209 @@ function escapeHtml(text: string): string {
     "'": '&#039;',
   };
   return text.replace(/[&<>"']/g, m => map[m]!);
+}
+
+/**
+ * Generate crawled URLs section
+ */
+function getCrawledUrlsSection(data: AuditData): string {
+  if (!data.crawledUrls || data.crawledUrls.length === 0) return '';
+
+  return `<section id="crawled-urls">
+  <div class="container">
+    <h2 class="section-title"><span class="num">02</span> Crawled URLs</h2>
+    <p class="section-lead">All pages discovered and analyzed during the website crawl process.</p>
+
+    <table class="crawled-urls-table">
+      <thead>
+        <tr>
+          <th>URL</th>
+          <th>Type</th>
+          <th>Status Code</th>
+          <th>Response Time</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${data.crawledUrls.map(url => {
+          const statusClass = url.status === 200 ? 'status-200' : 'status-error';
+          const typeLabel = url.type.charAt(0).toUpperCase() + url.type.slice(1);
+
+          return `<tr>
+            <td class="url-cell"><a href="${escapeHtml(url.url)}" target="_blank" rel="noopener">${escapeHtml(url.url)}</a></td>
+            <td><span class="pill pill-low">${typeLabel}</span></td>
+            <td class="${statusClass}">${url.status}</td>
+            <td class="response-time">${url.responseTime}ms</td>
+          </tr>`;
+        }).join('\n        ')}
+      </tbody>
+    </table>
+
+  </div>
+</section>`;
+}
+
+/**
+ * Generate category page audits section
+ */
+function getCategoryPageAudits(data: AuditData): string {
+  const categoryPages = data.pages.filter(p => p.type === 'category');
+  if (categoryPages.length === 0) {
+    return `<section>
+      <div class="container">
+        <h2 class="section-title">Category Page Audits</h2>
+        <p class="section-lead">No category pages were found in this audit.</p>
+      </div>
+    </section>`;
+  }
+
+  return categoryPages.map((page, index) => {
+    const severityClass = `hdr-${page.severity}`;
+    const severityPill = `pill-${page.severity}`;
+
+    return `<section id="category-page-${index}">
+  <div class="container">
+    <h2 class="section-title">Category Page: ${page.title}</h2>
+    <p class="section-lead">Analysis of category page SEO and structured data implementation.</p>
+
+    <div class="page-card">
+      <div class="page-card-header ${severityClass}">
+        <div>
+          <h3>${page.title}</h3>
+          <div class="url">${page.url}</div>
+        </div>
+        <div>
+          <span class="pill ${severityPill}">${page.severity.toUpperCase()}</span>
+        </div>
+      </div>
+      <div class="page-card-body">
+
+        ${page.metaTags ? getMetaTagsAuditSection(page.metaTags) : ''}
+
+        ${page.images ? getImageAuditSection(page.images) : ''}
+
+        ${page.headings ? getHeadingAuditSection(page.headings) : ''}
+
+        ${page.links ? getLinkAuditSection(page.links) : ''}
+
+        ${page.performance ? getPerformanceAuditSection(page.performance) : ''}
+
+        ${getSchemasSection(page)}
+
+        ${page.missingFields && page.missingFields.length > 0 ? `
+        <h4>Missing Schema Fields</h4>
+        <table class="summary-table">
+          <thead>
+            <tr>
+              <th>Field</th>
+              <th>Priority</th>
+              <th>Impact</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${page.missingFields.map(f => `
+            <tr>
+              <td><code>${f.field}</code></td>
+              <td><span class="pill pill-${f.priority.toLowerCase()}">${f.priority}</span></td>
+              <td>${f.impact}</td>
+              <td>${f.details}</td>
+            </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        ` : ''}
+
+        <h4>Recommendations</h4>
+        <div class="callout callout-info">
+          <div class="callout-icon">i</div>
+          <div>${page.recommendations}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>`;
+  }).join('\n\n');
+}
+
+/**
+ * Generate product page audits section
+ */
+function getProductPageAudits(data: AuditData): string {
+  const productPages = data.pages.filter(p => p.type === 'product');
+  if (productPages.length === 0) {
+    return `<section>
+      <div class="container">
+        <h2 class="section-title">Product Page Audits</h2>
+        <p class="section-lead">No product pages were found in this audit.</p>
+      </div>
+    </section>`;
+  }
+
+  return productPages.map((page, index) => {
+    const severityClass = `hdr-${page.severity}`;
+    const severityPill = `pill-${page.severity}`;
+
+    return `<section id="product-page-${index}">
+  <div class="container">
+    <h2 class="section-title">Product Page: ${page.title}</h2>
+    <p class="section-lead">Analysis of product page SEO and structured data implementation.</p>
+
+    <div class="page-card">
+      <div class="page-card-header ${severityClass}">
+        <div>
+          <h3>${page.title}</h3>
+          <div class="url">${page.url}</div>
+        </div>
+        <div>
+          <span class="pill ${severityPill}">${page.severity.toUpperCase()}</span>
+        </div>
+      </div>
+      <div class="page-card-body">
+
+        ${page.metaTags ? getMetaTagsAuditSection(page.metaTags) : ''}
+
+        ${page.images ? getImageAuditSection(page.images) : ''}
+
+        ${page.headings ? getHeadingAuditSection(page.headings) : ''}
+
+        ${page.links ? getLinkAuditSection(page.links) : ''}
+
+        ${page.performance ? getPerformanceAuditSection(page.performance) : ''}
+
+        ${getSchemasSection(page)}
+
+        ${page.missingFields && page.missingFields.length > 0 ? `
+        <h4>Missing Schema Fields</h4>
+        <table class="summary-table">
+          <thead>
+            <tr>
+              <th>Field</th>
+              <th>Priority</th>
+              <th>Impact</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${page.missingFields.map(f => `
+            <tr>
+              <td><code>${f.field}</code></td>
+              <td><span class="pill pill-${f.priority.toLowerCase()}">${f.priority}</span></td>
+              <td>${f.impact}</td>
+              <td>${f.details}</td>
+            </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        ` : ''}
+
+        <h4>Recommendations</h4>
+        <div class="callout callout-info">
+          <div class="callout-icon">i</div>
+          <div>${page.recommendations}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>`;
+  }).join('\n\n');
 }

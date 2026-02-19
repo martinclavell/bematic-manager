@@ -1,0 +1,2266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comprehensive SEO Audit — Christian Art Gifts | Bematic Manager</title>
+<style>
+  /* ── Reset & Base ──────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; font-size: 16px; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    color: #1e293b; background: #f8fafc; line-height: 1.6;
+  }
+  img { max-width: 100%; }
+  a { color: #2563eb; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code, pre { font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+  pre { overflow-x: auto; }
+
+  /* ── Layout ────────────────────────────────────────── */
+  .container { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+  section { padding: 56px 0; }
+  section + section { border-top: 1px solid #e2e8f0; }
+
+  /* ── Header / Branding ─────────────────────────────── */
+  .site-header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+    color: #fff; padding: 28px 0; position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 12px rgba(0,0,0,.25);
+  }
+  .site-header .container {
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-icon {
+    width: 44px; height: 44px; border-radius: 10px;
+    background: linear-gradient(135deg, #38bdf8, #3b82f6);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 20px; color: #fff;
+  }
+  .brand-name { font-size: 18px; font-weight: 700; letter-spacing: -.3px; }
+  .header-meta { text-align: right; font-size: 13px; opacity: .75; }
+  .header-meta strong { display: block; font-size: 14px; opacity: 1; }
+
+  /* ── Cover ─────────────────────────────────────────── */
+  .cover {
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
+    color: #fff; padding: 80px 0 72px; text-align: center;
+  }
+  .cover h1 { font-size: 42px; font-weight: 800; letter-spacing: -.8px; margin-bottom: 12px; }
+  .cover h1 span { color: #38bdf8; }
+  .cover .subtitle { font-size: 20px; opacity: .8; max-width: 640px; margin: 0 auto 28px; }
+  .cover-meta { display: flex; justify-content: center; gap: 32px; font-size: 14px; opacity: .6; flex-wrap: wrap; }
+
+  /* ── Table of Contents ─────────────────────────────── */
+  .toc { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 28px 32px; margin-top: -40px; position: relative; z-index: 10; box-shadow: 0 4px 24px rgba(0,0,0,.06); }
+  .toc h2 { font-size: 18px; margin-bottom: 14px; color: #475569; text-transform: uppercase; letter-spacing: .5px; }
+  .toc ol { columns: 2; column-gap: 32px; padding-left: 22px; }
+  .toc li { margin-bottom: 6px; font-size: 15px; break-inside: avoid; }
+  @media (max-width: 640px) { .toc ol { columns: 1; } }
+
+  /* ── Typography ────────────────────────────────────── */
+  h2.section-title {
+    font-size: 30px; font-weight: 800; letter-spacing: -.5px; margin-bottom: 8px;
+  }
+  h2.section-title .num { color: #94a3b8; margin-right: 8px; }
+  .section-lead { font-size: 17px; color: #64748b; margin-bottom: 32px; max-width: 720px; }
+  h3 { font-size: 22px; font-weight: 700; margin: 32px 0 12px; }
+  h4 { font-size: 17px; font-weight: 700; margin: 20px 0 8px; }
+
+  /* ── Grade Badge ───────────────────────────────────── */
+  .grade-row {
+    display: flex; align-items: center; gap: 32px; flex-wrap: wrap;
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 16px;
+    padding: 32px; margin-bottom: 32px; box-shadow: 0 4px 24px rgba(0,0,0,.05);
+  }
+  .grade-badge {
+    width: 120px; height: 120px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 48px; font-weight: 900; color: #fff; flex-shrink: 0;
+  }
+  .grade-a { background: linear-gradient(135deg, #16a34a, #15803d); box-shadow: 0 6px 20px rgba(22,163,74,.35); }
+  .grade-b { background: linear-gradient(135deg, #2563eb, #1d4ed8); box-shadow: 0 6px 20px rgba(37,99,235,.35); }
+  .grade-c { background: linear-gradient(135deg, #f59e0b, #d97706); box-shadow: 0 6px 20px rgba(245,158,11,.35); }
+  .grade-d { background: linear-gradient(135deg, #dc2626, #b91c1c); box-shadow: 0 6px 20px rgba(220,38,38,.35); }
+  .grade-f { background: linear-gradient(135deg, #7f1d1d, #450a0a); box-shadow: 0 6px 20px rgba(127,29,29,.35); }
+  .grade-info { flex: 1; min-width: 240px; }
+  .grade-info h3 { margin-top: 0; font-size: 24px; }
+
+  /* ── Pills ─────────────────────────────────────────── */
+  .pill {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .3px;
+  }
+  .pill-critical { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+  .pill-high { background: #fff7ed; color: #ea580c; border: 1px solid #fed7aa; }
+  .pill-medium { background: #fefce8; color: #ca8a04; border: 1px solid #fef08a; }
+  .pill-low { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+  .pill-p0 { background: #fef2f2; color: #dc2626; }
+  .pill-p1 { background: #fff7ed; color: #ea580c; }
+  .pill-p2 { background: #fefce8; color: #ca8a04; }
+  .pill-p3 { background: #f0fdf4; color: #16a34a; }
+
+  /* ── Cards ─────────────────────────────────────────── */
+  .page-card {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 16px;
+    overflow: hidden; margin-bottom: 36px; box-shadow: 0 4px 24px rgba(0,0,0,.04);
+  }
+  .page-card-header {
+    padding: 24px 28px; display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px; border-bottom: 1px solid #e2e8f0;
+  }
+  .page-card-header.hdr-critical { background: linear-gradient(135deg, #fef2f2, #fff1f2); }
+  .page-card-header.hdr-high { background: linear-gradient(135deg, #fff7ed, #fffbeb); }
+  .page-card-header h3 { margin: 0; font-size: 20px; }
+  .page-card-header .url { font-size: 13px; color: #64748b; word-break: break-all; }
+  .page-card-body { padding: 28px; }
+
+  /* ── Code Blocks ───────────────────────────────────── */
+  .code-block {
+    background: #0f172a; color: #e2e8f0; border-radius: 10px;
+    padding: 20px 24px; margin: 16px 0 24px; font-size: 13px;
+    line-height: 1.55; overflow-x: auto; border: 1px solid #1e293b;
+  }
+  .code-block .comment { color: #64748b; }
+  .code-block .key { color: #7dd3fc; }
+  .code-block .string { color: #86efac; }
+
+  /* ── Tables ────────────────────────────────────────── */
+  .summary-table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 15px; }
+  .summary-table th { background: #f1f5f9; text-align: left; padding: 12px 16px; font-weight: 700; border-bottom: 2px solid #e2e8f0; }
+  .summary-table td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+  .summary-table tr:hover td { background: #f8fafc; }
+
+  .competitor-table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 20px 0; }
+  .competitor-table th { background: #0f172a; color: #fff; padding: 12px 14px; text-align: center; }
+  .competitor-table td { padding: 10px 14px; border-bottom: 1px solid #e2e8f0; text-align: center; }
+  .competitor-table .check { color: #16a34a; font-weight: 700; }
+  .competitor-table .cross { color: #dc2626; font-weight: 700; }
+
+  /* ── Stat Cards ────────────────────────────────────── */
+  .stat-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px; margin: 24px 0;
+  }
+  .stat-card {
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+    padding: 20px; text-align: center;
+  }
+  .stat-card .stat-value { font-size: 36px; font-weight: 800; letter-spacing: -1px; }
+  .stat-card .stat-label { font-size: 13px; color: #64748b; margin-top: 4px; }
+  .stat-red .stat-value { color: #dc2626; }
+  .stat-green .stat-value { color: #16a34a; }
+  .stat-amber .stat-value { color: #ea580c; }
+  .stat-blue .stat-value { color: #2563eb; }
+
+  /* ── Roadmap ───────────────────────────────────────── */
+  .roadmap { position: relative; padding-left: 36px; margin: 24px 0; }
+  .roadmap::before {
+    content: ''; position: absolute; left: 15px; top: 0; bottom: 0;
+    width: 3px; background: #e2e8f0; border-radius: 2px;
+  }
+  .roadmap-phase {
+    position: relative; margin-bottom: 28px; padding: 20px 24px;
+    background: #fff; border: 1px solid #e2e8f0; border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.03);
+  }
+  .roadmap-phase::before {
+    content: ''; position: absolute; left: -28px; top: 24px;
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 3px solid #fff;
+  }
+  .roadmap-phase.rp-p0::before { background: #dc2626; box-shadow: 0 0 0 2px #dc2626; }
+  .roadmap-phase.rp-p1::before { background: #ea580c; box-shadow: 0 0 0 2px #ea580c; }
+  .roadmap-phase.rp-p2::before { background: #ca8a04; box-shadow: 0 0 0 2px #ca8a04; }
+  .roadmap-phase.rp-p3::before { background: #16a34a; box-shadow: 0 0 0 2px #16a34a; }
+  .roadmap-phase h4 { margin-top: 0; }
+  .roadmap-phase ul { margin: 8px 0 0; padding-left: 20px; font-size: 14px; color: #475569; }
+
+  /* ── Footer ────────────────────────────────────────── */
+  .site-footer {
+    background: #0f172a; color: #94a3b8; padding: 40px 0; font-size: 14px; text-align: center;
+  }
+  .site-footer strong { color: #fff; }
+
+  /* ── Callouts ──────────────────────────────────────── */
+  .callout {
+    border-radius: 10px; padding: 16px 20px; margin: 16px 0;
+    font-size: 14px; display: flex; gap: 12px;
+  }
+  .callout-icon { font-size: 20px; flex-shrink: 0; line-height: 1.4; }
+  .callout-critical { background: #fef2f2; border-left: 4px solid #dc2626; }
+  .callout-info { background: #eff6ff; border-left: 4px solid #2563eb; }
+  .callout-success { background: #f0fdf4; border-left: 4px solid #16a34a; }
+  .callout-warning { background: #fffbeb; border-left: 4px solid #f59e0b; }
+
+  /* ── Issue Lists ───────────────────────────────────── */
+  .issue-list { list-style: none; padding: 0; }
+  .issue-list li {
+    padding: 12px 16px; margin-bottom: 8px;
+    background: #f8fafc; border-left: 4px solid #dc2626;
+    border-radius: 6px; font-size: 14px;
+  }
+  .issue-list li code { background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container">
+    <div class="brand">
+      <div class="brand-icon">B</div>
+      <div>
+        <div class="brand-name">Bematic Manager</div>
+      </div>
+    </div>
+    <div class="header-meta">
+      <strong>NetSuite SEO Audit</strong>
+      Christian Art Gifts &middot; February 19, 2026
+    </div>
+  </div>
+</header>
+<section class="cover">
+  <div class="container">
+    <h1>Comprehensive <span>SEO Audit</span></h1>
+    <p class="subtitle">In-depth analysis of SEO fundamentals, structured data, images, headings, links, meta tags, and performance for https://www.christianartgifts.com.</p>
+    <div class="cover-meta">
+      <span>Audit Date<br>February 19, 2026</span>
+      <span>Pages Analyzed<br>7</span>
+      <span>Schemas Evaluated<br>7</span>
+    </div>
+  </div>
+</section>
+<div class="container">
+  <nav class="toc">
+    <h2>Contents</h2>
+    <ol>
+      <li><a href="#executive-summary">Executive Summary &amp; Overall Grade</a></li>
+      <li><a href="#page-0">Page Audit: Homepage</a></li>
+      <li><a href="#page-1">Page Audit: Bibles Category</a></li>
+      <li><a href="#page-2">Page Audit: Gift Books Category</a></li>
+      <li><a href="#page-3">Page Audit: Stationery Category</a></li>
+      <li><a href="#page-4">Page Audit: Product: KJV Deluxe Bible</a></li>
+      <li><a href="#page-5">Page Audit: Product: One Minute with God Devotional</a></li>
+      <li><a href="#page-6">Page Audit: Product: Floral Pen Set</a></li>
+      <li><a href="#competitive">Competitive Gap Analysis</a></li>
+      <li><a href="#roadmap">Priority Roadmap &amp; ROI</a></li>
+    </ol>
+  </nav>
+</div>
+<section id="executive-summary">
+  <div class="container">
+    <h2 class="section-title"><span class="num">01</span> Executive Summary</h2>
+    <p class="section-lead">Overall structured data analysis and key findings for Christian Art Gifts.</p>
+
+    <div class="grade-row">
+      <div class="grade-badge grade-d">D</div>
+      <div class="grade-info">
+        <h3>Overall Structured Data Grade: D</h3>
+        <p>Analyzed 7 representative pages across the website. Current rich result eligibility: Limited - missing Product schema with reviews. Found 0 reviews that are not visible to search engines due to missing schema markup.</p>
+      </div>
+    </div>
+
+    <div class="stat-grid">
+      
+      <div class="stat-card stat-red">
+        <div class="stat-value">11</div>
+        <div class="stat-label">Critical Issues (P0)</div>
+      </div>
+      
+      
+      <div class="stat-card stat-amber">
+        <div class="stat-value">21</div>
+        <div class="stat-label">High Priority Issues (P1)</div>
+      </div>
+      
+      
+      <div class="stat-card stat-amber">
+        <div class="stat-value">4</div>
+        <div class="stat-label">Medium Priority Issues (P2)</div>
+      </div>
+      
+      <div class="stat-card stat-amber">
+        <div class="stat-value">0</div>
+        <div class="stat-label">Reviews Not in Schema</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+<section id="page-0">
+  <div class="container">
+    <h2 class="section-title"><span class="num">02</span> Homepage Audit</h2>
+    <p class="section-lead">Homepage page analysis.</p>
+
+    <div class="page-card">
+      <div class="page-card-header hdr-low">
+        <div>
+          <h3>Homepage</h3>
+          <div class="url">https://www.christianartgifts.com/</div>
+        </div>
+        <div>
+          <span class="pill pill-low">LOW</span>
+        </div>
+      </div>
+      <div class="page-card-body">
+
+        
+    <h4>Meta Tags Analysis</h4>
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Element</th>
+          <th>Status</th>
+          <th>Content</th>
+          <th>Issue</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>&lt;title&gt;</code></td>
+          <td><span class="pill pill-low">LOW</span></td>
+          <td>Christian Gifts | Gift Store | Christian Art Gifts</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>meta description</code></td>
+          <td><span class="pill pill-low">LOW</span></td>
+          <td>Christian Art Gifts offers a wide selection of Christian gifts, inspirational gi...</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>canonical</code></td>
+          <td><span class="pill pill-low">OK</span></td>
+          <td>https://www.christianartgifts.com/</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>viewport</code></td>
+          <td><span class="pill pill-low">OK</span></td>
+          <td>✓ Present</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>Open Graph</code></td>
+          <td><span class="pill pill-medium">INCOMPLETE</span></td>
+          <td>—</td>
+          <td>Missing: og:title, og:description, og:url</td>
+        </tr>
+        <tr>
+          <td><code>Twitter Card</code></td>
+          <td><span class="pill pill-medium">INCOMPLETE</span></td>
+          <td>—</td>
+          <td>Missing: twitter:card, twitter:title, twitter:description, twitter:image</td>
+        </tr>
+        
+      </tbody>
+    </table>
+  
+
+        
+    <h4>Image SEO Audit</h4>
+    
+
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Count</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Images</td>
+          <td>30</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Missing Alt Tags</td>
+          <td>0</td>
+          <td><span class="pill pill-low">OK</span></td>
+        </tr>
+        <tr>
+          <td>Missing Dimensions (width/height)</td>
+          <td>28</td>
+          <td><span class="pill pill-medium">WARNING</span></td>
+        </tr>
+        <tr>
+          <td>Lazy Loaded</td>
+          <td>26</td>
+          <td><span class="pill pill-low">GOOD</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    
+  
+
+        
+    <h4>Heading Structure Audit</h4>
+    
+
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Level</th>
+          <th>Count</th>
+          <th>Text Preview</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td><code>H1</code></td>
+          <td>1</td>
+          <td>Christian Gifts</td>
+        </tr>
+          
+        <tr>
+          <td><code>H2</code></td>
+          <td>12</td>
+          <td>REQUEST OUR Catalog<br>BECOME A Retailer<br>START Shopping</td>
+        </tr>
+          
+        <tr>
+          <td><code>H3</code></td>
+          <td>12</td>
+          <td>50 Verses for Comfort in the Bible<br>50 Verses about Stress in the Bible<br>Willie Robertson</td>
+        </tr>
+          
+      </tbody>
+    </table>
+
+    
+  
+
+        
+    <h4>Link Audit</h4>
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Count</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Links</td>
+          <td>664</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Internal Links</td>
+          <td>650</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>External Links</td>
+          <td>14</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Nofollow Links</td>
+          <td>13</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Empty Anchor Text</td>
+          <td>0</td>
+          <td><span class="pill pill-low">OK</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    
+  
+
+        
+    <h4>Performance Metrics</h4>
+    <div class="stat-grid" style="margin: 20px 0;">
+      <div class="stat-card stat-amber">
+        <div class="stat-value">C</div>
+        <div class="stat-label">Performance Grade</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">414ms</div>
+        <div class="stat-label">Response Time</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">161.3 KB</div>
+        <div class="stat-label">HTML Size</div>
+      </div>
+    </div>
+
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Images</td>
+          <td>30</td>
+        </tr>
+        <tr>
+          <td>Total Scripts</td>
+          <td>13</td>
+        </tr>
+        <tr>
+          <td>Total Stylesheets</td>
+          <td>1</td>
+        </tr>
+        <tr>
+          <td>Compression (gzip/br)</td>
+          <td><span class="pill pill-low">✓ Enabled</span></td>
+        </tr>
+      </tbody>
+    </table>
+  
+
+        
+        <h4>Schema.org (JSON-LD) Analysis</h4>
+        <div class="code-block">{
+  &quot;@context&quot;: &quot;https://schema.org&quot;,
+  &quot;@type&quot;: &quot;Organization&quot;,
+  &quot;url&quot;: &quot;https://www.christianartgifts.com&quot;,
+  &quot;logo&quot;: &quot;https://www.christianartgifts.com/site/assets/logo-cag-new-2-jack.png&quot;,
+  &quot;name&quot;: &quot;Christian Gifts | Gift Store | Christian Art Gifts&quot;,
+  &quot;description&quot;: &quot;Christian Art Gifts offers a wide selection of Christian gifts, inspirational gifts, bibles, bible covers, gift books, journals, wholesale gifts and more.&quot;
+}</div>
+        
+
+        
+
+        <h4>Recommendations</h4>
+        <div class="callout callout-info">
+          <div class="callout-icon">i</div>
+          <div>Add missing Open Graph tags: og:title, og:description, og:url; Add missing Twitter Card tags: twitter:card, twitter:title, twitter:description, twitter:image.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="page-1">
+  <div class="container">
+    <h2 class="section-title"><span class="num">03</span> Bibles Category Audit</h2>
+    <p class="section-lead">Category page analysis.</p>
+
+    <div class="page-card">
+      <div class="page-card-header hdr-critical">
+        <div>
+          <h3>Bibles Category</h3>
+          <div class="url">https://www.christianartgifts.com/bibles</div>
+        </div>
+        <div>
+          <span class="pill pill-critical">CRITICAL</span>
+        </div>
+      </div>
+      <div class="page-card-body">
+
+        
+    <h4>Meta Tags Analysis</h4>
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Element</th>
+          <th>Status</th>
+          <th>Content</th>
+          <th>Issue</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>&lt;title&gt;</code></td>
+          <td><span class="pill pill-low">LOW</span></td>
+          <td>Bibles for Sale | Wholesale Bibles | Holy Bible</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>meta description</code></td>
+          <td><span class="pill pill-low">LOW</span></td>
+          <td>Christian Art Publishers offers Bibles for sale and all types of KJV, NLT and ES...</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>canonical</code></td>
+          <td><span class="pill pill-low">OK</span></td>
+          <td>https://www.christianartgifts.com/bibles</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>viewport</code></td>
+          <td><span class="pill pill-low">OK</span></td>
+          <td>✓ Present</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>Open Graph</code></td>
+          <td><span class="pill pill-medium">INCOMPLETE</span></td>
+          <td>—</td>
+          <td>Missing: og:title, og:description, og:url</td>
+        </tr>
+        <tr>
+          <td><code>Twitter Card</code></td>
+          <td><span class="pill pill-medium">INCOMPLETE</span></td>
+          <td>—</td>
+          <td>Missing: twitter:card, twitter:title, twitter:description, twitter:image</td>
+        </tr>
+        
+      </tbody>
+    </table>
+  
+
+        
+    <h4>Image SEO Audit</h4>
+    
+    <div class="callout callout-critical">
+      <div class="callout-icon">🚨</div>
+      <div><strong>Critical Issue:</strong> 2 out of 113 images are missing alt attributes. This impacts both accessibility (screen readers) and SEO (image search).</div>
+    </div>
+    
+
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Count</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Images</td>
+          <td>113</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Missing Alt Tags</td>
+          <td>2</td>
+          <td><span class="pill pill-critical">CRITICAL</span></td>
+        </tr>
+        <tr>
+          <td>Missing Dimensions (width/height)</td>
+          <td>100</td>
+          <td><span class="pill pill-medium">WARNING</span></td>
+        </tr>
+        <tr>
+          <td>Lazy Loaded</td>
+          <td>60</td>
+          <td><span class="pill pill-low">GOOD</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    
+    <p><strong>Issues Found:</strong></p>
+    <ul class="issue-list">
+      <li><code>https://www.christianartgifts.com/api/navigation/v1/categorynavitems?bread_crumb_fields=internalid,name,displayinsite&amp;c=3668477&amp;category_fields=internalid,name,description,pagetitle,pageheading,pagebannerurl,addtohead,metakeywords,metadescription,displayinsite,urlfragment,idpath,fullurl,isprimaryurl&amp;country=US&amp;currency=undefined&amp;exclude_empty=false&amp;full_url=/bibles&amp;fullurl=%2Fbibles&amp;language=en&amp;n=2&amp;pcv_all_items=F&amp;side_menu_fields=name,internalid,sequencenumber,urlfragment,displayinsite&amp;site_id=2&amp;subcategory_fields=name,description,internalid,sequencenumber,urlfragment,thumbnailurl,displayinsite&amp;use_pcv=F</code> — Missing alt attribute</li>
+<li><code>/api/cacheable/items?c=3668477&amp;commercecategoryurl=%2Fbibles&amp;country=US&amp;currency=USD&amp;fieldset=search&amp;include=facets&amp;language=en&amp;limit=30&amp;matrixchilditems_fieldset=matrixchilditems_search&amp;n=2&amp;offset=0&amp;pricelevel=5&amp;sort=custitem_cag_release_date%3Adesc&amp;use_pcv=F</code> — Missing alt attribute</li>
+      
+    </ul>
+    
+  
+
+        
+    <h4>Heading Structure Audit</h4>
+    
+
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Level</th>
+          <th>Count</th>
+          <th>Text Preview</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td><code>H1</code></td>
+          <td>1</td>
+          <td>Bibles</td>
+        </tr>
+          
+        <tr>
+          <td><code>H2</code></td>
+          <td>8</td>
+          <td>Bibles<br>KJV Bibles<br>ESV Bible</td>
+        </tr>
+          
+        <tr>
+          <td><code>H3</code></td>
+          <td>2</td>
+          <td>Bibles<br>FILTER</td>
+        </tr>
+          
+        <tr>
+          <td><code>H4</code></td>
+          <td>13</td>
+          <td>259 Products<br>259 Products<br>Collection</td>
+        </tr>
+          
+      </tbody>
+    </table>
+
+    
+  
+
+        
+    <h4>Link Audit</h4>
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Count</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Links</td>
+          <td>848</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Internal Links</td>
+          <td>836</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>External Links</td>
+          <td>12</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Nofollow Links</td>
+          <td>13</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Empty Anchor Text</td>
+          <td>0</td>
+          <td><span class="pill pill-low">OK</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    
+  
+
+        
+    <h4>Performance Metrics</h4>
+    <div class="stat-grid" style="margin: 20px 0;">
+      <div class="stat-card stat-red">
+        <div class="stat-value">F</div>
+        <div class="stat-label">Performance Grade</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">282ms</div>
+        <div class="stat-label">Response Time</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">388.7 KB</div>
+        <div class="stat-label">HTML Size</div>
+      </div>
+    </div>
+
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Images</td>
+          <td>113</td>
+        </tr>
+        <tr>
+          <td>Total Scripts</td>
+          <td>15</td>
+        </tr>
+        <tr>
+          <td>Total Stylesheets</td>
+          <td>1</td>
+        </tr>
+        <tr>
+          <td>Compression (gzip/br)</td>
+          <td><span class="pill pill-low">✓ Enabled</span></td>
+        </tr>
+      </tbody>
+    </table>
+  
+
+        
+        <h4>Schema.org (JSON-LD) Analysis</h4>
+        <div class="code-block">{
+  &quot;@context&quot;: &quot;https://schema.org&quot;,
+  &quot;@type&quot;: &quot;Organization&quot;,
+  &quot;url&quot;: &quot;https://www.christianartgifts.com&quot;,
+  &quot;logo&quot;: &quot;https://www.christianartgifts.com/site/assets/logo-cag-new-2-jack.png&quot;,
+  &quot;name&quot;: &quot;Christian Gifts | Gift Store | Christian Art Gifts&quot;,
+  &quot;description&quot;: &quot;Christian Art Gifts offers a wide selection of Christian gifts, inspirational gifts, bibles, bible covers, gift books, journals, wholesale gifts and more.&quot;
+}</div>
+        
+
+        
+
+        <h4>Recommendations</h4>
+        <div class="callout callout-info">
+          <div class="callout-icon">i</div>
+          <div>Fix 2 images missing alt tags; Add missing Open Graph tags: og:title, og:description, og:url; Add missing Twitter Card tags: twitter:card, twitter:title, twitter:description, twitter:image.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="page-2">
+  <div class="container">
+    <h2 class="section-title"><span class="num">04</span> Gift Books Category Audit</h2>
+    <p class="section-lead">Category page analysis.</p>
+
+    <div class="page-card">
+      <div class="page-card-header hdr-critical">
+        <div>
+          <h3>Gift Books Category</h3>
+          <div class="url">https://www.christianartgifts.com/gift-books</div>
+        </div>
+        <div>
+          <span class="pill pill-critical">CRITICAL</span>
+        </div>
+      </div>
+      <div class="page-card-body">
+
+        
+    <h4>Meta Tags Analysis</h4>
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Element</th>
+          <th>Status</th>
+          <th>Content</th>
+          <th>Issue</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>&lt;title&gt;</code></td>
+          <td><span class="pill pill-low">LOW</span></td>
+          <td>Wholesale Books | Wholesale Gift Books</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>meta description</code></td>
+          <td><span class="pill pill-low">LOW</span></td>
+          <td>Looking for Wholesale Books? Our gift book selection features beautifully design...</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>canonical</code></td>
+          <td><span class="pill pill-low">OK</span></td>
+          <td>https://www.christianartgifts.com/gift-books</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>viewport</code></td>
+          <td><span class="pill pill-low">OK</span></td>
+          <td>✓ Present</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>Open Graph</code></td>
+          <td><span class="pill pill-medium">INCOMPLETE</span></td>
+          <td>—</td>
+          <td>Missing: og:title, og:description, og:url</td>
+        </tr>
+        <tr>
+          <td><code>Twitter Card</code></td>
+          <td><span class="pill pill-medium">INCOMPLETE</span></td>
+          <td>—</td>
+          <td>Missing: twitter:card, twitter:title, twitter:description, twitter:image</td>
+        </tr>
+        
+      </tbody>
+    </table>
+  
+
+        
+    <h4>Image SEO Audit</h4>
+    
+    <div class="callout callout-critical">
+      <div class="callout-icon">🚨</div>
+      <div><strong>Critical Issue:</strong> 2 out of 95 images are missing alt attributes. This impacts both accessibility (screen readers) and SEO (image search).</div>
+    </div>
+    
+
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Count</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Images</td>
+          <td>95</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Missing Alt Tags</td>
+          <td>2</td>
+          <td><span class="pill pill-critical">CRITICAL</span></td>
+        </tr>
+        <tr>
+          <td>Missing Dimensions (width/height)</td>
+          <td>77</td>
+          <td><span class="pill pill-medium">WARNING</span></td>
+        </tr>
+        <tr>
+          <td>Lazy Loaded</td>
+          <td>58</td>
+          <td><span class="pill pill-low">GOOD</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    
+    <p><strong>Issues Found:</strong></p>
+    <ul class="issue-list">
+      <li><code>https://www.christianartgifts.com/api/navigation/v1/categorynavitems?bread_crumb_fields=internalid,name,displayinsite&amp;c=3668477&amp;category_fields=internalid,name,description,pagetitle,pageheading,pagebannerurl,addtohead,metakeywords,metadescription,displayinsite,urlfragment,idpath,fullurl,isprimaryurl&amp;country=US&amp;currency=undefined&amp;exclude_empty=false&amp;full_url=/gift-books&amp;fullurl=%2Fgift-books&amp;language=en&amp;n=2&amp;pcv_all_items=F&amp;side_menu_fields=name,internalid,sequencenumber,urlfragment,displayinsite&amp;site_id=2&amp;subcategory_fields=name,description,internalid,sequencenumber,urlfragment,thumbnailurl,displayinsite&amp;use_pcv=F</code> — Missing alt attribute</li>
+<li><code>/api/cacheable/items?c=3668477&amp;commercecategoryurl=%2Fgift-books&amp;country=US&amp;currency=USD&amp;fieldset=search&amp;include=facets&amp;language=en&amp;limit=30&amp;matrixchilditems_fieldset=matrixchilditems_search&amp;n=2&amp;offset=0&amp;pricelevel=5&amp;sort=custitem_cag_release_date%3Adesc&amp;use_pcv=F</code> — Missing alt attribute</li>
+      
+    </ul>
+    
+  
+
+        
+    <h4>Heading Structure Audit</h4>
+    
+
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Level</th>
+          <th>Count</th>
+          <th>Text Preview</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td><code>H1</code></td>
+          <td>1</td>
+          <td>Gift Books</td>
+        </tr>
+          
+        <tr>
+          <td><code>H2</code></td>
+          <td>2</td>
+          <td>Wholesale Gift Books<br>Cookie consent</td>
+        </tr>
+          
+        <tr>
+          <td><code>H3</code></td>
+          <td>2</td>
+          <td>Gift Books<br>FILTER</td>
+        </tr>
+          
+        <tr>
+          <td><code>H4</code></td>
+          <td>10</td>
+          <td>260 Products<br>260 Products<br>Collection</td>
+        </tr>
+          
+      </tbody>
+    </table>
+
+    
+  
+
+        
+    <h4>Link Audit</h4>
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Count</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Links</td>
+          <td>807</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Internal Links</td>
+          <td>795</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>External Links</td>
+          <td>12</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Nofollow Links</td>
+          <td>13</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Empty Anchor Text</td>
+          <td>0</td>
+          <td><span class="pill pill-low">OK</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    
+  
+
+        
+    <h4>Performance Metrics</h4>
+    <div class="stat-grid" style="margin: 20px 0;">
+      <div class="stat-card stat-red">
+        <div class="stat-value">F</div>
+        <div class="stat-label">Performance Grade</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">226ms</div>
+        <div class="stat-label">Response Time</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">365.1 KB</div>
+        <div class="stat-label">HTML Size</div>
+      </div>
+    </div>
+
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Images</td>
+          <td>95</td>
+        </tr>
+        <tr>
+          <td>Total Scripts</td>
+          <td>15</td>
+        </tr>
+        <tr>
+          <td>Total Stylesheets</td>
+          <td>1</td>
+        </tr>
+        <tr>
+          <td>Compression (gzip/br)</td>
+          <td><span class="pill pill-low">✓ Enabled</span></td>
+        </tr>
+      </tbody>
+    </table>
+  
+
+        
+        <h4>Schema.org (JSON-LD) Analysis</h4>
+        <div class="code-block">{
+  &quot;@context&quot;: &quot;https://schema.org&quot;,
+  &quot;@type&quot;: &quot;Organization&quot;,
+  &quot;url&quot;: &quot;https://www.christianartgifts.com&quot;,
+  &quot;logo&quot;: &quot;https://www.christianartgifts.com/site/assets/logo-cag-new-2-jack.png&quot;,
+  &quot;name&quot;: &quot;Christian Gifts | Gift Store | Christian Art Gifts&quot;,
+  &quot;description&quot;: &quot;Christian Art Gifts offers a wide selection of Christian gifts, inspirational gifts, bibles, bible covers, gift books, journals, wholesale gifts and more.&quot;
+}</div>
+        
+
+        
+
+        <h4>Recommendations</h4>
+        <div class="callout callout-info">
+          <div class="callout-icon">i</div>
+          <div>Fix 2 images missing alt tags; Add missing Open Graph tags: og:title, og:description, og:url; Add missing Twitter Card tags: twitter:card, twitter:title, twitter:description, twitter:image.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="page-3">
+  <div class="container">
+    <h2 class="section-title"><span class="num">05</span> Stationery Category Audit</h2>
+    <p class="section-lead">Category page analysis.</p>
+
+    <div class="page-card">
+      <div class="page-card-header hdr-critical">
+        <div>
+          <h3>Stationery Category</h3>
+          <div class="url">https://www.christianartgifts.com/stationery</div>
+        </div>
+        <div>
+          <span class="pill pill-critical">CRITICAL</span>
+        </div>
+      </div>
+      <div class="page-card-body">
+
+        
+    <h4>Meta Tags Analysis</h4>
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Element</th>
+          <th>Status</th>
+          <th>Content</th>
+          <th>Issue</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>&lt;title&gt;</code></td>
+          <td><span class="pill pill-low">LOW</span></td>
+          <td>Stationery and Office Supplies</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>meta description</code></td>
+          <td><span class="pill pill-low">LOW</span></td>
+          <td>Choose notebooks, journals, gift bags, and pens with inspirational messages. Sho...</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>canonical</code></td>
+          <td><span class="pill pill-low">OK</span></td>
+          <td>https://www.christianartgifts.com/stationery</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>viewport</code></td>
+          <td><span class="pill pill-low">OK</span></td>
+          <td>✓ Present</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>Open Graph</code></td>
+          <td><span class="pill pill-medium">INCOMPLETE</span></td>
+          <td>—</td>
+          <td>Missing: og:title, og:description, og:url</td>
+        </tr>
+        <tr>
+          <td><code>Twitter Card</code></td>
+          <td><span class="pill pill-medium">INCOMPLETE</span></td>
+          <td>—</td>
+          <td>Missing: twitter:card, twitter:title, twitter:description, twitter:image</td>
+        </tr>
+        
+      </tbody>
+    </table>
+  
+
+        
+    <h4>Image SEO Audit</h4>
+    
+    <div class="callout callout-critical">
+      <div class="callout-icon">🚨</div>
+      <div><strong>Critical Issue:</strong> 2 out of 101 images are missing alt attributes. This impacts both accessibility (screen readers) and SEO (image search).</div>
+    </div>
+    
+
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Count</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Images</td>
+          <td>101</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Missing Alt Tags</td>
+          <td>2</td>
+          <td><span class="pill pill-critical">CRITICAL</span></td>
+        </tr>
+        <tr>
+          <td>Missing Dimensions (width/height)</td>
+          <td>71</td>
+          <td><span class="pill pill-medium">WARNING</span></td>
+        </tr>
+        <tr>
+          <td>Lazy Loaded</td>
+          <td>43</td>
+          <td><span class="pill pill-low">GOOD</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    
+    <p><strong>Issues Found:</strong></p>
+    <ul class="issue-list">
+      <li><code>https://www.christianartgifts.com/api/navigation/v1/categorynavitems?bread_crumb_fields=internalid,name,displayinsite&amp;c=3668477&amp;category_fields=internalid,name,description,pagetitle,pageheading,pagebannerurl,addtohead,metakeywords,metadescription,displayinsite,urlfragment,idpath,fullurl,isprimaryurl&amp;country=US&amp;currency=undefined&amp;exclude_empty=false&amp;full_url=/stationery&amp;fullurl=%2Fstationery&amp;language=en&amp;n=2&amp;pcv_all_items=F&amp;side_menu_fields=name,internalid,sequencenumber,urlfragment,displayinsite&amp;site_id=2&amp;subcategory_fields=name,description,internalid,sequencenumber,urlfragment,thumbnailurl,displayinsite&amp;use_pcv=F</code> — Missing alt attribute</li>
+<li><code>/api/cacheable/items?c=3668477&amp;commercecategoryurl=%2Fstationery&amp;country=US&amp;currency=USD&amp;fieldset=search&amp;include=facets&amp;language=en&amp;limit=30&amp;matrixchilditems_fieldset=matrixchilditems_search&amp;n=2&amp;offset=0&amp;pricelevel=5&amp;sort=custitem_cag_release_date%3Adesc&amp;use_pcv=F</code> — Missing alt attribute</li>
+      
+    </ul>
+    
+  
+
+        
+    <h4>Heading Structure Audit</h4>
+    
+
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Level</th>
+          <th>Count</th>
+          <th>Text Preview</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td><code>H1</code></td>
+          <td>1</td>
+          <td>Stationery</td>
+        </tr>
+          
+        <tr>
+          <td><code>H2</code></td>
+          <td>2</td>
+          <td>Wholesale Stationery<br>Cookie consent</td>
+        </tr>
+          
+        <tr>
+          <td><code>H3</code></td>
+          <td>2</td>
+          <td>Stationery<br>FILTER</td>
+        </tr>
+          
+        <tr>
+          <td><code>H4</code></td>
+          <td>10</td>
+          <td>487 Products<br>487 Products<br>Collection</td>
+        </tr>
+          
+      </tbody>
+    </table>
+
+    
+  
+
+        
+    <h4>Link Audit</h4>
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Count</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Links</td>
+          <td>947</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Internal Links</td>
+          <td>935</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>External Links</td>
+          <td>12</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Nofollow Links</td>
+          <td>13</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Empty Anchor Text</td>
+          <td>0</td>
+          <td><span class="pill pill-low">OK</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    
+  
+
+        
+    <h4>Performance Metrics</h4>
+    <div class="stat-grid" style="margin: 20px 0;">
+      <div class="stat-card stat-red">
+        <div class="stat-value">F</div>
+        <div class="stat-label">Performance Grade</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">539ms</div>
+        <div class="stat-label">Response Time</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">388.1 KB</div>
+        <div class="stat-label">HTML Size</div>
+      </div>
+    </div>
+
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Images</td>
+          <td>101</td>
+        </tr>
+        <tr>
+          <td>Total Scripts</td>
+          <td>15</td>
+        </tr>
+        <tr>
+          <td>Total Stylesheets</td>
+          <td>1</td>
+        </tr>
+        <tr>
+          <td>Compression (gzip/br)</td>
+          <td><span class="pill pill-low">✓ Enabled</span></td>
+        </tr>
+      </tbody>
+    </table>
+  
+
+        
+        <h4>Schema.org (JSON-LD) Analysis</h4>
+        <div class="code-block">{
+  &quot;@context&quot;: &quot;https://schema.org&quot;,
+  &quot;@type&quot;: &quot;Organization&quot;,
+  &quot;url&quot;: &quot;https://www.christianartgifts.com&quot;,
+  &quot;logo&quot;: &quot;https://www.christianartgifts.com/site/assets/logo-cag-new-2-jack.png&quot;,
+  &quot;name&quot;: &quot;Christian Gifts | Gift Store | Christian Art Gifts&quot;,
+  &quot;description&quot;: &quot;Christian Art Gifts offers a wide selection of Christian gifts, inspirational gifts, bibles, bible covers, gift books, journals, wholesale gifts and more.&quot;
+}</div>
+        
+
+        
+
+        <h4>Recommendations</h4>
+        <div class="callout callout-info">
+          <div class="callout-icon">i</div>
+          <div>Fix 2 images missing alt tags; Add missing Open Graph tags: og:title, og:description, og:url; Add missing Twitter Card tags: twitter:card, twitter:title, twitter:description, twitter:image.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="page-4">
+  <div class="container">
+    <h2 class="section-title"><span class="num">06</span> Product: KJV Deluxe Bible Audit</h2>
+    <p class="section-lead">Product page analysis.</p>
+
+    <div class="page-card">
+      <div class="page-card-header hdr-critical">
+        <div>
+          <h3>Product: KJV Deluxe Bible</h3>
+          <div class="url">https://www.christianartgifts.com/Brown-Full-grain-Leather-KJV-Deluxe-Gift-Bible-w-Thumb-Index</div>
+        </div>
+        <div>
+          <span class="pill pill-critical">CRITICAL</span>
+        </div>
+      </div>
+      <div class="page-card-body">
+
+        
+    <h4>Meta Tags Analysis</h4>
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Element</th>
+          <th>Status</th>
+          <th>Content</th>
+          <th>Issue</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>&lt;title&gt;</code></td>
+          <td><span class="pill pill-medium">MEDIUM</span></td>
+          <td>Brown Full-grain Leather KJV Deluxe Gift Bible w Thumb Index&amp;nbsp;</td>
+          <td>Title too long (optimal: 50-60 chars)</td>
+        </tr>
+        <tr>
+          <td><code>meta description</code></td>
+          <td><span class="pill pill-medium">MEDIUM</span></td>
+          <td>The&amp;nbsp;Triple Pane Frame Saddle Tan Full-grain Leather King James Version Delu...</td>
+          <td>Description too long (optimal: 150-160 chars)</td>
+        </tr>
+        <tr>
+          <td><code>canonical</code></td>
+          <td><span class="pill pill-low">OK</span></td>
+          <td>https://www.christianartgifts.com/Brown-Full-grain-Leather-KJV-Deluxe-Gift-Bible-w-Thumb-Index</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>viewport</code></td>
+          <td><span class="pill pill-low">OK</span></td>
+          <td>✓ Present</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>Open Graph</code></td>
+          <td><span class="pill pill-medium">INCOMPLETE</span></td>
+          <td>—</td>
+          <td>Missing: og:title, og:description</td>
+        </tr>
+        <tr>
+          <td><code>Twitter Card</code></td>
+          <td><span class="pill pill-medium">INCOMPLETE</span></td>
+          <td>—</td>
+          <td>Missing: twitter:card, twitter:title, twitter:description, twitter:image</td>
+        </tr>
+        
+      </tbody>
+    </table>
+  
+
+        
+    <h4>Image SEO Audit</h4>
+    
+    <div class="callout callout-critical">
+      <div class="callout-icon">🚨</div>
+      <div><strong>Critical Issue:</strong> 1 out of 23 images are missing alt attributes. This impacts both accessibility (screen readers) and SEO (image search).</div>
+    </div>
+    
+
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Count</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Images</td>
+          <td>23</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Missing Alt Tags</td>
+          <td>1</td>
+          <td><span class="pill pill-critical">CRITICAL</span></td>
+        </tr>
+        <tr>
+          <td>Missing Dimensions (width/height)</td>
+          <td>23</td>
+          <td><span class="pill pill-medium">WARNING</span></td>
+        </tr>
+        <tr>
+          <td>Lazy Loaded</td>
+          <td>19</td>
+          <td><span class="pill pill-low">GOOD</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    
+    <p><strong>Issues Found:</strong></p>
+    <ul class="issue-list">
+      <li><code>/api/cacheable/items?c=3668477&amp;country=US&amp;currency=USD&amp;fieldset=details&amp;include=facets&amp;language=en&amp;n=2&amp;pricelevel=5&amp;url=Brown-Full-grain-Leather-KJV-Deluxe-Gift-Bible-w-Thumb-Index&amp;use_pcv=F</code> — Missing alt attribute</li>
+      
+    </ul>
+    
+  
+
+        
+    <h4>Heading Structure Audit</h4>
+    
+
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Level</th>
+          <th>Count</th>
+          <th>Text Preview</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td><code>H1</code></td>
+          <td>1</td>
+          <td>Triple Pane Frame Saddle Tan Full-grain Leather King James V...</td>
+        </tr>
+          
+        <tr>
+          <td><code>H2</code></td>
+          <td>1</td>
+          <td>Cookie consent</td>
+        </tr>
+          
+        <tr>
+          <td><code>H3</code></td>
+          <td>6</td>
+          <td>Details<br>Details<br>Specifications</td>
+        </tr>
+          
+        <tr>
+          <td><code>H4</code></td>
+          <td>1</td>
+          <td>No reviews available</td>
+        </tr>
+          
+      </tbody>
+    </table>
+
+    
+  
+
+        
+    <h4>Link Audit</h4>
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Count</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Links</td>
+          <td>641</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Internal Links</td>
+          <td>629</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>External Links</td>
+          <td>12</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Nofollow Links</td>
+          <td>13</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Empty Anchor Text</td>
+          <td>0</td>
+          <td><span class="pill pill-low">OK</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    
+  
+
+        
+    <h4>Performance Metrics</h4>
+    <div class="stat-grid" style="margin: 20px 0;">
+      <div class="stat-card stat-red">
+        <div class="stat-value">D</div>
+        <div class="stat-label">Performance Grade</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">1209ms</div>
+        <div class="stat-label">Response Time</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">221.4 KB</div>
+        <div class="stat-label">HTML Size</div>
+      </div>
+    </div>
+
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Images</td>
+          <td>23</td>
+        </tr>
+        <tr>
+          <td>Total Scripts</td>
+          <td>17</td>
+        </tr>
+        <tr>
+          <td>Total Stylesheets</td>
+          <td>1</td>
+        </tr>
+        <tr>
+          <td>Compression (gzip/br)</td>
+          <td><span class="pill pill-low">✓ Enabled</span></td>
+        </tr>
+      </tbody>
+    </table>
+  
+
+        
+        <h4>Schema.org (JSON-LD) Analysis</h4>
+        <div class="code-block">{
+  &quot;@context&quot;: &quot;https://schema.org&quot;,
+  &quot;@type&quot;: &quot;Organization&quot;,
+  &quot;url&quot;: &quot;https://www.christianartgifts.com&quot;,
+  &quot;logo&quot;: &quot;https://www.christianartgifts.com/site/assets/logo-cag-new-2-jack.png&quot;,
+  &quot;name&quot;: &quot;Christian Gifts | Gift Store | Christian Art Gifts&quot;,
+  &quot;description&quot;: &quot;Christian Art Gifts offers a wide selection of Christian gifts, inspirational gifts, bibles, bible covers, gift books, journals, wholesale gifts and more.&quot;
+}</div>
+        
+
+        
+
+        <h4>Recommendations</h4>
+        <div class="callout callout-info">
+          <div class="callout-icon">i</div>
+          <div>Fix 1 images missing alt tags; Title: Title too long (optimal: 50-60 chars); Meta description: Description too long (optimal: 150-160 chars); Add missing Open Graph tags: og:title, og:description; Add missing Twitter Card tags: twitter:card, twitter:title, twitter:description, twitter:image.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="page-5">
+  <div class="container">
+    <h2 class="section-title"><span class="num">07</span> Product: One Minute with God Devotional Audit</h2>
+    <p class="section-lead">Product page analysis.</p>
+
+    <div class="page-card">
+      <div class="page-card-header hdr-critical">
+        <div>
+          <h3>Product: One Minute with God Devotional</h3>
+          <div class="url">https://www.christianartgifts.com/One-Minute-with-God-for-Graduates-365-Daily-Devotions</div>
+        </div>
+        <div>
+          <span class="pill pill-critical">CRITICAL</span>
+        </div>
+      </div>
+      <div class="page-card-body">
+
+        
+    <h4>Meta Tags Analysis</h4>
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Element</th>
+          <th>Status</th>
+          <th>Content</th>
+          <th>Issue</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>&lt;title&gt;</code></td>
+          <td><span class="pill pill-low">LOW</span></td>
+          <td>One Minute with God for Graduates: 365 Daily Devotions</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>meta description</code></td>
+          <td><span class="pill pill-low">LOW</span></td>
+          <td>Ready to let God&#039;s Word guide your life? One Minute with God for Graduates: 365 ...</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>canonical</code></td>
+          <td><span class="pill pill-low">OK</span></td>
+          <td>https://www.christianartgifts.com/One-Minute-with-God-for-Graduates-365-Daily-Devotions</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>viewport</code></td>
+          <td><span class="pill pill-low">OK</span></td>
+          <td>✓ Present</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>Open Graph</code></td>
+          <td><span class="pill pill-medium">INCOMPLETE</span></td>
+          <td>—</td>
+          <td>Missing: og:title, og:description</td>
+        </tr>
+        <tr>
+          <td><code>Twitter Card</code></td>
+          <td><span class="pill pill-medium">INCOMPLETE</span></td>
+          <td>—</td>
+          <td>Missing: twitter:card, twitter:title, twitter:description, twitter:image</td>
+        </tr>
+        
+      </tbody>
+    </table>
+  
+
+        
+    <h4>Image SEO Audit</h4>
+    
+    <div class="callout callout-critical">
+      <div class="callout-icon">🚨</div>
+      <div><strong>Critical Issue:</strong> 1 out of 44 images are missing alt attributes. This impacts both accessibility (screen readers) and SEO (image search).</div>
+    </div>
+    
+
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Count</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Images</td>
+          <td>44</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Missing Alt Tags</td>
+          <td>1</td>
+          <td><span class="pill pill-critical">CRITICAL</span></td>
+        </tr>
+        <tr>
+          <td>Missing Dimensions (width/height)</td>
+          <td>44</td>
+          <td><span class="pill pill-medium">WARNING</span></td>
+        </tr>
+        <tr>
+          <td>Lazy Loaded</td>
+          <td>32</td>
+          <td><span class="pill pill-low">GOOD</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    
+    <p><strong>Issues Found:</strong></p>
+    <ul class="issue-list">
+      <li><code>/api/cacheable/items?c=3668477&amp;country=US&amp;currency=USD&amp;fieldset=details&amp;include=facets&amp;language=en&amp;n=2&amp;pricelevel=5&amp;url=One-Minute-with-God-for-Graduates-365-Daily-Devotions&amp;use_pcv=F</code> — Missing alt attribute</li>
+      
+    </ul>
+    
+  
+
+        
+    <h4>Heading Structure Audit</h4>
+    
+
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Level</th>
+          <th>Count</th>
+          <th>Text Preview</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td><code>H1</code></td>
+          <td>1</td>
+          <td>One Minute with God for Graduates: 365 Daily Devotions</td>
+        </tr>
+          
+        <tr>
+          <td><code>H2</code></td>
+          <td>1</td>
+          <td>Cookie consent</td>
+        </tr>
+          
+        <tr>
+          <td><code>H3</code></td>
+          <td>6</td>
+          <td>Details<br>Details<br>Specifications</td>
+        </tr>
+          
+        <tr>
+          <td><code>H4</code></td>
+          <td>1</td>
+          <td>No reviews available</td>
+        </tr>
+          
+      </tbody>
+    </table>
+
+    
+  
+
+        
+    <h4>Link Audit</h4>
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Count</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Links</td>
+          <td>667</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Internal Links</td>
+          <td>655</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>External Links</td>
+          <td>12</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Nofollow Links</td>
+          <td>13</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Empty Anchor Text</td>
+          <td>0</td>
+          <td><span class="pill pill-low">OK</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    
+  
+
+        
+    <h4>Performance Metrics</h4>
+    <div class="stat-grid" style="margin: 20px 0;">
+      <div class="stat-card stat-red">
+        <div class="stat-value">D</div>
+        <div class="stat-label">Performance Grade</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">1062ms</div>
+        <div class="stat-label">Response Time</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">263.2 KB</div>
+        <div class="stat-label">HTML Size</div>
+      </div>
+    </div>
+
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Images</td>
+          <td>44</td>
+        </tr>
+        <tr>
+          <td>Total Scripts</td>
+          <td>17</td>
+        </tr>
+        <tr>
+          <td>Total Stylesheets</td>
+          <td>1</td>
+        </tr>
+        <tr>
+          <td>Compression (gzip/br)</td>
+          <td><span class="pill pill-low">✓ Enabled</span></td>
+        </tr>
+      </tbody>
+    </table>
+  
+
+        
+        <h4>Schema.org (JSON-LD) Analysis</h4>
+        <div class="code-block">{
+  &quot;@context&quot;: &quot;https://schema.org&quot;,
+  &quot;@type&quot;: &quot;Organization&quot;,
+  &quot;url&quot;: &quot;https://www.christianartgifts.com&quot;,
+  &quot;logo&quot;: &quot;https://www.christianartgifts.com/site/assets/logo-cag-new-2-jack.png&quot;,
+  &quot;name&quot;: &quot;Christian Gifts | Gift Store | Christian Art Gifts&quot;,
+  &quot;description&quot;: &quot;Christian Art Gifts offers a wide selection of Christian gifts, inspirational gifts, bibles, bible covers, gift books, journals, wholesale gifts and more.&quot;
+}</div>
+        
+
+        
+
+        <h4>Recommendations</h4>
+        <div class="callout callout-info">
+          <div class="callout-icon">i</div>
+          <div>Fix 1 images missing alt tags; Add missing Open Graph tags: og:title, og:description; Add missing Twitter Card tags: twitter:card, twitter:title, twitter:description, twitter:image.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="page-6">
+  <div class="container">
+    <h2 class="section-title"><span class="num">08</span> Product: Floral Pen Set Audit</h2>
+    <p class="section-lead">Product page analysis.</p>
+
+    <div class="page-card">
+      <div class="page-card-header hdr-critical">
+        <div>
+          <h3>Product: Floral Pen Set</h3>
+          <div class="url">https://www.christianartgifts.com/Joyful-and-Faithful-Pink-and-Green-Floral-Pen-Set</div>
+        </div>
+        <div>
+          <span class="pill pill-critical">CRITICAL</span>
+        </div>
+      </div>
+      <div class="page-card-body">
+
+        
+    <h4>Meta Tags Analysis</h4>
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Element</th>
+          <th>Status</th>
+          <th>Content</th>
+          <th>Issue</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>&lt;title&gt;</code></td>
+          <td><span class="pill pill-low">LOW</span></td>
+          <td>Joyful and Faithful Pink and Green Floral Pen Set</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>meta description</code></td>
+          <td><span class="pill pill-low">LOW</span></td>
+          <td>The&amp;nbsp;Joyful and Faithful Pink and Green Floral Pen Set pairs soft pink and g...</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>canonical</code></td>
+          <td><span class="pill pill-low">OK</span></td>
+          <td>https://www.christianartgifts.com/Joyful-and-Faithful-Pink-and-Green-Floral-Pen-Set</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>viewport</code></td>
+          <td><span class="pill pill-low">OK</span></td>
+          <td>✓ Present</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td><code>Open Graph</code></td>
+          <td><span class="pill pill-medium">INCOMPLETE</span></td>
+          <td>—</td>
+          <td>Missing: og:title, og:description</td>
+        </tr>
+        <tr>
+          <td><code>Twitter Card</code></td>
+          <td><span class="pill pill-medium">INCOMPLETE</span></td>
+          <td>—</td>
+          <td>Missing: twitter:card, twitter:title, twitter:description, twitter:image</td>
+        </tr>
+        
+      </tbody>
+    </table>
+  
+
+        
+    <h4>Image SEO Audit</h4>
+    
+    <div class="callout callout-critical">
+      <div class="callout-icon">🚨</div>
+      <div><strong>Critical Issue:</strong> 1 out of 7 images are missing alt attributes. This impacts both accessibility (screen readers) and SEO (image search).</div>
+    </div>
+    
+
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Count</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Images</td>
+          <td>7</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Missing Alt Tags</td>
+          <td>1</td>
+          <td><span class="pill pill-critical">CRITICAL</span></td>
+        </tr>
+        <tr>
+          <td>Missing Dimensions (width/height)</td>
+          <td>7</td>
+          <td><span class="pill pill-medium">WARNING</span></td>
+        </tr>
+        <tr>
+          <td>Lazy Loaded</td>
+          <td>2</td>
+          <td><span class="pill pill-low">GOOD</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    
+    <p><strong>Issues Found:</strong></p>
+    <ul class="issue-list">
+      <li><code>/api/cacheable/items?c=3668477&amp;country=US&amp;currency=USD&amp;fieldset=details&amp;include=facets&amp;language=en&amp;n=2&amp;pricelevel=5&amp;url=Joyful-and-Faithful-Pink-and-Green-Floral-Pen-Set&amp;use_pcv=F</code> — Missing alt attribute</li>
+      
+    </ul>
+    
+  
+
+        
+    <h4>Heading Structure Audit</h4>
+    
+
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Level</th>
+          <th>Count</th>
+          <th>Text Preview</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td><code>H1</code></td>
+          <td>1</td>
+          <td>Joyful and Faithful Pink and Green Floral Pen Set</td>
+        </tr>
+          
+        <tr>
+          <td><code>H2</code></td>
+          <td>1</td>
+          <td>Cookie consent</td>
+        </tr>
+          
+        <tr>
+          <td><code>H3</code></td>
+          <td>6</td>
+          <td>Details<br>Details<br>Specifications</td>
+        </tr>
+          
+        <tr>
+          <td><code>H4</code></td>
+          <td>1</td>
+          <td>No reviews available</td>
+        </tr>
+          
+      </tbody>
+    </table>
+
+    
+  
+
+        
+    <h4>Link Audit</h4>
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Count</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Links</td>
+          <td>607</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Internal Links</td>
+          <td>595</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>External Links</td>
+          <td>12</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Nofollow Links</td>
+          <td>13</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Empty Anchor Text</td>
+          <td>0</td>
+          <td><span class="pill pill-low">OK</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    
+  
+
+        
+    <h4>Performance Metrics</h4>
+    <div class="stat-grid" style="margin: 20px 0;">
+      <div class="stat-card stat-amber">
+        <div class="stat-value">C</div>
+        <div class="stat-label">Performance Grade</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">925ms</div>
+        <div class="stat-label">Response Time</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">161.4 KB</div>
+        <div class="stat-label">HTML Size</div>
+      </div>
+    </div>
+
+    <table class="summary-table">
+      <thead>
+        <tr>
+          <th>Metric</th>
+          <th>Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Total Images</td>
+          <td>7</td>
+        </tr>
+        <tr>
+          <td>Total Scripts</td>
+          <td>17</td>
+        </tr>
+        <tr>
+          <td>Total Stylesheets</td>
+          <td>1</td>
+        </tr>
+        <tr>
+          <td>Compression (gzip/br)</td>
+          <td><span class="pill pill-low">✓ Enabled</span></td>
+        </tr>
+      </tbody>
+    </table>
+  
+
+        
+        <h4>Schema.org (JSON-LD) Analysis</h4>
+        <div class="code-block">{
+  &quot;@context&quot;: &quot;https://schema.org&quot;,
+  &quot;@type&quot;: &quot;Organization&quot;,
+  &quot;url&quot;: &quot;https://www.christianartgifts.com&quot;,
+  &quot;logo&quot;: &quot;https://www.christianartgifts.com/site/assets/logo-cag-new-2-jack.png&quot;,
+  &quot;name&quot;: &quot;Christian Gifts | Gift Store | Christian Art Gifts&quot;,
+  &quot;description&quot;: &quot;Christian Art Gifts offers a wide selection of Christian gifts, inspirational gifts, bibles, bible covers, gift books, journals, wholesale gifts and more.&quot;
+}</div>
+        
+
+        
+
+        <h4>Recommendations</h4>
+        <div class="callout callout-info">
+          <div class="callout-icon">i</div>
+          <div>Fix 1 images missing alt tags; Add missing Open Graph tags: og:title, og:description; Add missing Twitter Card tags: twitter:card, twitter:title, twitter:description, twitter:image.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="roadmap">
+  <div class="container">
+    <h2 class="section-title"><span class="num">10</span> Priority Roadmap &amp; Expected ROI</h2>
+    <p class="section-lead">Phased implementation plan ordered by business impact and technical effort.</p>
+
+    <div class="roadmap">
+      
+      <div class="roadmap-phase rp-p0">
+        <h4><span class="pill pill-p0">Phase 1 &mdash; P0</span> Fix Critical SEO Issues</h4>
+        <p style="font-size:13px; color:#64748b; margin-bottom:12px;">Estimated effort: 2-4 hours &middot; Impact: High</p>
+        <ul>
+          <li>Add alt attributes to all images missing alt tags (accessibility + SEO)</li>
+          <li>Fix H1 tag count on all pages (ensure exactly 1 H1 per page)</li>
+          <li>Optimize title and meta description lengths to recommended ranges</li>
+          <li>Review and fix any noindex meta tags (if unintended)</li>
+        </ul>
+        <div class="callout callout-success" style="margin:12px 0 0">
+          <div class="callout-icon">&#8593;</div>
+          <div><strong>Expected Impact:</strong> +15-20% image search visibility, +8-12% CTR from SERPs due to improved meta descriptions</div>
+        </div>
+      </div>
+      
+      <div class="roadmap-phase rp-p1">
+        <h4><span class="pill pill-p1">Phase 2 &mdash; P1</span> Enhance Social Sharing & Rich Snippets</h4>
+        <p style="font-size:13px; color:#64748b; margin-bottom:12px;">Estimated effort: 3-5 hours &middot; Impact: Medium-High</p>
+        <ul>
+          <li>Add complete Open Graph tags (og:title, og:description, og:image, og:url) to all pages</li>
+          <li>Add complete Twitter Card markup (twitter:card, twitter:title, twitter:description, twitter:image)</li>
+          <li>Implement Product schema with aggregateRating and review markup on product pages</li>
+          <li>Add BreadcrumbList schema to category and product pages</li>
+        </ul>
+        <div class="callout callout-success" style="margin:12px 0 0">
+          <div class="callout-icon">&#8593;</div>
+          <div><strong>Expected Impact:</strong> +20-30% social media engagement, eligibility for rich snippets (star ratings, pricing) in search results</div>
+        </div>
+      </div>
+      
+      <div class="roadmap-phase rp-p2">
+        <h4><span class="pill pill-p2">Phase 3 &mdash; P2</span> Optimize Performance & UX</h4>
+        <p style="font-size:13px; color:#64748b; margin-bottom:12px;">Estimated effort: 4-6 hours &middot; Impact: Medium</p>
+        <ul>
+          <li>Add width/height attributes to all images (prevents layout shift)</li>
+          <li>Implement lazy loading for below-the-fold images</li>
+          <li>Review and reduce page load times for product pages (currently 900-1200ms)</li>
+          <li>Add descriptive anchor text to links with empty text</li>
+        </ul>
+        <div class="callout callout-success" style="margin:12px 0 0">
+          <div class="callout-icon">&#8593;</div>
+          <div><strong>Expected Impact:</strong> +5-10% mobile conversion rate, improved Core Web Vitals scores</div>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+</section>
+<footer class="site-footer">
+  <div class="container">
+    <p><strong>Generated by Bematic Manager</strong> &middot; NetSuite SEO Audit Tool</p>
+    <p style="margin-top:12px; font-size:12px; opacity:.6;">&copy; 2026 Bematic. Automated structured data analysis powered by Claude AI.</p>
+  </div>
+</footer>
+
+</body>
+</html>
