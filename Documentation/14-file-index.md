@@ -83,6 +83,8 @@
 | `reviewer/reviewer.bot.ts` | ReviewerBot implementation |
 | `ops/ops.bot.ts` | OpsBot implementation |
 | `planner/planner.bot.ts` | PlannerBot implementation |
+| `netsuite/netsuite.bot.ts` | NetSuiteBot implementation for SEO audits |
+| `netsuite/report-template.ts` | HTML report generator for SEO audit results |
 
 ---
 

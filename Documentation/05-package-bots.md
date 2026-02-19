@@ -17,7 +17,8 @@ BaseBotPlugin (abstract)
 ├── CoderBot      (/bm-code)
 ├── ReviewerBot   (/bm-review)
 ├── OpsBot        (/bm-ops)
-└── PlannerBot    (/bm-plan)
+├── PlannerBot    (/bm-plan)
+└── NetSuiteBot   (/bm-netsuite)
 ```
 
 ### `BaseBotPlugin` (abstract class)
@@ -49,6 +50,7 @@ BotRegistry.getAll(): BaseBotPlugin[]
 | **ReviewerBot** | `/bm-review` | `review` | Read, Glob, Grep, Bash (read-only) | Code review, security audit |
 | **OpsBot** | `/bm-ops` | `status` | Read, Glob, Grep, Bash | Build, deploy, git ops |
 | **PlannerBot** | `/bm-plan` | `create` | Read, Glob, Grep (read-only) | Planning, task breakdown |
+| **NetSuiteBot** | `/bm-netsuite` | `audit` | Read, Write, Glob, Grep, Bash, WebFetch, WebSearch | NetSuite SEO & schema audits |
 
 ### CoderBot Commands
 
@@ -86,6 +88,36 @@ BotRegistry.getAll(): BaseBotPlugin[]
 | `list` | ls, show | Structure listing |
 | `sprint` | iteration | Sprint planning |
 | `report` | summary, recap | Report generation |
+
+### NetSuiteBot Commands
+
+| Command | Aliases | Description |
+|---------|---------|-------------|
+| `audit` | analyze, check, scan | Comprehensive SEO and structured data audit |
+| `crawl` | spider, discover | Crawl website and analyze structure |
+| `schema` | jsonld, structured-data | Analyze JSON-LD structured data |
+| `competitors` | competitive-analysis, benchmark | Research and compare competitors |
+
+**Features:**
+- Auto-discovers categories from navigation patterns (e.g., `<nav class="header-menu-secondary-nav">`)
+- Crawls 3 category pages and 1 product from each
+- Analyzes JSON-LD Schema.org markup completeness
+- Researches competitors using WebSearch
+- Generates professional HTML audit reports
+- Identifies missing schema fields with priority levels (P0-P3)
+- Provides SERP mockups and competitive gap analysis
+
+**Usage Example:**
+```
+/bm netsuite audit https://www.example.com
+```
+
+The bot will:
+1. Crawl the homepage, discover categories
+2. Visit 3 category pages, find products
+3. Extract and analyze all JSON-LD schemas
+4. Research industry competitors
+5. Generate a comprehensive HTML report saved to the project directory
 
 ---
 

@@ -11,6 +11,7 @@ export { CoderBot } from './coder/coder.bot.js';
 export { ReviewerBot } from './reviewer/reviewer.bot.js';
 export { OpsBot } from './ops/ops.bot.js';
 export { PlannerBot } from './planner/planner.bot.js';
+export { NetSuiteBot } from './netsuite/netsuite.bot.js';
 
 // Convenience: register all bots
 import { BotRegistry } from './base/bot-registry.js';
@@ -18,10 +19,12 @@ import { CoderBot } from './coder/coder.bot.js';
 import { ReviewerBot } from './reviewer/reviewer.bot.js';
 import { OpsBot } from './ops/ops.bot.js';
 import { PlannerBot } from './planner/planner.bot.js';
+import { NetSuiteBot } from './netsuite/netsuite.bot.js';
 
 export function registerAllBots(): void {
   BotRegistry.register(new CoderBot());
   BotRegistry.register(new ReviewerBot());
   BotRegistry.register(new OpsBot());
   BotRegistry.register(new PlannerBot());
+  BotRegistry.register(new NetSuiteBot());
 }
