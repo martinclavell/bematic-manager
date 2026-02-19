@@ -17,6 +17,7 @@ export {
   netsuiteConfigs,
   pendingActions,
   feedbackSuggestions,
+  scheduledTasks,
 } from './schema/index.js';
 export type {
   ProjectRow,
@@ -44,6 +45,8 @@ export type {
   PendingActionInsert,
   FeedbackSuggestionRow,
   FeedbackSuggestionInsert,
+  ScheduledTaskRow,
+  ScheduledTaskInsert,
 } from './schema/index.js';
 
 // Repositories
@@ -60,4 +63,5 @@ export {
   NetSuiteConfigRepository,
   PendingActionRepository,
   FeedbackSuggestionRepository,
+  ScheduledTaskRepository,
 } from './repositories/index.js';

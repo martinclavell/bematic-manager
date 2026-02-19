@@ -32,3 +32,6 @@ export type { PendingActionRow, PendingActionInsert } from './pending-actions.js
 
 export { feedbackSuggestions } from './feedback-suggestions.js';
 export type { FeedbackSuggestionRow, FeedbackSuggestionInsert } from './feedback-suggestions.js';
+
+export { scheduledTasks } from './scheduled-tasks.js';
+export type { ScheduledTaskRow, ScheduledTaskInsert } from './scheduled-tasks.js';

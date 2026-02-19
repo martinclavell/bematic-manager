@@ -12,6 +12,7 @@ import { netsuiteConfigs } from './schema/netsuite-configs.js';
 import { archivedTasks } from './schema/archived-tasks.js';
 import { pendingActions } from './schema/pending-actions.js';
 import { feedbackSuggestions } from './schema/feedback-suggestions.js';
+import { scheduledTasks } from './schema/scheduled-tasks.js';
 
 /**
  * Push schema to database (create tables if not exist).
@@ -220,6 +221,39 @@ export function pushSchema(dbUrl?: string) {
     applied_at INTEGER,
     applied_notes TEXT
   )`);
+
+  db.run(sql`CREATE TABLE IF NOT EXISTS ${scheduledTasks} (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL REFERENCES projects(id),
+    user_id TEXT NOT NULL,
+    task_type TEXT NOT NULL,
+    bot_name TEXT NOT NULL,
+    command TEXT NOT NULL,
+    prompt TEXT NOT NULL,
+    scheduled_for TEXT NOT NULL,
+    timezone TEXT NOT NULL,
+    cron_expression TEXT,
+    is_recurring INTEGER NOT NULL DEFAULT 0,
+    last_executed_at TEXT,
+    next_execution_at TEXT,
+    execution_count INTEGER NOT NULL DEFAULT 0,
+    max_executions INTEGER,
+    status TEXT NOT NULL DEFAULT 'pending',
+    enabled INTEGER NOT NULL DEFAULT 1,
+    slack_channel_id TEXT NOT NULL,
+    slack_thread_ts TEXT,
+    metadata TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    last_triggered_at TEXT,
+    expires_at TEXT
+  )`);
+
+  // Create indexes for scheduled_tasks
+  db.run(sql.raw(`CREATE INDEX IF NOT EXISTS scheduled_tasks_next_execution_idx ON scheduled_tasks(next_execution_at)`));
+  db.run(sql.raw(`CREATE INDEX IF NOT EXISTS scheduled_tasks_status_enabled_idx ON scheduled_tasks(status, enabled)`));
+  db.run(sql.raw(`CREATE INDEX IF NOT EXISTS scheduled_tasks_project_id_idx ON scheduled_tasks(project_id)`));
+  db.run(sql.raw(`CREATE INDEX IF NOT EXISTS scheduled_tasks_user_id_idx ON scheduled_tasks(user_id)`));
 
   return db;
 }
