@@ -78,6 +78,14 @@ export interface TaskStreamPayload {
   timestamp: number;
 }
 
+export interface AttachmentResult {
+  name: string;
+  status: 'success' | 'failed';
+  path?: string;
+  error?: string;
+  retries?: number;
+}
+
 export interface TaskCompletePayload {
   taskId: string;
   result: string;
@@ -90,12 +98,15 @@ export interface TaskCompletePayload {
   durationMs: number;
   /** Number of auto-continuations that were performed (0 = completed in one shot) */
   continuations?: number;
+  /** Attachment processing results */
+  attachmentResults?: AttachmentResult[];
 }
 
 export interface TaskErrorPayload {
   taskId: string;
   error: string;
   recoverable: boolean;
+  sessionId?: string | null;
 }
 
 export interface TaskCancelPayload {

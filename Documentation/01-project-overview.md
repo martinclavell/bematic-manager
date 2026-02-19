@@ -12,12 +12,17 @@
 
 - **Slack-native UX**: Users submit tasks via `@BematicManager code fix the login bug` or `/bm-code fix the login bug`
 - **Specialized bot personas**: Coder, Reviewer, Ops, Planner — each with tailored system prompts and tool permissions
+- **Intelligent model routing**: Quality-focused strategy automatically selects optimal models (Sonnet/Opus)
 - **Real-time streaming**: Claude's output streams directly into Slack threads
 - **Project isolation**: One active task per project directory, preventing file conflicts
+- **Connection resilience**: Circuit breaker, exponential backoff, bidirectional keepalive
+- **Performance optimization**: Caching layer, parallel processing, resource monitoring
 - **Cost tracking**: Token usage and estimated costs tracked per task/session
 - **Offline resilience**: Tasks queued in SQLite when agents disconnect
 - **RBAC**: Admin / Developer / Viewer roles with fine-grained permissions
+- **Security features**: File validation, secure WebSocket (WSS), API key management
 - **Full audit trail**: Every action logged for security compliance
+- **Data archiving**: Retention policies with configurable archival periods
 
 ### Technology Stack
 
@@ -27,12 +32,15 @@
 | Runtime | Node.js >= 20 |
 | Monorepo | npm workspaces |
 | Database | SQLite via better-sqlite3 + Drizzle ORM |
+| Caching | In-memory LRU cache with TTL |
 | AI SDK | @anthropic-ai/claude-code |
 | Slack | @slack/bolt (Socket Mode) |
-| WebSocket | ws library |
+| WebSocket | ws library (with WSS enforcement) |
+| Security | File validation, API key rotation, security headers |
+| Metrics | Custom metrics collection and monitoring |
 | Validation | Zod |
 | Logging | Pino |
-| Testing | Vitest |
+| Testing | Vitest with comprehensive test coverage |
 | Deployment (Cloud) | Railway + Docker |
 | Deployment (Agent) | Local machine, bash wrapper script |
 
@@ -52,21 +60,33 @@
 │  ┌──────────┐  ┌──────────┐  ┌──────────────────────┐   │
 │  │ Slack Bot │→ │ Middleware│→ │ Command Service      │   │
 │  │ (Bolt)   │  │ (Auth,   │  │ (Bot Registry,       │   │
-│  │          │  │  RateLimit│  │  Task Creation)      │   │
-│  │          │  │  Project) │  │                      │   │
+│  │          │  │  RateLimit│  │  Model Routing,      │   │
+│  │          │  │  Project, │  │  Task Creation)      │   │
+│  │          │  │  Security)│  │                      │   │
 │  └──────────┘  └──────────┘  └──────────┬───────────┘   │
 │                                          │               │
 │  ┌──────────────────┐   ┌────────────────▼──────────┐   │
 │  │ SQLite Database   │   │ WebSocket Gateway         │   │
 │  │ (Drizzle ORM)    │   │ (Agent Manager,           │   │
-│  │                   │   │  Message Router,          │   │
-│  │ - projects        │   │  Stream Accumulator,      │   │
-│  │ - tasks           │   │  Offline Queue)           │   │
-│  │ - sessions        │   │                           │   │
-│  │ - users           │   └────────────┬──────────────┘   │
-│  │ - audit_logs      │                │                   │
-│  │ - offline_queue   │                │ WSS               │
-│  └──────────────────┘                │                   │
+│  │                   │   │  Circuit Breaker,         │   │
+│  │ - projects        │   │  Message Router,          │   │
+│  │ - tasks           │   │  Stream Accumulator,      │   │
+│  │ - sessions        │   │  Parallel Queue,          │   │
+│  │ - users           │   │  Offline Queue)           │   │
+│  │ - audit_logs      │   │                           │   │
+│  │ - offline_queue   │   └────────────┬──────────────┘   │
+│  │ - api_keys        │                │                   │
+│  │ - archived_tasks  │                │ WSS + TLS         │
+│  └───────┬───────────┘                │                   │
+│          │                            │                   │
+│  ┌───────▼───────────┐                │                   │
+│  │ Services Layer    │                │                   │
+│  │ - ApiKeyService   │                │                   │
+│  │ - RetentionSvc    │                │                   │
+│  │ - NotificationSvc │                │                   │
+│  │ - FileValidator   │                │                   │
+│  │ - CachingLayer    │                │                   │
+│  └───────────────────┘                │                   │
 └──────────────────────────────────────┼───────────────────┘
                                        │
                                        ▼
@@ -75,15 +95,15 @@
 │  ┌──────────────┐  ┌───────────────┐  ┌──────────────┐  │
 │  │ WS Client    │→ │ Queue         │→ │ Claude       │  │
 │  │ (Auth,       │  │ Processor     │  │ Executor     │  │
-│  │  Reconnect,  │  │ (Concurrency, │  │ (SDK,        │  │
-│  │  Heartbeat)  │  │  Per-project) │  │  Streaming,  │  │
-│  │              │  │               │  │  Tools)      │  │
+│  │  Circuit Br.,│  │ (Concurrency, │  │ (SDK,        │  │
+│  │  Reconnect,  │  │  Per-project, │  │  Streaming,  │  │
+│  │  Keepalive)  │  │  Parallel)    │  │  Tools)      │  │
 │  └──────────────┘  └───────────────┘  └──────┬───────┘  │
 │                                               │          │
-│  ┌──────────────┐                             ▼          │
-│  │ Path         │              Local Project Filesystem  │
-│  │ Validator    │                                        │
-│  └──────────────┘                                        │
+│  ┌──────────────┐  ┌─────────────────┐       ▼          │
+│  │ Path         │  │ Resource        │ Local Project      │
+│  │ Validator    │  │ Monitor         │ Filesystem         │
+│  └──────────────┘  └─────────────────┘                   │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -91,7 +111,11 @@
 
 1. **Cloud-Agent split**: All business logic (bots, DB, Slack) lives in cloud. Agent is a thin, isolated executor.
 2. **Agent has ZERO dependency on db or bots packages** — intentional security boundary.
-3. **Single Slack app, multiple bot personas** — keyword routing, not separate apps.
+3. **Single Slack app, multiple bot personas** — intelligent model routing, not separate apps.
 4. **One active Claude session per project directory** — prevents file conflicts.
 5. **Type-safe WebSocket protocol** — Zod-validated discriminated union messages.
 6. **Offline-first messaging** — SQLite queue with 24h TTL for disconnected agents.
+7. **Connection resilience** — Circuit breakers, exponential backoff, bidirectional keepalive.
+8. **Security-first approach** — WSS enforcement, file validation, API key rotation.
+9. **Performance optimization** — Caching, parallel processing, resource monitoring.
+10. **Data lifecycle management** — Configurable retention with archival strategies.

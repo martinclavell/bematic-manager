@@ -1,4 +1,6 @@
 import 'dotenv/config';
+import process from 'node:process';
+process.setMaxListeners(20);
 import { execSync } from 'node:child_process';
 import {
   MessageType,
@@ -17,6 +19,7 @@ import { setupHeartbeat } from './connection/heartbeat.js';
 import { ClaudeExecutor } from './executor/claude-executor.js';
 import { QueueProcessor } from './executor/queue-processor.js';
 import { setupFileLogging } from './logging.js';
+import { ResourceMonitor } from './monitoring/resource-monitor.js';
 
 /** Exit code 75 signals the wrapper script to restart the agent */
 const RESTART_EXIT_CODE = 75;
@@ -34,14 +37,68 @@ async function main() {
 
   logger.info({ agentId: config.agentId }, 'Starting Bematic Agent');
 
+  // Initialize resource monitoring
+  const resourceMonitor = new ResourceMonitor(config.resourceLimits);
+
+  // Start monitoring resources immediately
+  resourceMonitor.startMonitoring();
+
+  logger.info(
+    { limits: config.resourceLimits },
+    'Resource monitoring started with configured limits'
+  );
+
   // Initialize WebSocket client
   const wsClient = new WSClient(config);
 
-  // Initialize executor and queue processor
-  const executor = new ClaudeExecutor(wsClient, config.maxContinuations);
-  const queueProcessor = new QueueProcessor(executor, config.maxConcurrentTasks);
+  // Initialize executor and queue processor with resource monitoring
+  const executor = new ClaudeExecutor(wsClient, config.maxContinuations, config.resourceLimits);
+  const queueProcessor = new QueueProcessor(executor, config.maxConcurrentTasks, resourceMonitor);
 
-  // Setup heartbeat responses
+  // Setup resource monitoring event handlers
+  resourceMonitor.on('resource-limit', (event) => {
+    logger.warn(
+      {
+        resource: event.resource,
+        usage: event.usage,
+        limit: event.limit,
+        action: event.type,
+        healthScore: event.status.healthScore,
+      },
+      `Resource limit triggered: ${event.type}`
+    );
+
+    // Handle different resource actions
+    switch (event.type) {
+      case 'reject_new_tasks':
+        // Queue processor will check canAcceptNewTasks() before processing
+        break;
+
+      case 'cancel_lowest_priority':
+        // Cancel the task with lowest priority (oldest task in queue)
+        const cancelledTaskId = queueProcessor.cancelLowestPriorityTask();
+        if (cancelledTaskId) {
+          wsClient.send(
+            createWSMessage(MessageType.TASK_CANCELLED, {
+              taskId: cancelledTaskId,
+              reason: `Resource exhaustion: ${event.resource} at ${event.usage.toFixed(1)}%`,
+            }),
+          );
+          logger.warn({ taskId: cancelledTaskId }, 'Cancelled task due to resource exhaustion');
+        }
+        break;
+
+      case 'graceful_shutdown':
+        logger.error(
+          { resource: event.resource, usage: event.usage },
+          'Resource exhaustion detected - initiating graceful shutdown'
+        );
+        shutdown('RESOURCE_EXHAUSTION', RESTART_EXIT_CODE);
+        break;
+    }
+  });
+
+  // Setup heartbeat responses with resource status
   setupHeartbeat(wsClient, config.agentId, queueProcessor);
 
   // Handle incoming messages from cloud
@@ -55,7 +112,28 @@ async function main() {
           logger.error({ errors: result.error.issues }, 'Invalid task submit payload');
           return;
         }
-        queueProcessor.submit(result.data as TaskSubmitPayload);
+
+        try {
+          queueProcessor.submit(result.data as TaskSubmitPayload);
+        } catch (error) {
+          // Handle resource limit rejections
+          const taskPayload = result.data as TaskSubmitPayload;
+          const errorMessage = error instanceof Error ? error.message : String(error);
+
+          logger.error(
+            { taskId: taskPayload.taskId, error: errorMessage },
+            'Task submission failed due to resource limits'
+          );
+
+          wsClient.send(
+            createWSMessage(MessageType.TASK_ERROR, {
+              taskId: taskPayload.taskId,
+              error: errorMessage,
+              recoverable: false,
+              sessionId: null,
+            }),
+          );
+        }
         break;
       }
 
@@ -98,14 +176,21 @@ async function main() {
     }
   });
 
-  // On connection, send agent status
+  // On connection, send agent status with resource information
   wsClient.on('authenticated', () => {
+    const resourceStatus = resourceMonitor.reportStatus();
     wsClient.send(
       createWSMessage(MessageType.AGENT_STATUS, {
         agentId: config.agentId,
         status: 'online',
         activeTasks: queueProcessor.getActiveTasks(),
         version: '1.0.0',
+        resourceStatus: {
+          healthScore: resourceStatus.healthScore,
+          memoryUsagePercent: resourceStatus.memory.percentUsed,
+          cpuUsagePercent: resourceStatus.cpu.percent,
+          canAcceptTasks: resourceMonitor.canAcceptNewTasks(),
+        },
       }),
     );
   });
@@ -117,11 +202,12 @@ async function main() {
   // Connect to cloud
   wsClient.connect();
 
-  // Graceful shutdown using new handler
+  // Graceful shutdown using new handler with resource monitor
   const shutdown = createShutdownHandler({
     wsClient,
     queueProcessor,
     agentId: config.agentId,
+    resourceMonitor,
   });
 
   process.on('SIGTERM', () => shutdown('SIGTERM', 0));

@@ -85,7 +85,7 @@ export class TaskCompletionHandler {
     const slackResult = markdownToSlack(parsed.result);
 
     // Format result using bot-specific formatter
-    const bot = BotRegistry.get(task.botName as any);
+    const bot = BotRegistry.get(task.botName);
     const blocks = bot
       ? bot.formatResult({ ...parsed, result: slackResult })
       : ResponseBuilder.taskCompleteBlocks(slackResult, parsed);

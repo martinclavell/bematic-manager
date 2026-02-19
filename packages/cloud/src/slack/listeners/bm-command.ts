@@ -38,7 +38,7 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
           ctx.rateLimiter.check(user_id, dbUser?.rateLimitOverride);
 
           const project = ctx.projectResolver.resolve(channel_id);
-          const opsBot = BotRegistry.get('ops' as any);
+          const opsBot = BotRegistry.get('ops');
           if (!opsBot) {
             await respond(':x: Ops bot not available');
             return;
@@ -110,7 +110,7 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
           ctx.rateLimiter.check(user_id, dbUser?.rateLimitOverride);
 
           const project = ctx.projectResolver.resolve(channel_id);
-          const coderBot = BotRegistry.get('coder' as any);
+          const coderBot = BotRegistry.get('coder');
           if (!coderBot) {
             await respond(':x: Coder bot not available');
             return;
@@ -650,7 +650,7 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
           await ctx.authChecker.checkPermission(user_id, Permission.TASK_CREATE);
 
           const project = ctx.projectResolver.resolve(channel_id);
-          const opsBot = BotRegistry.get('ops' as any);
+          const opsBot = BotRegistry.get('ops');
           if (!opsBot) {
             await respond(':x: Ops bot not available');
             return;

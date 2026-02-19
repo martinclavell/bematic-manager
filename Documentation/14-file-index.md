@@ -42,14 +42,18 @@
 | `index.ts` | Barrel export |
 | `connection.ts` | SQLite connection with performance pragmas |
 | `migrate.ts` | Schema push (DDL) for development |
+| `errors.ts` | Database-specific error types and utilities |
+| **Schema** | |
 | `schema/projects.ts` | Projects table definition |
 | `schema/tasks.ts` | Tasks table definition |
 | `schema/sessions.ts` | Sessions table definition |
 | `schema/users.ts` | Users + user_project_permissions tables |
 | `schema/audit-logs.ts` | Audit logs table definition |
 | `schema/offline-queue.ts` | Offline queue table definition |
+| `schema/api-keys.ts` | API keys table definition |
 | `schema/prompt-history.ts` | Prompt history table definition |
 | `schema/index.ts` | Barrel export |
+| **Repositories** | |
 | `repositories/base.repository.ts` | Abstract base with DB injection |
 | `repositories/project.repository.ts` | Project CRUD + tests |
 | `repositories/task.repository.ts` | Task CRUD + complete/fail helpers |
@@ -57,6 +61,7 @@
 | `repositories/user.repository.ts` | User CRUD + upsert |
 | `repositories/audit-log.repository.ts` | Audit log creation + querying + cleanup |
 | `repositories/offline-queue.repository.ts` | Queue operations |
+| `repositories/api-key.repository.ts` | API key management and rotation |
 | `repositories/prompt-history.repository.ts` | Prompt history CRUD + search + stats |
 | `repositories/index.ts` | Barrel export |
 
@@ -102,6 +107,15 @@
 | `slack/listeners/config.ts` | /bm-config project configuration |
 | `slack/listeners/admin.ts` | /bm-admin administrative commands |
 | `slack/listeners/index.ts` | Barrel export |
+| **Admin Commands** | |
+| `slack/admin-commands/index.ts` | Barrel export |
+| `slack/admin-commands/agent-commands.ts` | Agent management commands |
+| `slack/admin-commands/api-keys.ts` | API key management commands |
+| `slack/admin-commands/deploy-commands.ts` | Deployment commands |
+| `slack/admin-commands/health-commands.ts` | Health check commands |
+| `slack/admin-commands/logs-commands.ts` | Log viewing commands |
+| `slack/admin-commands/retention-commands.ts` | Data retention commands |
+| `slack/admin-commands/worker-commands.ts` | Worker management commands |
 | **WebSocket Gateway** | |
 | `gateway/ws-server.ts` | WebSocket server setup |
 | `gateway/agent-manager.ts` | Agent connection pool management |
@@ -112,6 +126,16 @@
 | `gateway/agent-health-tracker.ts` | Agent health monitoring with circuit breaker |
 | `gateway/message-buffer.ts` | Message buffering for connection recovery |
 | `gateway/index.ts` | Barrel export |
+| **Gateway Handlers** | |
+| `gateway/handlers/index.ts` | Barrel export |
+| `gateway/handlers/task-ack-handler.ts` | Task acknowledgment handling |
+| `gateway/handlers/task-progress-handler.ts` | Task progress updates |
+| `gateway/handlers/task-stream-handler.ts` | Real-time streaming handler |
+| `gateway/handlers/task-completion-handler.ts` | Task completion processing |
+| `gateway/handlers/task-error-handler.ts` | Task error handling |
+| `gateway/handlers/task-cancelled-handler.ts` | Task cancellation handling |
+| `gateway/handlers/deploy-result-handler.ts` | Deployment result processing |
+| `gateway/handlers/progress-tracker.ts` | Progress tracking utilities |
 | **Services** | |
 | `services/command.service.ts` | Command orchestration |
 | `services/notification.service.ts` | Slack notification posting with retry logic |
@@ -119,7 +143,15 @@
 | `services/deploy.service.ts` | Railway deployment integration |
 | `services/retention.service.ts` | Data retention policy enforcement |
 | `services/health.service.ts` | Health check and metrics reporting |
+| `services/api-key.service.ts` | API key generation, validation, and rotation |
 | `services/index.ts` | Barrel export |
+| **Service Handlers** | |
+| `services/handlers/index.ts` | Barrel export |
+| `services/handlers/decomposition-handler.ts` | Task decomposition logic |
+| `services/handlers/subtask-parser.ts` | Subtask parsing utilities |
+| `services/handlers/task-submitter.ts` | Task submission handling |
+| **Security** | |
+| `security/file-validator.ts` | File content validation and security checks |
 | **Utilities** | |
 | `utils/markdown-to-slack.ts` | Markdown → Slack format conversion |
 | `utils/slack-retry.ts` | Slack API retry logic with exponential backoff |
@@ -140,6 +172,12 @@
 | `connection/heartbeat.ts` | Heartbeat response handler |
 | `executor/queue-processor.ts` | Task concurrency + per-project queuing |
 | `executor/claude-executor.ts` | Claude SDK integration |
+| **Executor Handlers** | |
+| `executor/handlers/index.ts` | Barrel export |
+| `executor/handlers/message-handler.ts` | Message processing logic |
+| `executor/handlers/continuation-handler.ts` | Conversation continuation handling |
+| `executor/handlers/execution-tracker.ts` | Execution tracking utilities |
+| **Security** | |
 | `security/path-validator.ts` | Project path sandboxing |
 
 ---

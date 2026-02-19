@@ -55,9 +55,35 @@ Executed in order for every incoming Slack event:
 |----------|------|-------------|-------------|
 | Mentions | `mentions.ts` | `@BematicManager ...` | Primary UX — resolve bot, parse command, create task, submit to agent |
 | Messages | `messages.ts` | Channel messages | Auto-detect tasks in configured project channels |
-| BM Command | `bm-command.ts` | `/bm [subcommand]` | Main unified command handler (build, test, deploy, agents, cancel, restart, config, logs, etc.) |
+| BM Command | `bm-command.ts` | `/bm [subcommand]` | Main unified command handler with admin handlers architecture |
 | Actions | `actions.ts` | Button clicks | Retry/cancel task interactive actions |
 | Admin (legacy) | `admin.ts` | `/bm-admin` | Legacy admin commands (kept for backwards compatibility) |
+| File Utils | `file-utils.ts` | File uploads | Secure file validation and processing |
+
+---
+
+## Handler Architecture
+
+The cloud package uses a modular handler pattern for extensibility:
+
+### Admin Command Handlers
+
+| Handler | File | Purpose |
+|---------|------|----------|
+| API Keys | `admin-commands/api-keys.ts` | Generate, rotate, and manage agent API keys |
+| Archive | `admin-commands/archive.ts` | Data archival and retention management |
+| Cache | `admin-commands/cache.ts` | Cache management and statistics |
+| Metrics | `admin-commands/metrics.ts` | System metrics and performance monitoring |
+| Performance | `admin-commands/performance.ts` | Performance tuning and optimization |
+
+### Cache & Performance Handlers
+
+New specialized handlers for cache and performance management integrate with the core caching layer to provide:
+
+- **Cache Statistics**: Usage metrics, hit/miss ratios, memory consumption
+- **Cache Operations**: Manual invalidation, warming, size management
+- **Performance Metrics**: Response times, throughput, resource utilization
+- **Performance Optimization**: Automatic tuning recommendations
 
 ---
 
@@ -65,25 +91,36 @@ Executed in order for every incoming Slack event:
 
 ### `ws-server.ts`
 - Upgrades HTTP requests at path `/ws/agent` to WebSocket
+- **Security**: Enforces WSS (secure WebSocket) in production environments with `verifyClient` callback
+- **TLS Configuration**: Configures certificate validation and security options
+- **Connection Logging**: Logs connection security status and origin information
+- **Metrics Integration**: Tracks connection attempts and success rates
 - Delegates to `AgentManager` for connection lifecycle
 
 ### `agent-manager.ts`
-- Manages connected agent pool
-- Authentication: validates API key from `AGENT_API_KEYS`
-- Connection lifecycle: auth timeout, heartbeat monitoring
-- Sends/receives typed WebSocket messages
-- Handles agent disconnect: queues pending tasks
+- Manages connected agent pool with connection state tracking
+- **Authentication**: Validates API keys via `ApiKeyService` with database verification and audit logging
+- **Connection Lifecycle**: Auth timeout, bidirectional keepalive, graceful disconnection
+- **Circuit Breaker**: Implements circuit breaker pattern for connection reliability
+- **Message Buffering**: Buffers messages during connection instability
+- Sends/receives typed WebSocket messages with validation
+- Handles agent disconnect: queues pending tasks in offline queue
+- **Performance Metrics**: Tracks connection health, message throughput, error rates
 
 ### `message-router.ts`
-- Routes incoming agent messages to appropriate handlers
+- Routes incoming agent messages to appropriate handlers with enhanced processing
+- **Parallel Message Processing**: Handles multiple message types concurrently
+- **Cache Integration**: Caches frequently accessed data for performance
+- **Error Recovery**: Implements retry logic and graceful error handling
 - Dispatches by `MessageType`:
-  - `TASK_ACK` → Update task status
-  - `TASK_PROGRESS` → Update Slack thread with progress
-  - `TASK_STREAM` → Accumulate and batch-post to Slack
-  - `TASK_COMPLETE` → Update DB, post final result to Slack
-  - `TASK_ERROR` → Update DB, post error to Slack
-  - `TASK_CANCELLED` → Update DB, confirm in Slack
-  - `AGENT_STATUS` → Log agent metrics
+  - `TASK_ACK` → Update task status with performance metrics
+  - `TASK_PROGRESS` → Update Slack thread with progress and resource usage
+  - `TASK_STREAM` → Accumulate and batch-post to Slack with rate limiting
+  - `TASK_COMPLETE` → Update DB, post final result, trigger archival if needed
+  - `TASK_ERROR` → Update DB, post error, log for analysis
+  - `TASK_CANCELLED` → Update DB, confirm in Slack, clean up resources
+  - `AGENT_STATUS` → Log agent metrics, update health dashboard
+- **Metrics Collection**: Tracks message processing times and success rates
 
 ### `stream-accumulator.ts`
 - Batches Claude streaming output to avoid Slack rate limits
@@ -92,10 +129,14 @@ Executed in order for every incoming Slack event:
 - Converts markdown to Slack format
 
 ### `offline-queue.ts`
-- Wraps `OfflineQueueRepository`
+- Wraps `OfflineQueueRepository` with enhanced queuing logic
+- **Parallel Processing**: Processes multiple queue entries concurrently
 - Enqueues messages with TTL when agent offline
-- Drains queue on agent reconnection
+- **Priority Queuing**: Supports priority-based message ordering
+- Drains queue on agent reconnection with batch processing
+- **Retry Logic**: Implements exponential backoff for failed deliveries
 - Periodic cleanup of expired messages
+- **Queue Metrics**: Tracks queue depth, processing times, success rates
 
 ---
 
@@ -148,9 +189,135 @@ Primary command interface for development, operations, and configuration:
 
 | Service | File | Purpose |
 |---------|------|---------|
-| `CommandService` | `command.service.ts` | Orchestrates: bot resolution → command parsing → task creation → agent submission; handles task cancellation |
+| `CommandService` | `command.service.ts` | Orchestrates: bot resolution → model routing → task creation → agent submission; handles task cancellation |
 | `NotificationService` | `notification.service.ts` | Slack messaging (progress, completion, errors, stream updates) and emoji reactions |
 | `ProjectService` | `project.service.ts` | CRUD operations for project configuration |
+| `ApiKeyService` | `api-key.service.ts` | API key generation, validation, rotation, and management with database storage |
+| `SlackUserService` | `slack-user.service.ts` | User management, profile caching, and Slack integration |
+| `DeployService` | `deploy.service.ts` | Railway deployment integration |
+| `RetentionService` | `retention.service.ts` | Data retention policy enforcement with archiving capabilities |
+| `HealthService` | `health.service.ts` | Health check and metrics reporting with performance tracking |
+
+---
+
+## Security
+
+### API Key Management
+
+The `ApiKeyService` provides secure API key lifecycle management:
+
+- **Database-backed Storage**: API keys stored in SQLite with metadata
+- **Generation**: Creates cryptographically secure API keys (`bm_` prefix + 64 hex chars)
+- **Validation**: Verifies API keys against database with revocation and expiration checks
+- **Rotation**: Supports key rotation and revocation for security maintenance
+- **Audit Trail**: All key operations are logged for security monitoring
+- **Cleanup**: Automatic removal of expired and revoked keys
+
+### File Validation
+
+The `FileValidator` provides comprehensive security scanning for uploaded files:
+
+- **Magic Number Detection**: Validates file types using byte signatures (PNG, JPEG, PDF, etc.)
+- **MIME Type Validation**: Cross-references file extensions with content using whitelist approach
+- **Security Levels**: Categorizes files as safe, caution, or blocked
+- **Executable Detection**: Blocks executable files (PE, ELF, Mach-O) via magic numbers
+- **Extension Blocking**: Blocks dangerous extensions (.exe, .bat, .ps1, etc.)
+- **Content Scanning**: Basic scanning for malicious patterns (SVG scripts, etc.)
+- **Size Limits**: Enforces category-specific file size limits
+- **Virus Scanning**: Placeholder for future antivirus integration
+
+### Security Headers
+
+The `SecurityHeadersMiddleware` adds essential security headers:
+
+- **CSP**: Content Security Policy preventing XSS attacks
+- **HSTS**: HTTP Strict Transport Security for HTTPS enforcement
+- **Frame Options**: X-Frame-Options to prevent clickjacking
+- **Content Type**: X-Content-Type-Options to prevent MIME sniffing
+- **Referrer Policy**: Controls referrer information leakage
+
+---
+
+## Admin Commands
+
+New `/bm` command structure provides comprehensive management:
+
+| Command | File | Purpose |
+|---------|------|---------|
+| API Keys | `slack/admin-commands/api-keys.ts` | Generate, rotate, and revoke agent API keys with database integration |
+| Archive Management | `slack/admin-commands/archive.ts` | Archive and restore tasks, manage retention policies |
+| Cache Operations | `slack/admin-commands/cache.ts` | Cache statistics, manual invalidation, warming operations |
+| Metrics Dashboard | `slack/admin-commands/metrics.ts` | Real-time system metrics, performance tracking |
+| Performance Tuning | `slack/admin-commands/performance.ts` | Performance optimization recommendations |
+| Agent Management | `slack/admin-commands/agent-commands.ts` | View and manage connected agents |
+| Deployment | `slack/admin-commands/deploy-commands.ts` | Deploy to Railway with build status |
+| Health Monitoring | `slack/admin-commands/health-commands.ts` | System health and metrics |
+| Log Management | `slack/admin-commands/logs-commands.ts` | View prompt history and execution logs |
+| Data Retention | `slack/admin-commands/retention-commands.ts` | Manage data retention policies |
+| Worker Operations | `slack/admin-commands/worker-commands.ts` | Background worker management |
+
+---
+
+## Caching Integration
+
+The cloud package implements a comprehensive caching layer:
+
+### Cache Strategy
+
+- **LRU Eviction**: Least Recently Used items are evicted when cache is full
+- **TTL Support**: Time-to-live expiration for cache entries
+- **Cache Layers**: Multiple cache instances for different data types
+- **Memory Management**: Configurable memory limits and monitoring
+
+### Cache Usage
+
+| Data Type | TTL | Purpose |
+|-----------|-----|----------|
+| User Profiles | 15 minutes | Slack user information caching |
+| Project Metadata | 30 minutes | Project configuration caching |
+| Bot Definitions | 60 minutes | Bot persona and system prompt caching |
+| API Key Validation | 5 minutes | Reduce database hits for key validation |
+| Health Metrics | 1 minute | Recent system health data |
+
+### Cache Metrics
+
+- **Hit/Miss Ratios**: Track cache effectiveness
+- **Memory Usage**: Monitor cache memory consumption
+- **Eviction Rates**: Track how often items are evicted
+- **Response Time**: Measure cache vs database performance
+
+---
+
+## Data Retention & Archival
+
+### Retention Service
+
+The `RetentionService` implements comprehensive data lifecycle management:
+
+**Default Retention Policies**:
+- Tasks: 30 days (completed/failed)
+- Audit logs: 90 days
+- Offline queue: 24 hours
+- Archives: 365 days
+
+**Archival Process**:
+1. **Pre-deletion Archival**: Tasks are archived before deletion if `archiveBeforeDelete: true`
+2. **Archive Storage**: Archived tasks stored in separate `archived_tasks` table with metadata
+3. **Archive Retention**: Archives have separate retention period (default: 1 year)
+4. **Restoration**: Archived tasks can be restored to main table with new IDs
+
+**Archive Metadata**:
+- Original task ID and creation time
+- Archive timestamp and reason
+- Full task data as JSON
+- Project and user associations
+- Task status at archive time
+
+### Archival Triggers
+
+- **Manual**: Via admin commands (`/bm archive`)
+- **Automatic**: Via retention policies (scheduled)
+- **Policy-based**: Custom rules based on task age, status, or size
 
 ---
 
@@ -174,3 +341,16 @@ Stage 2 (production): Copy only package.json + dist artifacts, create /app/data 
 - Build: uses `packages/cloud/Dockerfile`
 - Health check: `/health`, 30s timeout
 - Restart policy: ON_FAILURE, max 5 retries
+- Environment: Production with WSS enforcement
+- Security headers: Enabled via middleware
+
+---
+
+## Cross-References
+
+For detailed information on related topics, see:
+
+- [Security & Authentication (Doc 15)](./15-security-auth.md) - API key management, file validation
+- [Performance & Caching (Doc 16)](./16-performance-caching.md) - Caching strategies, optimization
+- [Monitoring & Metrics (Doc 17)](./17-monitoring-metrics.md) - System metrics, health monitoring
+- [Testing Framework (Doc 18)](./18-testing-framework.md) - Test utilities, integration tests

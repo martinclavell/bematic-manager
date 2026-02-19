@@ -1,5 +1,5 @@
 export { getDatabase, closeDatabase } from './connection.js';
-export type { DB } from './connection.js';
+export type { DB, DB as Database } from './connection.js';
 export { pushSchema } from './migrate.js';
 
 // Schema
@@ -12,6 +12,8 @@ export {
   userProjectPermissions,
   offlineQueue,
   promptHistory,
+  apiKeys,
+  archivedTasks,
 } from './schema/index.js';
 export type {
   ProjectRow,
@@ -29,6 +31,10 @@ export type {
   OfflineQueueInsert,
   PromptHistoryRow,
   PromptHistoryInsert,
+  ApiKeyRow,
+  ApiKeyInsert,
+  ArchivedTaskRow,
+  ArchivedTaskInsert,
 } from './schema/index.js';
 
 // Repositories
@@ -40,4 +46,6 @@ export {
   UserRepository,
   OfflineQueueRepository,
   PromptHistoryRepository,
+  ApiKeyRepository,
+  ArchivedTaskRepository,
 } from './repositories/index.js';

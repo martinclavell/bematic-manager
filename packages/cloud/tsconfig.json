@@ -9,18 +9,16 @@
   "exclude": [
     "src/**/*.test.ts",
     "src/**/*.spec.ts",
+    "**/*.test.ts",
+    "**/*.spec.ts",
     "src/**/*.old.ts",
     "src/**/*.refactored.ts",
     "src/shutdown.ts",
     "src/error-handlers.ts",
     "src/gateway/handlers/**",
-    "src/gateway/agent-health-tracker.ts",
     "src/gateway/message-buffer.ts",
     "src/services/handlers/**",
-    "src/services/retention.service.ts",
-    "src/services/health.service.ts",
-    "src/services/index.ts",
-    "src/slack/admin-commands/**"
+    "src/services/index.ts"
   ],
   "references": [
     { "path": "../common" },

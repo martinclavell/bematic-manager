@@ -11,6 +11,7 @@ import {
 } from '@bematic/common';
 import type { AgentConfig } from '../config.js';
 import { EventEmitter } from 'node:events';
+import { URL } from 'node:url';
 
 const logger = createLogger('ws-client');
 
@@ -28,6 +29,52 @@ export class WSClient extends EventEmitter {
     super();
   }
 
+  /**
+   * Gets the WebSocket URL, respecting the protocol from the configured URL.
+   * Override with AGENT_WS_PROTOCOL env var if needed.
+   */
+  private getWebSocketUrl(): string {
+    const url = new URL(this.config.cloudWsUrl);
+
+    if (process.env.AGENT_WS_PROTOCOL) {
+      url.protocol = process.env.AGENT_WS_PROTOCOL === 'wss' ? 'wss:' : 'ws:';
+      logger.info(
+        { protocol: url.protocol.slice(0, -1) },
+        'Using explicitly configured WebSocket protocol',
+      );
+    } else {
+      logger.info(
+        { protocol: url.protocol.slice(0, -1) },
+        'Using WebSocket protocol from configured URL',
+      );
+    }
+
+    return url.toString();
+  }
+
+  /**
+   * Gets WebSocket client options with security configurations
+   */
+  private getWebSocketOptions(): WebSocket.ClientOptions {
+    const wsUrl = this.getWebSocketUrl();
+    const options: WebSocket.ClientOptions = {};
+
+    // For WSS connections, configure certificate validation
+    if (wsUrl.startsWith('wss://')) {
+      const rejectUnauthorized = process.env.AGENT_WS_REJECT_UNAUTHORIZED !== 'false';
+
+      options.rejectUnauthorized = rejectUnauthorized;
+
+      if (!rejectUnauthorized) {
+        logger.warn('Certificate validation disabled - only use in development!');
+      }
+
+      logger.debug({ rejectUnauthorized }, 'Configured TLS settings for WSS connection');
+    }
+
+    return options;
+  }
+
   connect(): void {
     if (this.closed) return;
 
@@ -39,9 +86,19 @@ export class WSClient extends EventEmitter {
       );
     }
 
-    logger.info({ url: this.config.cloudWsUrl }, 'Connecting to cloud...');
+    const wsUrl = this.getWebSocketUrl();
+    const wsOptions = this.getWebSocketOptions();
 
-    this.ws = new WebSocket(this.config.cloudWsUrl);
+    logger.info(
+      {
+        url: wsUrl,
+        secure: wsUrl.startsWith('wss://'),
+        rejectUnauthorized: wsOptions.rejectUnauthorized
+      },
+      'Connecting to cloud...'
+    );
+
+    this.ws = new WebSocket(wsUrl, wsOptions);
     this.authenticated = false;
 
     this.ws.on('open', () => {

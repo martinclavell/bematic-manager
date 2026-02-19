@@ -5,13 +5,19 @@ import type {
   UserRepository,
   OfflineQueueRepository,
   PromptHistoryRepository,
+  ApiKeyRepository,
 } from '@bematic/db';
 import type { CommandService } from './services/command.service.js';
 import type { ProjectService } from './services/project.service.js';
 import type { NotificationService } from './services/notification.service.js';
 import type { DeployService } from './services/deploy.service.js';
+import type { ApiKeyService } from './services/api-key.service.js';
+import type { HealthService } from './services/health.service.js';
+import type { RetentionService } from './services/retention.service.js';
+import type { SlackUserService } from './services/slack-user.service.js';
 import type { AgentManager } from './gateway/agent-manager.js';
 import type { MessageRouter } from './gateway/message-router.js';
+import type { AgentHealthTracker } from './gateway/agent-health-tracker.js';
 
 /** Shared context injected into all Slack listeners */
 export interface AppContext {
@@ -22,16 +28,22 @@ export interface AppContext {
   userRepo: UserRepository;
   offlineQueueRepo: OfflineQueueRepository;
   promptHistoryRepo: PromptHistoryRepository;
+  apiKeyRepo: ApiKeyRepository;
 
   // Services
   commandService: CommandService;
   projectService: ProjectService;
   notifier: NotificationService;
   deployService: DeployService;
+  apiKeyService: ApiKeyService;
+  healthService: HealthService;
+  retentionService: RetentionService;
+  slackUserService: SlackUserService;
 
   // Gateway
   agentManager: AgentManager;
   messageRouter: MessageRouter;
+  agentHealthTracker: AgentHealthTracker;
 
   // Middleware helpers
   authChecker: {
@@ -43,5 +55,13 @@ export interface AppContext {
   projectResolver: {
     resolve(channelId: string): import('@bematic/db').ProjectRow;
     tryResolve(channelId: string): import('@bematic/db').ProjectRow | null;
+  };
+
+  // Grouped access to services and repositories
+  services: {
+    retentionService: RetentionService;
+  };
+  repositories: {
+    archivedTaskRepo: import('@bematic/db').ArchivedTaskRepository;
   };
 }

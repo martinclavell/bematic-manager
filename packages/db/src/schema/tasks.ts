@@ -1,6 +1,12 @@
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, index } from 'drizzle-orm/sqlite-core';
 import { projects } from './projects.js';
 
+// Critical performance indexes:
+// - status: Fast filtering by task status (pending, running, completed, failed)
+// - projectId: Efficient project-based task queries
+// - thread: Fast Slack thread lookups using composite (channelId + threadTs)
+// - parentTaskId: Quick subtask relationship queries
+// - createdAt: Ordered queries and time-based filtering
 export const tasks = sqliteTable('tasks', {
   id: text('id').primaryKey(),
   projectId: text('project_id').notNull().references(() => projects.id),
@@ -25,7 +31,13 @@ export const tasks = sqliteTable('tasks', {
   createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
   updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
   completedAt: text('completed_at'),
-});
+}, (table) => ({
+  statusIdx: index('tasks_status_idx').on(table.status),
+  projectIdIdx: index('tasks_project_id_idx').on(table.projectId),
+  threadIdx: index('tasks_thread_idx').on(table.slackChannelId, table.slackThreadTs),
+  parentTaskIdIdx: index('tasks_parent_task_id_idx').on(table.parentTaskId),
+  createdAtIdx: index('tasks_created_at_idx').on(table.createdAt),
+}));
 
 export type TaskRow = typeof tasks.$inferSelect;
 export type TaskInsert = typeof tasks.$inferInsert;

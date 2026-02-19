@@ -1,5 +1,6 @@
 import { createLogger, type SlackBlock } from '@bematic/common';
 import { withSlackRetry, FailedNotificationQueue } from '../utils/slack-retry.js';
+import { metrics, MetricNames } from '../utils/metrics.js';
 
 type WebClient = import('@slack/bolt').App['client'];
 
@@ -15,6 +16,8 @@ export class NotificationService {
     text: string,
     threadTs?: string | null,
   ): Promise<string | undefined> {
+    const startTime = Date.now();
+
     try {
       const result = await withSlackRetry(
         () =>
@@ -25,8 +28,19 @@ export class NotificationService {
           }),
         { operation: 'postMessage', channel },
       );
+
+      // Track successful metrics
+      const duration = Date.now() - startTime;
+      metrics.increment(MetricNames.SLACK_MESSAGES_SENT);
+      metrics.histogram(MetricNames.SLACK_API_LATENCY, duration);
+
       return result.ts;
     } catch (error) {
+      // Track failed metrics
+      const duration = Date.now() - startTime;
+      metrics.increment(MetricNames.SLACK_MESSAGES_FAILED);
+      metrics.histogram(MetricNames.SLACK_API_LATENCY, duration);
+
       logger.error({ error, channel }, 'Failed to post Slack message after retries');
       this.failedQueue.enqueue('postMessage', channel, { text, threadTs }, error);
       return undefined;
@@ -39,6 +53,8 @@ export class NotificationService {
     fallbackText: string,
     threadTs?: string | null,
   ): Promise<string | undefined> {
+    const startTime = Date.now();
+
     try {
       const result = await withSlackRetry(
         () =>
@@ -50,8 +66,19 @@ export class NotificationService {
           }),
         { operation: 'postBlocks', channel },
       );
+
+      // Track successful metrics
+      const duration = Date.now() - startTime;
+      metrics.increment(MetricNames.SLACK_MESSAGES_SENT);
+      metrics.histogram(MetricNames.SLACK_API_LATENCY, duration);
+
       return result.ts;
     } catch (error) {
+      // Track failed metrics
+      const duration = Date.now() - startTime;
+      metrics.increment(MetricNames.SLACK_MESSAGES_FAILED);
+      metrics.histogram(MetricNames.SLACK_API_LATENCY, duration);
+
       logger.error({ error, channel }, 'Failed to post Slack blocks after retries');
       this.failedQueue.enqueue('postBlocks', channel, { blocks, fallbackText, threadTs }, error);
       return undefined;
@@ -170,5 +197,86 @@ export class NotificationService {
   /** Clear failed notifications queue */
   clearFailedNotifications(): void {
     this.failedQueue.clear();
+  }
+
+  /**
+   * Notify users about attachment failures with warning emoji and ephemeral message
+   */
+  async notifyAttachmentFailures(
+    channel: string,
+    messageTs: string,
+    failedAttachments: Array<{ name: string; error: string; retries: number }>,
+    userId: string,
+    threadTs?: string | null
+  ): Promise<void> {
+    try {
+      // Add warning emoji reaction to original message
+      await this.addReaction(channel, messageTs, 'warning');
+
+      // Create ephemeral message with failure details
+      const attachmentList = failedAttachments
+        .map(f => `• \`${f.name}\` - ${f.error} (${f.retries} ${f.retries === 1 ? 'retry' : 'retries'})`)
+        .join('\n');
+
+      const ephemeralText = `:warning: **Attachment Processing Failed**
+
+The following files could not be processed:
+${attachmentList}
+
+**What you can do:**
+• Re-upload the files in a different format (PDF, TXT, PNG, JPG)
+• Try smaller file sizes
+• Check that files aren't corrupted
+• Continue without these files - the task will proceed normally`;
+
+      await withSlackRetry(
+        () => this.client.chat.postEphemeral({
+          channel,
+          user: userId,
+          text: ephemeralText,
+          thread_ts: threadTs ?? undefined,
+        }),
+        { operation: 'postAttachmentFailureEphemeral', channel }
+      );
+
+      logger.info(
+        {
+          channel,
+          userId,
+          failedCount: failedAttachments.length,
+          failedFiles: failedAttachments.map(f => f.name)
+        },
+        'Sent attachment failure notification'
+      );
+
+    } catch (error) {
+      logger.error(
+        {
+          error,
+          channel,
+          userId,
+          failedAttachments: failedAttachments.map(f => f.name)
+        },
+        'Failed to send attachment failure notification'
+      );
+    }
+  }
+
+  /**
+   * Send a follow-up message with attachment retry suggestions
+   */
+  async postAttachmentRetryMessage(
+    channel: string,
+    failedCount: number,
+    threadTs?: string | null
+  ): Promise<void> {
+    const message = `:warning: ${failedCount} attachment${failedCount > 1 ? 's' : ''} failed to process. The task will continue without ${failedCount > 1 ? 'them' : 'it'}.
+
+**Retry suggestions:**
+• Re-upload in a different format (PDF, TXT, PNG, JPG)
+• Try smaller file sizes (under 10MB recommended)
+• Ensure files aren't corrupted or password-protected`;
+
+    await this.postMessage(channel, message, threadTs);
   }
 }

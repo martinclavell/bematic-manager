@@ -84,6 +84,10 @@ npm run typecheck
 
 ## Deploy Cloud to Railway
 
+**Complete deployment guide:** See [DEPLOYMENT-READY.md](../DEPLOYMENT-READY.md)
+
+Quick steps:
+
 1. Push to repository
 2. Railway uses `railway.toml` → builds `packages/cloud/Dockerfile`
 3. Health check at `/health`

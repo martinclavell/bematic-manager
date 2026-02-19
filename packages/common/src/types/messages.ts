@@ -69,6 +69,12 @@ export interface AgentStatusPayload {
   status: 'online' | 'busy' | 'offline';
   activeTasks: string[];
   version: string;
+  resourceStatus?: {
+    healthScore: number;
+    memoryUsagePercent: number;
+    cpuUsagePercent: number;
+    canAcceptTasks: boolean;
+  };
 }
 
 export interface AgentMetricsPayload {

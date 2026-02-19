@@ -1,13 +1,23 @@
 import type { App } from '@slack/bolt';
 import {
   Permission,
-  MessageType,
   createLogger,
-  createWSMessage,
-  serializeMessage,
-  generateId,
 } from '@bematic/common';
 import type { AppContext } from '../../context.js';
+import {
+  handleRestartAgent,
+  handleAgentStatus,
+  handleWorkers,
+  handleDeploy,
+  handleDeployStatus,
+  handleDeployLogs,
+  handleCancelTask,
+  handleLogs,
+} from '../handlers/admin-handlers.js';
+import {
+  handleCache,
+  handlePerformance,
+} from '../handlers/cache-performance-handlers.js';
 
 const logger = createLogger('slack:admin');
 
@@ -27,366 +37,90 @@ export function registerAdminListener(app: App, ctx: AppContext) {
 
       switch (subcommand) {
         case 'restart-agent': {
-          const agentIds = ctx.agentManager.getConnectedAgentIds();
-
-          if (agentIds.length === 0) {
-            await respond(':warning: No agents are currently connected.');
-            return;
-          }
-
-          const rebuild = args.includes('--rebuild');
-          let restarted = 0;
-
-          for (const agentId of agentIds) {
-            const msg = createWSMessage(MessageType.SYSTEM_RESTART, {
-              reason: `Restart requested by <@${user_id}> via Slack`,
-              rebuild,
-            });
-            const sent = ctx.agentManager.send(agentId, serializeMessage(msg));
-            if (sent) restarted++;
-          }
-
-          await respond(
-            `:arrows_counterclockwise: Restart signal sent to ${restarted}/${agentIds.length} agent(s).${rebuild ? ' (with rebuild)' : ''} They will reconnect shortly.`,
-          );
-
-          ctx.auditLogRepo.log(
-            'agent:restart',
-            'agent',
-            agentIds.join(','),
-            user_id,
-            { rebuild, agentCount: agentIds.length },
-          );
+          await handleRestartAgent(args, user_id, channel_id, respond, ctx);
           break;
         }
 
         case 'agent-status': {
-          const agentIds = ctx.agentManager.getConnectedAgentIds();
-
-          if (agentIds.length === 0) {
-            await respond(':red_circle: No agents connected.');
-            return;
-          }
-
-          const lines = agentIds.map((id) => {
-            const agent = ctx.agentManager.getAgent(id);
-            if (!agent) return `- \`${id}\`: unknown`;
-            const uptime = Math.round((Date.now() - agent.connectedAt) / 1000);
-            return `- \`${id}\`: *${agent.status}* | Active tasks: ${agent.activeTasks.length} | Connected: ${uptime}s ago`;
-          });
-
-          await respond(`:satellite: *Connected Agents (${agentIds.length}):*\n${lines.join('\n')}`);
+          await handleAgentStatus(args, user_id, channel_id, respond, ctx);
           break;
         }
 
         case 'workers': {
-          const agentIds = ctx.agentManager.getConnectedAgentIds();
-
-          if (agentIds.length === 0) {
-            await respond(':red_circle: *Workers Dashboard* — No agents connected.');
-            return;
-          }
-
-          const sections: string[] = [
-            `:factory: *Workers Dashboard* (${agentIds.length} agent${agentIds.length === 1 ? '' : 's'} connected)`,
-          ];
-
-          let totalRunning = 0;
-          let totalQueued = 0;
-
-          for (const agentId of agentIds) {
-            const agent = ctx.agentManager.getAgent(agentId);
-            if (!agent) continue;
-
-            // Uptime formatting
-            const uptimeMs = Date.now() - agent.connectedAt;
-            const uptimeStr = formatDuration(uptimeMs);
-
-            // Heartbeat ago
-            const heartbeatAgoMs = Date.now() - agent.lastHeartbeat;
-            const heartbeatStr = formatDuration(heartbeatAgoMs);
-
-            // Status icon
-            const statusIcon = agent.status === 'online' ? ':large_green_circle:'
-              : agent.status === 'busy' ? ':large_yellow_circle:'
-              : ':red_circle:';
-
-            // Projects linked to this agent
-            const agentProjects = ctx.projectRepo.findByAgentId(agentId);
-            const projectNames = agentProjects.length > 0
-              ? agentProjects.map((p) => p.name).join(', ')
-              : '_none_';
-
-            // Running tasks across all projects for this agent
-            const runningTasks = agentProjects.flatMap((p) =>
-              ctx.taskRepo.findActiveByProjectId(p.id),
-            );
-
-            // Queued/pending tasks across all projects for this agent
-            const queuedTasks = agentProjects.flatMap((p) => {
-              const allTasks = ctx.taskRepo.findByProjectId(p.id, 50);
-              return allTasks.filter((t) => t.status === 'queued' || t.status === 'pending');
-            });
-
-            totalRunning += runningTasks.length;
-            totalQueued += queuedTasks.length;
-
-            let section =
-              `\n:heavy_minus_sign::heavy_minus_sign::heavy_minus_sign: Agent \`${agentId}\` ${statusIcon} *${agent.status}* :heavy_minus_sign::heavy_minus_sign::heavy_minus_sign:\n` +
-              `> :clock1: Uptime: *${uptimeStr}* | Heartbeat: ${heartbeatStr} ago\n` +
-              `> :file_folder: Projects: ${projectNames}`;
-
-            if (runningTasks.length > 0) {
-              section += `\n> :wrench: *Running Tasks (${runningTasks.length}):*`;
-              for (const task of runningTasks) {
-                const elapsed = formatDuration(Date.now() - new Date(task.createdAt).getTime());
-                const cost = task.estimatedCost > 0 ? ` | $${task.estimatedCost.toFixed(2)}` : '';
-                const promptPreview = task.prompt.length > 40
-                  ? task.prompt.slice(0, 40) + '...'
-                  : task.prompt;
-                section += `\n>    \u2022 \`${task.id}\` [${task.botName}] ${task.command} — "${promptPreview}" — <@${task.slackUserId}> — ${elapsed}${cost}`;
-              }
-            } else {
-              section += `\n> :white_check_mark: No running tasks`;
-            }
-
-            if (queuedTasks.length > 0) {
-              section += `\n> :hourglass_flowing_sand: Queued: ${queuedTasks.length} task${queuedTasks.length === 1 ? '' : 's'}`;
-            }
-
-            sections.push(section);
-          }
-
-          // Summary footer
-          sections.push(
-            `\n:bar_chart: *Totals:* ${totalRunning} running | ${totalQueued} queued | ${agentIds.length} agent${agentIds.length === 1 ? '' : 's'}`,
-          );
-
-          await respond(sections.join('\n'));
+          await handleWorkers(args, user_id, channel_id, respond, ctx);
           break;
         }
 
         case 'deploy': {
-          const project = ctx.projectResolver.tryResolve(channel_id);
-          if (!project) {
-            await respond(':x: No project configured for this channel. Use `/bm-config` first.');
-            return;
-          }
-
-          // Find the agent for this project
-          const agentId = project.agentId;
-          const agent = ctx.agentManager.getAgent(agentId);
-          if (!agent) {
-            await respond(`:x: Agent \`${agentId}\` is not connected. Cannot deploy.`);
-            return;
-          }
-
-          const requestId = generateId('deploy');
-          const msg = createWSMessage(MessageType.DEPLOY_REQUEST, {
-            requestId,
-            localPath: project.localPath,
-            slackChannelId: channel_id,
-            slackThreadTs: null,
-            requestedBy: user_id,
-          });
-
-          // Register so message router knows where to post the result
-          ctx.messageRouter.registerDeployRequest(requestId, channel_id, null, user_id);
-
-          const sent = ctx.agentManager.send(agentId, serializeMessage(msg));
-          if (!sent) {
-            await respond(':x: Failed to send deploy request to agent.');
-            return;
-          }
-
-          await respond(`:rocket: Deploy request sent to agent \`${agentId}\`. Running \`railway up\` in \`${project.localPath}\`...`);
-
-          ctx.auditLogRepo.log(
-            'deploy:requested',
-            'project',
-            project.id,
-            user_id,
-            { agentId, requestId },
-          );
+          await handleDeploy(args, user_id, channel_id, respond, ctx);
           break;
         }
 
         case 'deploy-status': {
-          if (!ctx.deployService.isConfigured()) {
-            await respond(':x: Railway API token not configured.');
-            return;
-          }
-
-          const project = ctx.projectResolver.tryResolve(channel_id);
-          if (!project) {
-            await respond(':x: No project configured for this channel.');
-            return;
-          }
-
-          if (!project.railwayServiceId) {
-            await respond(':x: No Railway service linked to this project.');
-            return;
-          }
-
-          const deployment = await ctx.deployService.getLatestDeployment(
-            project.railwayServiceId,
-            project.railwayEnvironmentId,
-          );
-
-          if (!deployment) {
-            await respond(':information_source: No deployments found for this service.');
-            return;
-          }
-
-          const statusIcon = deployment.status === 'SUCCESS' ? ':white_check_mark:'
-            : deployment.status === 'BUILDING' || deployment.status === 'DEPLOYING' ? ':hourglass_flowing_sand:'
-            : deployment.status === 'FAILED' || deployment.status === 'CRASHED' ? ':x:'
-            : ':grey_question:';
-
-          await respond(
-            `${statusIcon} *Latest Deployment*\n` +
-            `> ID: \`${deployment.id}\`\n` +
-            `> Status: \`${deployment.status}\`\n` +
-            `> Created: ${deployment.createdAt}\n` +
-            (deployment.staticUrl ? `> URL: ${deployment.staticUrl}\n` : ''),
-          );
+          await handleDeployStatus(args, user_id, channel_id, respond, ctx);
           break;
         }
 
         case 'deploy-logs': {
-          if (!ctx.deployService.isConfigured()) {
-            await respond(':x: Railway API token not configured.');
-            return;
-          }
-
-          const project = ctx.projectResolver.tryResolve(channel_id);
-          if (!project?.railwayServiceId) {
-            await respond(':x: No Railway service linked to this project.');
-            return;
-          }
-
-          const deployment = await ctx.deployService.getLatestDeployment(
-            project.railwayServiceId,
-            project.railwayEnvironmentId,
-          );
-
-          if (!deployment) {
-            await respond(':information_source: No deployments found.');
-            return;
-          }
-
-          const logs = await ctx.deployService.getDeploymentLogs(deployment.id);
-          const truncated = logs.length > 2900 ? logs.slice(-2900) + '\n...(truncated)' : logs;
-
-          await respond(
-            `:page_facing_up: *Deploy Logs* (\`${deployment.status}\`)\n\`\`\`${truncated}\`\`\``,
-          );
+          await handleDeployLogs(args, user_id, channel_id, respond, ctx);
           break;
         }
 
 
         case 'cancel-task': {
-          const taskId = args[1];
-          if (!taskId) {
-            await respond(':x: Usage: `/bm-admin cancel-task <task-id>`\n\nYou can find task IDs in the `/bm-admin workers` dashboard.');
-            return;
-          }
+          await handleCancelTask(args, user_id, channel_id, respond, ctx);
+          break;
+        }
 
-          const task = ctx.taskRepo.findById(taskId);
-          if (!task) {
-            await respond(`:x: Task not found: \`${taskId}\``);
-            return;
-          }
+        case 'api-keys': {
+          const { ApiKeyCommands } = await import('../admin-commands/api-keys.js');
+          const apiKeyCommands = new ApiKeyCommands(ctx);
+          await apiKeyCommands.handleApiKeyCommand(args, user_id, respond);
+          break;
+        }
 
-          if (task.status !== 'running' && task.status !== 'queued' && task.status !== 'pending') {
-            await respond(`:x: Task \`${taskId}\` is already ${task.status} and cannot be cancelled.`);
-            return;
-          }
+        case 'cache': {
+          await handleCache(args, user_id, channel_id, respond, ctx);
+          break;
+        }
 
-          // Cancel the task
-          await ctx.commandService.cancel(taskId, `Cancelled by admin <@${user_id}>`);
-
-          await respond(`:octagonal_sign: Task \`${taskId}\` has been cancelled.`);
-
-          // Log audit trail
-          ctx.auditLogRepo.log('task:cancel-admin', 'task', taskId, user_id, {
-            previousStatus: task.status,
-            botName: task.botName,
-            projectId: task.projectId,
-          });
-
-          logger.info({ taskId, userId: user_id }, 'Task cancelled by admin');
+        case 'performance': {
+          await handlePerformance(args, user_id, channel_id, respond, ctx);
           break;
         }
 
         case 'logs': {
-          const limit = parseInt(args[1] || '20', 10);
-          const category = args.find((a, i) => args[i - 1] === '--category');
-          const status = args.find((a, i) => args[i - 1] === '--status');
-          const tag = args.find((a, i) => args[i - 1] === '--tag');
-          const searchText = args.find((a, i) => args[i - 1] === '--search');
+          await handleLogs(args, user_id, channel_id, respond, ctx);
+          break;
+        }
 
-          // Show stats if requested
-          if (args.includes('--stats')) {
-            const stats = ctx.promptHistoryRepo.getStats();
-            await respond(
-              ':bar_chart: *Prompt History Statistics*\n' +
-              `> Total: ${stats.total}\n` +
-              `> :white_check_mark: Completed: ${stats.completed}\n` +
-              `> :hourglass_flowing_sand: Pending: ${stats.pending}\n` +
-              `> :x: Failed: ${stats.failed}\n` +
-              `> :no_entry_sign: Cancelled: ${stats.cancelled}\n` +
-              (stats.averageDuration ? `> :stopwatch: Avg Duration: ${stats.averageDuration}m` : ''),
-            );
-            return;
+        case 'archive': {
+          const { handleArchiveCommand } = await import('../admin-commands/archive.js');
+          const context = { args: args.slice(1), userId: user_id, channelId: channel_id };
+
+          // Need to get retention service and archived task repo from context
+          // This assumes they are available in ctx.services or similar
+          if (!ctx.services?.retentionService || !ctx.repositories?.archivedTaskRepo) {
+            await respond('❌ Archive service not available. Please check system configuration.');
+            break;
           }
 
-          // Fetch prompts
-          const prompts = ctx.promptHistoryRepo.findAll({
-            category,
-            status,
-            tag,
-            searchText,
-            limit: Math.min(limit, 100),
-          });
+          const result = await handleArchiveCommand(
+            context,
+            ctx.services.retentionService,
+            ctx.repositories.archivedTaskRepo
+          );
+          await respond(result);
+          break;
+        }
 
-          if (prompts.length === 0) {
-            await respond(':inbox_tray: No prompts found matching your criteria.');
-            return;
-          }
+        case 'metrics': {
+          const { handleMetricsCommand } = await import('../admin-commands/metrics.js');
+          const { metrics } = await import('../../utils/metrics.js');
+          const context = { args: args.slice(1), userId: user_id, channelId: channel_id };
 
-          // Format prompts
-          const lines: string[] = [`:notebook: *Prompt History* (${prompts.length} results)`];
-
-          for (const prompt of prompts.slice(0, 20)) {
-            const statusIcon = prompt.executionStatus === 'completed' ? ':white_check_mark:'
-              : prompt.executionStatus === 'pending' ? ':hourglass_flowing_sand:'
-              : prompt.executionStatus === 'failed' ? ':x:'
-              : ':no_entry_sign:';
-
-            const tags = JSON.parse(prompt.tags) as string[];
-            const files = JSON.parse(prompt.relatedFiles) as string[];
-
-            const timestamp = new Date(prompt.timestamp);
-            const ago = formatDuration(Date.now() - timestamp.getTime());
-
-            let line = `\n${statusIcon} *#${prompt.id}* | ${ago} ago`;
-            if (prompt.category) line += ` | :file_folder: ${prompt.category}`;
-            line += `\n> ${prompt.prompt.length > 100 ? prompt.prompt.slice(0, 100) + '...' : prompt.prompt}`;
-
-            if (tags.length > 0) line += `\n> :label: ${tags.join(', ')}`;
-            if (prompt.executionNotes) line += `\n> :memo: ${prompt.executionNotes.length > 80 ? prompt.executionNotes.slice(0, 80) + '...' : prompt.executionNotes}`;
-            if (files.length > 0) line += `\n> :page_facing_up: ${files.length} file(s)`;
-            if (prompt.actualDurationMinutes) line += ` | :stopwatch: ${prompt.actualDurationMinutes}m`;
-
-            lines.push(line);
-          }
-
-          if (prompts.length > 20) {
-            lines.push(`\n_Showing first 20 of ${prompts.length} results_`);
-          }
-
-          await respond(lines.join('\n'));
+          const result = await handleMetricsCommand(context, metrics);
+          await respond(result);
           break;
         }
         case 'help':
@@ -398,6 +132,7 @@ export function registerAdminListener(app: App, ctx: AppContext) {
             '`/bm-admin restart-agent` - Restart all connected agents\n' +
             '`/bm-admin restart-agent --rebuild` - Restart with TypeScript rebuild\n' +
             '`/bm-admin agent-status` - Show connected agent status\n' +
+            '`/bm-admin api-keys` - Manage API keys (list, generate, revoke, cleanup)\n' +
             '`/bm-admin deploy` - Deploy project linked to this channel\n' +
             '`/bm-admin deploy-status` - Check latest deployment status\n' +
             '`/bm-admin deploy-logs` - View latest deployment logs\n' +
@@ -405,7 +140,11 @@ export function registerAdminListener(app: App, ctx: AppContext) {
             '`/bm-admin logs --stats` - Show prompt history statistics\n' +
             '`/bm-admin logs --category <name>` - Filter by category\n' +
             '`/bm-admin logs --status <status>` - Filter by status\n' +
-            '`/bm-admin logs --tag <tag>` - Filter by tag\n',
+            '`/bm-admin logs --tag <tag>` - Filter by tag\n' +
+            '`/bm-admin cache <subcommand>` - Cache management (stats, clear, warm, invalidate)\n' +
+            '`/bm-admin performance <subcommand>` - Performance monitoring (metrics, summary, events, reset)\n' +
+            '`/bm-admin archive <subcommand>` - Archive management (list, restore, delete, stats)\n' +
+            '`/bm-admin metrics <subcommand>` - Real-time metrics (show, summary, top, reset, export)\n',
           );
           break;
       }
@@ -418,24 +157,3 @@ export function registerAdminListener(app: App, ctx: AppContext) {
   });
 }
 
-/** Format milliseconds into a human-readable duration (e.g. "2h 34m", "45s") */
-function formatDuration(ms: number): string {
-  const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `${seconds}s`;
-
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) {
-    const secs = seconds % 60;
-    return secs > 0 ? `${minutes}m ${secs}s` : `${minutes}m`;
-  }
-
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  if (hours < 24) {
-    return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-  }
-
-  const days = Math.floor(hours / 24);
-  const hrs = hours % 24;
-  return hrs > 0 ? `${days}d ${hrs}h` : `${days}d`;
-}

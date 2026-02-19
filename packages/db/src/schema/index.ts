@@ -17,3 +17,9 @@ export { offlineQueue } from './offline-queue.js';
 export type { OfflineQueueRow, OfflineQueueInsert } from './offline-queue.js';
 export { promptHistory } from "./prompt-history.js";
 export type { PromptHistoryRow, PromptHistoryInsert } from "./prompt-history.js";
+
+export { apiKeys } from './api-keys.js';
+export type { ApiKeyRow, ApiKeyInsert } from './api-keys.js';
+
+export { archivedTasks } from './archived-tasks.js';
+export type { ArchivedTaskRow, ArchivedTaskInsert } from './archived-tasks.js';

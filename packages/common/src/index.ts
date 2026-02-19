@@ -39,6 +39,7 @@ export type {
   TaskCompletePayload,
   TaskErrorPayload,
   TaskCancelPayload,
+  AttachmentResult,
   Project,
   ProjectCreateInput,
   User,
@@ -76,6 +77,15 @@ export {
   taskErrorSchema,
   taskCancelSchema,
   parsedCommandSchema,
+  // Inferred types for better TypeScript support
+  type TaskAckData,
+  type TaskProgressData,
+  type TaskStreamData,
+  type TaskCompleteData,
+  type TaskErrorData,
+  type TaskCancelData,
+  type AuthRequestData,
+  type AuthResponseData,
   projectCreateSchema,
 } from './schemas/index.js';
 
@@ -104,3 +114,25 @@ export {
   truncateForSectionBlock,
 } from './utils/index.js';
 export type { Logger, RetryOptions, TruncationOptions } from './utils/index.js';
+
+// Cache
+export {
+  CacheManager,
+  MemoryCache,
+  globalCache,
+  projectCache,
+  agentCache,
+  userCache,
+  CacheKeys,
+  CacheInvalidators,
+} from './cache/index.js';
+export type { CacheEntry, CacheStats, CacheOptions } from './cache/index.js';
+
+// Performance Monitoring
+export {
+  PerformanceMonitor,
+  performanceMonitor,
+} from './monitoring/index.js';
+export type { PerformanceMetrics, PerformanceEvent } from './monitoring/index.js';
+
+// Test utilities (for development and testing)

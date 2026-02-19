@@ -11,10 +11,11 @@ import {
   type SubtaskDefinition,
 } from '@bematic/common';
 import type { ProjectRow, TaskRepository, AuditLogRepository, TaskRow } from '@bematic/db';
-import { ResponseBuilder } from '@bematic/bots';
+import { ResponseBuilder, BotRegistry } from '@bematic/bots';
 import { AgentManager } from '../gateway/agent-manager.js';
 import { OfflineQueue } from '../gateway/offline-queue.js';
 import { NotificationService } from './notification.service.js';
+import { metrics, MetricNames } from '../utils/metrics.js';
 
 const logger = createLogger('command-service');
 
@@ -83,6 +84,10 @@ export class CommandService {
       parentTaskId: parentTaskId ?? null,
     });
 
+    // Track metrics for task submission
+    metrics.increment(MetricNames.TASKS_SUBMITTED);
+    metrics.gauge(MetricNames.ACTIVE_TASKS, this.taskRepo.findActiveByProjectId('').length);
+
     // Audit log
     this.auditLogRepo.log('task:created', 'task', taskId, slackContext.userId, {
       botName: bot.name,
@@ -114,6 +119,12 @@ export class CommandService {
     });
 
     // Send to agent (auto-resolve to any available agent)
+    const connectedAgents = this.agentManager.getConnectedAgentIds();
+    logger.info(
+      { taskId, preferredAgent: project.agentId, connectedAgents, connectedCount: connectedAgents.length },
+      'Resolving agent for task',
+    );
+
     const resolvedAgentId = this.agentManager.resolveAndSend(project.agentId, serializeMessage(wsMsg));
 
     if (!resolvedAgentId) {
@@ -180,6 +191,10 @@ export class CommandService {
       slackMessageTs: slackContext.messageTs ?? null,
       maxBudget: decompositionConfig.maxBudget,
     });
+
+    // Track metrics for decomposition task submission
+    metrics.increment(MetricNames.TASKS_SUBMITTED);
+    metrics.gauge(MetricNames.ACTIVE_TASKS, this.taskRepo.findActiveByProjectId('').length);
 
     this.auditLogRepo.log('task:created', 'task', parentTaskId, slackContext.userId, {
       botName: bot.name,
@@ -355,6 +370,22 @@ export class CommandService {
   }
 
   async resubmit(task: TaskRow, project: ProjectRow): Promise<string> {
+    // Reconstruct bot config so retry uses the same system prompt and tools
+    const bot = BotRegistry.get(task.botName as BotName);
+    const command: ParsedCommand = bot?.parseCommand(task.prompt) ?? {
+      botName: task.botName as BotName,
+      command: task.command,
+      args: task.prompt,
+      flags: {},
+      rawText: task.prompt,
+    };
+    const execConfig = bot?.buildExecutionConfig(command, {
+      name: project.name,
+      localPath: project.localPath,
+      defaultModel: project.defaultModel,
+      defaultMaxBudget: project.defaultMaxBudget,
+    });
+
     // Create a new task based on the old one
     const taskId = generateTaskId();
     this.taskRepo.create({
@@ -370,24 +401,37 @@ export class CommandService {
       maxBudget: task.maxBudget,
     });
 
-    // Re-send to agent
+    // Track metrics for continued task submission
+    metrics.increment(MetricNames.TASKS_SUBMITTED);
+    metrics.gauge(MetricNames.ACTIVE_TASKS, this.taskRepo.findActiveByProjectId('').length);
+
+    // Resume the previous Claude session if one exists
+    const resumeSessionId = task.sessionId ?? null;
+
     const wsMsg = createWSMessage(MessageType.TASK_SUBMIT, {
       taskId,
       projectId: task.projectId,
       botName: task.botName as BotName,
       command: task.command,
       prompt: task.prompt,
-      systemPrompt: '', // Will use default from bot
+      systemPrompt: execConfig?.systemPrompt ?? '',
       localPath: project.localPath,
-      model: project.defaultModel,
+      model: execConfig?.model ?? project.defaultModel,
       maxBudget: task.maxBudget,
-      allowedTools: [],
+      allowedTools: execConfig?.allowedTools ?? [],
+      resumeSessionId,
       slackContext: {
         channelId: task.slackChannelId,
         threadTs: task.slackThreadTs,
         userId: task.slackUserId,
       },
     });
+
+    const connectedAgents = this.agentManager.getConnectedAgentIds();
+    logger.info(
+      { taskId, originalTaskId: task.id, resumeSessionId, connectedAgents: connectedAgents.length },
+      'Resubmitting task (retry)',
+    );
 
     const resolvedAgentId = this.agentManager.resolveAndSend(project.agentId, serializeMessage(wsMsg));
     if (!resolvedAgentId) {

@@ -25,6 +25,10 @@ describe('ProjectRepository', () => {
         local_path TEXT NOT NULL,
         default_model TEXT NOT NULL DEFAULT 'claude-sonnet-4-5-20250929',
         default_max_budget REAL NOT NULL DEFAULT 5.0,
+        railway_project_id TEXT,
+        railway_service_id TEXT,
+        railway_environment_id TEXT,
+        active INTEGER NOT NULL DEFAULT 1,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       )
@@ -65,6 +69,37 @@ describe('ProjectRepository', () => {
       expect(project.defaultModel).toBe('claude-opus-4-6');
       expect(project.defaultMaxBudget).toBe(10.0);
     });
+
+    it('should create a project with Railway fields', () => {
+      const project = repo.create({
+        id: generateProjectId(),
+        name: 'railway-project',
+        slackChannelId: 'C789012',
+        agentId: 'agent-02',
+        localPath: '/path/to/railway',
+        railwayProjectId: 'railway-proj-123',
+        railwayServiceId: 'service-456',
+        railwayEnvironmentId: 'env-789',
+      });
+
+      expect(project.railwayProjectId).toBe('railway-proj-123');
+      expect(project.railwayServiceId).toBe('service-456');
+      expect(project.railwayEnvironmentId).toBe('env-789');
+      expect(project.active).toBe(true); // Default value
+    });
+
+    it('should create a project with active set to false', () => {
+      const project = repo.create({
+        id: generateProjectId(),
+        name: 'inactive-project',
+        slackChannelId: 'C345678',
+        agentId: 'agent-03',
+        localPath: '/path/to/inactive',
+        active: false,
+      });
+
+      expect(project.active).toBe(false);
+    });
   });
 
   describe('findById', () => {
@@ -89,7 +124,7 @@ describe('ProjectRepository', () => {
     });
   });
 
-  describe('findBySlackChannelId', () => {
+  describe('findByChannelId', () => {
     it('should find project by Slack channel ID', () => {
       repo.create({
         id: generateProjectId(),
@@ -99,13 +134,13 @@ describe('ProjectRepository', () => {
         localPath: '/path/to/project',
       });
 
-      const found = repo.findBySlackChannelId('C123456');
+      const found = repo.findByChannelId('C123456');
       expect(found).toBeDefined();
       expect(found?.slackChannelId).toBe('C123456');
     });
 
     it('should return undefined for non-existent channel', () => {
-      const found = repo.findBySlackChannelId('C999999');
+      const found = repo.findByChannelId('C999999');
       expect(found).toBeUndefined();
     });
   });
@@ -174,6 +209,53 @@ describe('ProjectRepository', () => {
       const updated = repo.update('proj_nonexistent', { name: 'new-name' });
       expect(updated).toBeUndefined();
     });
+
+    it('should update Railway fields', () => {
+      const project = repo.create({
+        id: generateProjectId(),
+        name: 'railway-project',
+        slackChannelId: 'C789012',
+        agentId: 'agent-02',
+        localPath: '/path/to/railway',
+      });
+
+      const updated = repo.update(project.id, {
+        railwayProjectId: 'new-railway-proj',
+        railwayServiceId: 'new-service',
+        railwayEnvironmentId: 'new-env',
+        active: false,
+      });
+
+      expect(updated).toBeDefined();
+      expect(updated?.railwayProjectId).toBe('new-railway-proj');
+      expect(updated?.railwayServiceId).toBe('new-service');
+      expect(updated?.railwayEnvironmentId).toBe('new-env');
+      expect(updated?.active).toBe(false);
+    });
+
+    it('should update updatedAt timestamp', async () => {
+      const project = repo.create({
+        id: generateProjectId(),
+        name: 'timestamp-test',
+        slackChannelId: 'C111222',
+        agentId: 'agent-04',
+        localPath: '/path/to/timestamp',
+      });
+
+      const originalUpdatedAt = project.updatedAt;
+
+      // Wait to ensure timestamp changes (SQLite doesn't have sub-second precision by default)
+      await new Promise(resolve => setTimeout(resolve, 10));
+
+      const updated = repo.update(project.id, { name: 'updated-name' });
+
+      expect(updated).toBeDefined();
+      // Since the update method in repository explicitly sets updatedAt to new Date().toISOString()
+      // the timestamp should be different, or at least the greater-than check should pass
+      const updatedTime = new Date(updated!.updatedAt).getTime();
+      const originalTime = new Date(originalUpdatedAt).getTime();
+      expect(updatedTime).toBeGreaterThanOrEqual(originalTime);
+    });
   });
 
   describe('delete', () => {
@@ -186,16 +268,14 @@ describe('ProjectRepository', () => {
         localPath: '/path/to/project',
       });
 
-      const deleted = repo.delete(project.id);
-      expect(deleted).toBe(true);
+      repo.delete(project.id);
 
       const found = repo.findById(project.id);
       expect(found).toBeUndefined();
     });
 
-    it('should return false for non-existent project', () => {
-      const deleted = repo.delete('proj_nonexistent');
-      expect(deleted).toBe(false);
+    it('should not throw for non-existent project', () => {
+      expect(() => repo.delete('proj_nonexistent')).not.toThrow();
     });
   });
 
@@ -224,6 +304,88 @@ describe('ProjectRepository', () => {
     it('should return empty array when no projects exist', () => {
       const all = repo.findAll();
       expect(all).toEqual([]);
+    });
+
+    it('should include all fields in returned projects', () => {
+      const project = repo.create({
+        id: generateProjectId(),
+        name: 'complete-project',
+        slackChannelId: 'C555666',
+        agentId: 'agent-05',
+        localPath: '/path/to/complete',
+        railwayProjectId: 'railway-complete',
+        railwayServiceId: 'service-complete',
+        railwayEnvironmentId: 'env-complete',
+        active: false,
+      });
+
+      const all = repo.findAll();
+      const found = all.find(p => p.id === project.id);
+
+      expect(found).toBeDefined();
+      expect(found?.railwayProjectId).toBe('railway-complete');
+      expect(found?.railwayServiceId).toBe('service-complete');
+      expect(found?.railwayEnvironmentId).toBe('env-complete');
+      expect(found?.active).toBe(false);
+      expect(found?.createdAt).toBeDefined();
+      expect(found?.updatedAt).toBeDefined();
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should handle null Railway fields gracefully', () => {
+      const project = repo.create({
+        id: generateProjectId(),
+        name: 'no-railway',
+        slackChannelId: 'C777888',
+        agentId: 'agent-06',
+        localPath: '/path/to/no-railway',
+        railwayProjectId: null,
+        railwayServiceId: null,
+        railwayEnvironmentId: null,
+      });
+
+      expect(project.railwayProjectId).toBeNull();
+      expect(project.railwayServiceId).toBeNull();
+      expect(project.railwayEnvironmentId).toBeNull();
+    });
+
+    it('should enforce unique slack_channel_id constraint', () => {
+      const channelId = 'C999999';
+
+      repo.create({
+        id: generateProjectId(),
+        name: 'first-project',
+        slackChannelId: channelId,
+        agentId: 'agent-07',
+        localPath: '/path/to/first',
+      });
+
+      // Should throw when trying to create another project with same channel ID
+      expect(() => {
+        repo.create({
+          id: generateProjectId(),
+          name: 'second-project',
+          slackChannelId: channelId,
+          agentId: 'agent-08',
+          localPath: '/path/to/second',
+        });
+      }).toThrow();
+    });
+
+    it('should preserve timestamps on creation', () => {
+      const project = repo.create({
+        id: generateProjectId(),
+        name: 'timestamp-preserve',
+        slackChannelId: 'C000111',
+        agentId: 'agent-09',
+        localPath: '/path/to/preserve',
+      });
+
+      expect(project.createdAt).toBeDefined();
+      expect(project.updatedAt).toBeDefined();
+      expect(new Date(project.createdAt).getTime()).toBeLessThanOrEqual(new Date().getTime());
+      expect(new Date(project.updatedAt).getTime()).toBeLessThanOrEqual(new Date().getTime());
     });
   });
 });

@@ -3,6 +3,7 @@ import { Permission, createLogger } from '@bematic/common';
 import { BotRegistry } from '@bematic/bots';
 import type { AppContext } from '../../context.js';
 import { downloadSlackFiles, describeAttachments } from './file-utils.js';
+import { extractFiles, extractThreadTs, type SlackMessage } from '../../types/slack.js';
 
 const logger = createLogger('slack:messages');
 
@@ -13,9 +14,7 @@ export function registerMessageListener(app: App, ctx: AppContext) {
     if (!('user' in message) || !message.user) return;
 
     const rawText = ('text' in message ? message.text : '') ?? '';
-    const files = ('files' in message ? (message as any).files : undefined) as
-      | Array<{ url_private_download?: string; url_private: string; name: string; mimetype: string; filetype: string; size?: number }>
-      | undefined;
+    const files = extractFiles(message);
 
     // Skip if there's no text AND no files
     if (!rawText.trim() && (!files || files.length === 0)) return;
@@ -24,12 +23,7 @@ export function registerMessageListener(app: App, ctx: AppContext) {
     const text = rawText.trim() || 'Analyze the attached file(s)';
     if (text.length < 1) return;
 
-    const { user, channel, ts } = message as {
-      user: string;
-      channel: string;
-      ts: string;
-      thread_ts?: string;
-    };
+    const { user, channel, ts } = message as SlackMessage;
 
     // Only process messages in channels with a configured project
     const project = ctx.projectResolver.tryResolve(channel);
@@ -38,8 +32,8 @@ export function registerMessageListener(app: App, ctx: AppContext) {
     // Skip messages that are just slash commands or very short
     if (text.startsWith('/') || text.trim().length < 3) return;
 
-    const threadTs = (message as any).thread_ts ?? ts;
-    const isThreadReply = !!(message as any).thread_ts;
+    const threadTs = extractThreadTs(message) ?? ts;
+    const isThreadReply = !!extractThreadTs(message);
 
     const hasFiles = !!(files && files.length > 0);
     logger.info({ user, channel, text: text.slice(0, 100), isThreadReply, threadTs, hasFiles, fileCount: files?.length ?? 0 }, 'Channel message received');
@@ -48,6 +42,9 @@ export function registerMessageListener(app: App, ctx: AppContext) {
     await ctx.notifier.addReaction(channel, ts, 'hourglass_flowing_sand');
 
     try {
+      // Preload user info into cache for better performance
+      await ctx.slackUserService.preloadUserInfo(user);
+
       // Auth check
       await ctx.authChecker.checkPermission(user, Permission.TASK_CREATE);
 
@@ -64,7 +61,7 @@ export function registerMessageListener(app: App, ctx: AppContext) {
 
       if (!resolved) {
         // Default: treat the entire message as a coder task
-        const coderBot = BotRegistry.get('coder' as any);
+        const coderBot = BotRegistry.get('coder');
         if (!coderBot) return;
         const command = coderBot.parseCommand(text);
         resolved = { bot: coderBot, command };

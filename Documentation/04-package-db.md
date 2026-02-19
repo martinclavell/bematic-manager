@@ -134,6 +134,18 @@ All tables use TEXT primary keys (nanoid-generated) except `audit_logs`, `offlin
 | `delivered` | BOOLEAN NOT NULL | default: false |
 | `delivered_at` | TEXT NULL | |
 
+### `api_keys` table
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | TEXT PK | nanoid |
+| `key` | TEXT NOT NULL UNIQUE | encrypted API key |
+| `agent_id` | TEXT NOT NULL | agent identifier |
+| `created_at` | INTEGER NOT NULL | timestamp |
+| `expires_at` | INTEGER NULL | timestamp |
+| `last_used_at` | INTEGER NULL | timestamp |
+| `revoked` | BOOLEAN NOT NULL | default: false |
+
 ### `prompt_history` table
 
 | Column | Type | Notes |
@@ -165,6 +177,7 @@ All repositories extend `BaseRepository` which receives a DB instance via constr
 | `UserRepository` | `create`, `findById`, `findBySlackUserId`, `upsert`, `updateRole`, `findAll` |
 | `AuditLogRepository` | `create`, `log(action, resourceType, resourceId?, userId?, metadata?)`, `findRecent(limit?)` |
 | `OfflineQueueRepository` | `enqueue`, `findPendingByAgentId`, `markDelivered`, `cleanExpired` |
+| `ApiKeyRepository` | `create`, `findById`, `findByKey`, `findByAgentId`, `updateLastUsed`, `revoke`, `findActive`, `cleanup` |
 | `PromptHistoryRepository` | `create`, `log(prompt, options?)`, `findById`, `findAll(options?)`, `findRecent(limit?)`, `update`, `complete`, `fail`, `cancel`, `getStats`, `getCategories`, `getTags`, `delete` |
 
 ---
@@ -235,79 +248,11 @@ npm run log-prompt -- "Update docs" --category documentation --context "API refe
 
 ```typescript
 // Row types (select)
-ProjectRow, TaskRow, SessionRow, UserRow, UserProjectPermissionRow, AuditLogRow, OfflineQueueRow, PromptHistoryRow
+ProjectRow, TaskRow, SessionRow, UserRow, UserProjectPermissionRow, AuditLogRow, OfflineQueueRow, ApiKeyRow, PromptHistoryRow
 
 // Insert types
-ProjectInsert, TaskInsert, SessionInsert, UserInsert, AuditLogInsert, OfflineQueueInsert, PromptHistoryInsert
+ProjectInsert, TaskInsert, SessionInsert, UserInsert, AuditLogInsert, OfflineQueueInsert, ApiKeyInsert, PromptHistoryInsert
 
 // Database connection type
 DB
-```
-# 04 — Package: @bematic/db
-
-[← Back to Index](./README.md)
-
----
-
-**Purpose**: Database layer — SQLite schema, connection management, and repository pattern for data access.
-
-**Dependencies**: `@bematic/common`, `better-sqlite3`, `drizzle-orm`
-**Dev Dependencies**: `drizzle-kit`
-
----
-
-## Connection (`connection.ts`)
-
-- SQLite via `better-sqlite3`
-- Path: `DATABASE_URL` env var or `./data/bematic.db`
-- Performance pragmas applied on connect:
-  - WAL journal mode
-  - 5s busy timeout
-  - 20MB cache
-  - Foreign keys enabled
-  - NORMAL synchronous mode
-
----
-
-## Schema
-
-All tables use TEXT primary keys (nanoid-generated) except `audit_logs`, `offline_queue`, `user_project_permissions`, and `prompt_history` which use INTEGER autoincrement.
-
-### `prompt_history` table
-
-| Column | Type | Notes |
-|--------|------|-------|
-| `id` | INTEGER PK AUTO | |
-| `prompt` | TEXT NOT NULL | The task/prompt text |
-| `category` | TEXT NULL | feature/bugfix/refactor/documentation/research |
-| `tags` | TEXT NOT NULL | JSON array, default: `[]` |
-| `context` | TEXT NULL | Additional context/notes |
-| `related_files` | TEXT NOT NULL | JSON array of file paths, default: `[]` |
-| `execution_status` | TEXT NOT NULL | pending/completed/failed/cancelled, default: 'pending' |
-| `execution_notes` | TEXT NULL | What was actually done |
-| `estimated_duration_minutes` | INTEGER NULL | |
-| `actual_duration_minutes` | INTEGER NULL | |
-| `timestamp` | TEXT NOT NULL | ISO string |
-| `completed_at` | TEXT NULL | ISO string |
-
----
-
-## Repositories
-
-All repositories extend `BaseRepository` which receives a DB instance via constructor injection.
-
-| Repository | Key Methods |
-|-----------|-------------|
-| `PromptHistoryRepository` | `create`, `log(prompt, options?)`, `findById`, `findAll(options?)`, `findRecent(limit?)`, `update`, `complete`, `fail`, `cancel`, `getStats`, `getCategories`, `getTags`, `delete` |
-
----
-
-## Exported Types
-
-```typescript
-// Row types (select)
-PromptHistoryRow
-
-// Insert types
-PromptHistoryInsert
 ```

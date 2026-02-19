@@ -1,6 +1,7 @@
 import { createLogger, MessageType, createWSMessage } from '@bematic/common';
 import type { WSClient } from './connection/ws-client.js';
 import type { QueueProcessor } from './executor/queue-processor.js';
+import type { ResourceMonitor } from './monitoring/resource-monitor.js';
 
 const logger = createLogger('agent-shutdown');
 
@@ -8,6 +9,7 @@ export interface ShutdownDependencies {
   wsClient: WSClient;
   queueProcessor: QueueProcessor;
   agentId: string;
+  resourceMonitor?: ResourceMonitor;
 }
 
 /**
@@ -53,21 +55,38 @@ export function createShutdownHandler(deps: ShutdownDependencies) {
         }
       }
 
-      // 3. Send final status update to cloud (if still connected)
+      // 3. Stop resource monitoring
+      if (deps.resourceMonitor) {
+        logger.info('Stopping resource monitoring...');
+        deps.resourceMonitor.stopMonitoring();
+      }
+
+      // 4. Send final status update to cloud (if still connected)
       try {
-        deps.wsClient.send(
-          createWSMessage(MessageType.AGENT_STATUS, {
-            agentId: deps.agentId,
-            status: 'offline',
-            activeTasks: [],
-            version: '1.0.0',
-          }),
-        );
+        const finalStatus: any = {
+          agentId: deps.agentId,
+          status: 'offline',
+          activeTasks: [],
+          version: '1.0.0',
+        };
+
+        // Include final resource status if available
+        if (deps.resourceMonitor) {
+          const resourceStatus = deps.resourceMonitor.getCurrentStatus();
+          finalStatus.resourceStatus = {
+            healthScore: resourceStatus.healthScore,
+            memoryUsagePercent: resourceStatus.memory.percentUsed,
+            cpuUsagePercent: resourceStatus.cpu.percent,
+            canAcceptTasks: false,
+          };
+        }
+
+        deps.wsClient.send(createWSMessage(MessageType.AGENT_STATUS, finalStatus));
       } catch (err) {
         logger.debug({ err }, 'Could not send final status (connection may be closed)');
       }
 
-      // 4. Close WebSocket connection
+      // 5. Close WebSocket connection
       logger.info('Closing WebSocket connection...');
       deps.wsClient.close();
 

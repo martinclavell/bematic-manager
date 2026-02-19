@@ -15,6 +15,8 @@ export const Permission = {
   BOT_CONFIG: 'bot:config',
   USER_MANAGE: 'user:manage',
   AUDIT_VIEW: 'audit:view',
+  ADMIN_VIEW: 'admin:view',
+  ADMIN_MANAGE: 'admin:manage',
 } as const;
 
 export type Permission = (typeof Permission)[keyof typeof Permission];

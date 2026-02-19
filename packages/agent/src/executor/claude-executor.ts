@@ -1,14 +1,28 @@
 import { query, type SDKMessage, type SDKResultMessage, type SDKAssistantMessage } from '@anthropic-ai/claude-code';
-import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import {
+  isSystemInitMessage,
+  isResultMessage,
+  isAssistantMessage,
+  extractSessionId,
+  extractResultText,
+  hasTextContent,
+  type QueryOptions,
+} from '../types/claude-sdk.js';
+import { writeFile, mkdir } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   MessageType,
   Limits,
   createWSMessage,
   createLogger,
+  performanceMonitor,
   type TaskSubmitPayload,
+  type AttachmentResult,
 } from '@bematic/common';
 import type { WSClient } from '../connection/ws-client.js';
+import type { ResourceLimits } from '../monitoring/resource-monitor.js';
+import { TempFileManager } from './temp-file-manager.js';
 
 const logger = createLogger('claude-executor');
 
@@ -23,6 +37,8 @@ export interface ExecutionResult {
   durationMs: number;
   /** Number of auto-continuations that were performed (0 = completed in one shot) */
   continuations: number;
+  /** Attachment processing results */
+  attachmentResults?: AttachmentResult[];
 }
 
 /** Result of a single Claude SDK invocation (one query() call) */
@@ -36,48 +52,234 @@ interface InvocationResult {
 }
 
 export class ClaudeExecutor {
+  private tempFileManager: TempFileManager;
+
   constructor(
     private readonly wsClient: WSClient,
     private readonly defaultMaxContinuations: number = Limits.MAX_CONTINUATIONS,
-  ) {}
+    private readonly resourceLimits?: ResourceLimits,
+    tempFileOptions?: {
+      maxAgeHours?: number;
+      maxTotalSizeMB?: number;
+      cleanupIntervalMs?: number;
+    }
+  ) {
+    this.tempFileManager = new TempFileManager(tempFileOptions);
+  }
 
   /**
-   * Save file attachments from Slack to a temp directory inside the project.
-   * Returns the list of saved file paths for inclusion in the prompt.
+   * Get temp file statistics
    */
-  private saveAttachments(task: TaskSubmitPayload): string[] {
-    if (!task.attachments || task.attachments.length === 0) return [];
+  getTempFileStats() {
+    return this.tempFileManager.getStats();
+  }
+
+  /**
+   * Get list of tracked temp files
+   */
+  getTrackedTempFiles() {
+    return this.tempFileManager.getTrackedFiles();
+  }
+
+  /**
+   * Manually clean up all temp files
+   */
+  async cleanupAllTempFiles() {
+    return this.tempFileManager.cleanupAll();
+  }
+
+  /**
+   * Perform temp file cleanup
+   */
+  async performTempFileCleanup() {
+    return this.tempFileManager.performCleanup();
+  }
+
+  /**
+   * Process file attachments from Slack with retry logic and failure tracking.
+   * Returns results for each attachment including success/failure status.
+   */
+  private async processAttachments(task: TaskSubmitPayload): Promise<{ results: AttachmentResult[]; savedPaths: string[] }> {
+    if (!task.attachments || task.attachments.length === 0) {
+      return { results: [], savedPaths: [] };
+    }
 
     const attachDir = join(task.localPath, '.bematic-attachments');
     if (!existsSync(attachDir)) {
-      mkdirSync(attachDir, { recursive: true });
+      await performanceMonitor.recordFileOperation(
+        'mkdir',
+        () => mkdir(attachDir, { recursive: true }),
+        { path: attachDir }
+      );
     }
 
+    const results: AttachmentResult[] = [];
     const savedPaths: string[] = [];
 
     for (const attachment of task.attachments) {
-      try {
-        // Use taskId prefix to avoid collisions
-        const safeFilename = `${task.taskId.slice(-8)}_${attachment.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-        const filePath = join(attachDir, safeFilename);
-        const buffer = Buffer.from(attachment.data, 'base64');
+      const result = await this.processAttachmentWithRetry(attachment, attachDir, task.taskId);
+      results.push(result);
 
-        writeFileSync(filePath, buffer);
-        savedPaths.push(filePath);
-
-        logger.info(
-          { name: attachment.name, path: filePath, size: buffer.length },
-          'Saved attachment to disk',
-        );
-      } catch (error) {
-        logger.error(
-          { name: attachment.name, error: error instanceof Error ? error.message : String(error) },
-          'Failed to save attachment',
-        );
+      if (result.status === 'success' && result.path) {
+        savedPaths.push(result.path);
       }
     }
 
-    return savedPaths;
+    return { results, savedPaths };
+  }
+
+  /**
+   * Process a single attachment with exponential backoff retry logic.
+   */
+  private async processAttachmentWithRetry(
+    attachment: { name: string; mimetype: string; data: string; size: number },
+    attachDir: string,
+    taskId: string,
+    maxRetries = 3
+  ): Promise<AttachmentResult> {
+    const baseDelay = 1000; // 1 second base delay
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        // Use taskId prefix to avoid collisions
+        const safeFilename = `${taskId.slice(-8)}_${attachment.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        const filePath = join(attachDir, safeFilename);
+
+        // Validate base64 data
+        if (!attachment.data || typeof attachment.data !== 'string') {
+          throw new Error('Invalid attachment data: missing or non-string base64 data');
+        }
+
+        // Validate attachment size vs decoded size
+        const buffer = Buffer.from(attachment.data, 'base64');
+        if (buffer.length === 0) {
+          throw new Error('Invalid attachment data: decoded to empty buffer');
+        }
+
+        // Write file atomically by writing to temp file first
+        const tempPath = `${filePath}.tmp`;
+        await performanceMonitor.recordFileOperation(
+          'writeFile',
+          () => writeFile(tempPath, buffer),
+          { path: tempPath, size: buffer.length }
+        );
+
+        // Verify the written file
+        if (!existsSync(tempPath)) {
+          throw new Error('File was not written to disk');
+        }
+
+        // Atomic rename
+        const fs = await import('node:fs/promises');
+        await performanceMonitor.recordFileOperation(
+          'rename',
+          () => fs.rename(tempPath, filePath),
+          { from: tempPath, to: filePath }
+        );
+
+        // Track the file for cleanup
+        this.tempFileManager.trackFile(filePath, taskId);
+
+        logger.info(
+          {
+            name: attachment.name,
+            path: filePath,
+            size: buffer.length,
+            attempts: attempt + 1
+          },
+          'Successfully saved attachment',
+        );
+
+        return {
+          name: attachment.name,
+          status: 'success',
+          path: filePath,
+          retries: attempt
+        };
+
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+
+        logger.warn(
+          {
+            name: attachment.name,
+            attempt: attempt + 1,
+            maxRetries: maxRetries + 1,
+            error: errorMessage
+          },
+          'Attachment processing attempt failed',
+        );
+
+        // If this was the last attempt, return failure
+        if (attempt === maxRetries) {
+          logger.error(
+            {
+              name: attachment.name,
+              error: errorMessage,
+              totalAttempts: maxRetries + 1
+            },
+            'Failed to save attachment after all retries',
+          );
+
+          return {
+            name: attachment.name,
+            status: 'failed',
+            error: errorMessage,
+            retries: maxRetries
+          };
+        }
+
+        // Wait with exponential backoff before retry
+        const delay = baseDelay * Math.pow(2, attempt);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+
+    // This should never be reached, but TypeScript requires it
+    return {
+      name: attachment.name,
+      status: 'failed',
+      error: 'Unexpected error in retry logic',
+      retries: maxRetries
+    };
+  }
+
+  /**
+   * Notify about attachment failures via WebSocket messages
+   */
+  private async notifyAttachmentFailures(task: TaskSubmitPayload, failedAttachments: AttachmentResult[]): Promise<void> {
+    // Send warning emoji reaction notification
+    this.wsClient.send(
+      createWSMessage(MessageType.TASK_PROGRESS, {
+        taskId: task.taskId,
+        type: 'info',
+        message: `:warning: ${failedAttachments.length} attachment(s) failed to process`,
+        timestamp: Date.now(),
+      }),
+    );
+
+    // Send detailed failure information
+    const failureDetails = failedAttachments.map(f =>
+      `• **${f.name}** - ${f.error} (${f.retries || 0} retries)`
+    ).join('\n');
+
+    this.wsClient.send(
+      createWSMessage(MessageType.TASK_PROGRESS, {
+        taskId: task.taskId,
+        type: 'info',
+        message: `**Attachment Processing Failures:**\n${failureDetails}\n\n*The task will continue without these files. You can re-upload them in a follow-up message.*`,
+        timestamp: Date.now(),
+      }),
+    );
+
+    logger.warn(
+      {
+        taskId: task.taskId,
+        failedCount: failedAttachments.length,
+        failedFiles: failedAttachments.map(f => ({ name: f.name, error: f.error, retries: f.retries }))
+      },
+      'Notified user about attachment failures'
+    );
   }
 
   async execute(
@@ -89,15 +291,23 @@ export class ClaudeExecutor {
     const commandsRun = new Set<string>();
     let assistantTurnCount = 0;
 
-    // Save file attachments to disk and augment the prompt
-    const savedFiles = this.saveAttachments(task);
+    // Process file attachments with retry logic and failure tracking
+    const { results: attachmentResults, savedPaths: savedFiles } = await this.processAttachments(task);
+    const failedAttachments = attachmentResults.filter(r => r.status === 'failed');
+
+    // Notify about attachment failures
+    if (failedAttachments.length > 0) {
+      await this.notifyAttachmentFailures(task, failedAttachments);
+    }
+
+    // Augment prompt with successfully saved files
     if (savedFiles.length > 0) {
       const fileList = savedFiles.map((p) => `- ${p}`).join('\n');
       task = {
         ...task,
         prompt: `${task.prompt}\n\nThe user attached files that have been saved to disk. Read them using the Read tool:\n${fileList}`,
       };
-      logger.info({ taskId: task.taskId, fileCount: savedFiles.length }, 'Augmented prompt with saved file paths');
+      logger.info({ taskId: task.taskId, fileCount: savedFiles.length, failedCount: failedAttachments.length }, 'Augmented prompt with saved file paths');
     }
 
     // Aggregate metrics across all continuations
@@ -133,11 +343,19 @@ export class ClaudeExecutor {
         abortSignal.addEventListener('abort', () => abortController.abort(), { once: true });
       }
 
-      // Add global timeout for Claude API calls
+      // Add configurable timeout for task execution
+      const taskTimeoutMs = this.resourceLimits?.taskTimeoutMs ?? Limits.CLAUDE_API_TIMEOUT_MS;
       timeoutId = setTimeout(() => {
-        logger.warn({ taskId: task.taskId, timeoutMs: Limits.CLAUDE_API_TIMEOUT_MS }, 'Claude API timeout - aborting');
+        logger.warn(
+          {
+            taskId: task.taskId,
+            timeoutMs: taskTimeoutMs,
+            source: this.resourceLimits ? 'resource-limits' : 'default-limits'
+          },
+          'Task execution timeout - aborting'
+        );
         abortController.abort();
-      }, Limits.CLAUDE_API_TIMEOUT_MS);
+      }, taskTimeoutMs);
 
       logger.info(
         { taskId: task.taskId, hasApiKey: !!process.env['ANTHROPIC_API_KEY'], cwd: task.localPath },
@@ -233,6 +451,7 @@ export class ClaudeExecutor {
           commandsRun: Array.from(commandsRun),
           durationMs,
           continuations: continuationCount,
+          attachmentResults: attachmentResults.length > 0 ? attachmentResults : undefined,
         };
 
         this.wsClient.send(
@@ -253,8 +472,31 @@ export class ClaudeExecutor {
           'Claude execution exhausted all continuations',
         );
 
+        // Clean up temp files for this task
+        this.tempFileManager.cleanupTaskFiles(task.taskId).catch((error) => {
+          logger.error({ error, taskId: task.taskId }, 'Failed to cleanup task files');
+        });
+
         return result;
       }
+
+      // Record task execution performance
+      performanceMonitor.recordEvent({
+        type: 'task_execution',
+        operation: `${task.botName}.${task.command}`,
+        duration: durationMs,
+        success: true,
+        metadata: {
+          taskId: task.taskId,
+          model: task.model,
+          inputTokens: totalInputTokens,
+          outputTokens: totalOutputTokens,
+          estimatedCost: totalCost,
+          continuations: continuationCount,
+          filesChanged: filesChanged.size,
+          commandsRun: commandsRun.size,
+        },
+      });
 
       // Normal completion (either first-shot or after successful continuation)
       const result: ExecutionResult = {
@@ -267,6 +509,7 @@ export class ClaudeExecutor {
         commandsRun: Array.from(commandsRun),
         durationMs,
         continuations: continuationCount,
+        attachmentResults: attachmentResults.length > 0 ? attachmentResults : undefined,
       };
 
       // Send completion
@@ -287,6 +530,11 @@ export class ClaudeExecutor {
         'Claude execution completed',
       );
 
+      // Clean up temp files for this task
+      this.tempFileManager.cleanupTaskFiles(task.taskId).catch((error) => {
+        logger.error({ error, taskId: task.taskId }, 'Failed to cleanup task files');
+      });
+
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
@@ -295,9 +543,32 @@ export class ClaudeExecutor {
       if (timeoutId) {
         clearTimeout(timeoutId);
       }
+
+      // Clean up temp files for this task even on error
+      this.tempFileManager.cleanupTaskFiles(task.taskId).catch((cleanupError) => {
+        logger.error({ error: cleanupError, taskId: task.taskId }, 'Failed to cleanup task files on error');
+      });
+
       const durationMs = Date.now() - startTime;
       const rawError = error instanceof Error ? error.message : String(error);
       const errorMessage = rawError;
+
+      // Record failed task execution
+      performanceMonitor.recordEvent({
+        type: 'task_execution',
+        operation: `${task.botName}.${task.command}`,
+        duration: durationMs,
+        success: false,
+        metadata: {
+          taskId: task.taskId,
+          error: errorMessage,
+          model: task.model,
+          inputTokens: totalInputTokens,
+          outputTokens: totalOutputTokens,
+          estimatedCost: totalCost,
+          continuations: continuationCount,
+        },
+      });
 
       logger.error({ taskId: task.taskId, error: errorMessage, durationMs }, 'Claude execution failed');
 
@@ -306,6 +577,7 @@ export class ClaudeExecutor {
           taskId: task.taskId,
           error: errorMessage,
           recoverable: !abortSignal?.aborted,
+          sessionId: sessionId ?? null,
         }),
       );
 
@@ -339,7 +611,7 @@ export class ClaudeExecutor {
 
     const prompt = params.continuationPrompt ?? task.prompt;
 
-    const queryOptions: Record<string, unknown> = {
+    const queryOptions: QueryOptions = {
       customSystemPrompt: task.systemPrompt || undefined,
       model: task.model,
       maxTurns: Limits.MAX_TURNS_PER_INVOCATION,
@@ -364,15 +636,13 @@ export class ClaudeExecutor {
 
     const stream = query({
       prompt,
-      options: queryOptions as any,
+      options: queryOptions,
     });
 
     for await (const message of stream) {
       // Add newline separator between different assistant messages
-      if (message.type === 'assistant') {
-        const hasText = (message as SDKAssistantMessage).message?.content?.some(
-          (b: any) => b.type === 'text' && b.text,
-        );
+      if (isAssistantMessage(message)) {
+        const hasText = hasTextContent(message);
         if (hasText && assistantTurnCount > 0) {
           this.wsClient.send(
             createWSMessage(MessageType.TASK_STREAM, {
@@ -388,26 +658,22 @@ export class ClaudeExecutor {
       this.handleMessage(task.taskId, message, filesChanged, commandsRun);
 
       // Capture session ID from init or result messages
-      if (message.type === 'system' && (message as any).subtype === 'init') {
-        sessionId = (message as any).session_id ?? null;
+      if (isSystemInitMessage(message)) {
+        sessionId = extractSessionId(message);
         logger.info({ taskId: task.taskId, sessionId }, 'Claude session started');
       }
 
       // Extract result from result message
-      if (message.type === 'result') {
-        if ((message as any).session_id) {
-          sessionId = (message as any).session_id;
+      if (isResultMessage(message)) {
+        const extractedSessionId = extractSessionId(message);
+        if (extractedSessionId) {
+          sessionId = extractedSessionId;
         }
-        const resultMsg = message as SDKResultMessage;
-        totalCost = resultMsg.total_cost_usd;
-        inputTokens = resultMsg.usage.input_tokens;
-        outputTokens = resultMsg.usage.output_tokens;
-        resultIsError = resultMsg.is_error;
-        if (resultMsg.subtype === 'success') {
-          resultText = resultMsg.result;
-        } else {
-          resultText = (resultMsg as any).result ?? resultMsg.subtype;
-        }
+        totalCost = message.total_cost_usd;
+        inputTokens = message.usage.input_tokens;
+        outputTokens = message.usage.output_tokens;
+        resultIsError = message.is_error;
+        resultText = extractResultText(message);
       }
     }
 

@@ -1,5 +1,5 @@
 import { createWriteStream } from 'node:fs';
-import { mkdirSync } from 'node:fs';
+import { mkdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -11,9 +11,9 @@ const LOG_FILE = join(LOGS_DIR, 'agent.log');
  * Sets up file logging by piping process.stdout to a log file.
  * Pino already writes JSON to stdout, so we tee it to a file.
  */
-export function setupFileLogging(_level: string): void {
+export async function setupFileLogging(_level: string): Promise<void> {
   try {
-    mkdirSync(LOGS_DIR, { recursive: true });
+    await mkdir(LOGS_DIR, { recursive: true });
 
     const logStream = createWriteStream(LOG_FILE, { flags: 'a' });
 

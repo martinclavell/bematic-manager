@@ -8,6 +8,12 @@ import {
   taskCompleteSchema,
   taskErrorSchema,
   type DeployResultPayload,
+  type BotName,
+  type TaskCompletePayload,
+  type TaskAckData,
+  type TaskProgressData,
+  type TaskCompleteData,
+  type TaskErrorData,
 } from '@bematic/common';
 import { BotRegistry } from '@bematic/bots';
 import { ResponseBuilder } from '@bematic/bots';
@@ -15,7 +21,9 @@ import type { TaskRepository, AuditLogRepository, ProjectRepository, TaskRow } f
 import type { StreamAccumulator } from './stream-accumulator.js';
 import type { NotificationService } from '../services/notification.service.js';
 import type { CommandService } from '../services/command.service.js';
+import type { AgentHealthTracker } from './agent-health-tracker.js';
 import { markdownToSlack } from '../utils/markdown-to-slack.js';
+import { metrics, MetricNames } from '../utils/metrics.js';
 
 const logger = createLogger('message-router');
 
@@ -23,6 +31,7 @@ const logger = createLogger('message-router');
 interface ProgressTracker {
   messageTs: string | null;
   steps: string[];
+  createdAt: number;
 }
 
 /** Tracks where to send deploy results */
@@ -30,6 +39,7 @@ interface DeployRequest {
   slackChannelId: string;
   slackThreadTs: string | null;
   requestedBy: string;
+  createdAt: number;
 }
 
 export class MessageRouter {
@@ -37,17 +47,176 @@ export class MessageRouter {
   private deployRequests = new Map<string, DeployRequest>();
   private commandService: CommandService | null = null;
   private projectRepo: ProjectRepository | null = null;
+  private cleanupInterval: NodeJS.Timeout | null = null;
+
+  // Configuration
+  private readonly maxProgressTrackers: number;
+  private readonly maxDeployRequests: number;
+  private readonly progressTrackerTtlMs: number;
+  private readonly deployRequestTtlMs: number;
+  private readonly cleanupIntervalMs: number;
 
   constructor(
     private readonly taskRepo: TaskRepository,
     private readonly auditLogRepo: AuditLogRepository,
     private readonly streamAccumulator: StreamAccumulator,
     private readonly notifier: NotificationService,
-  ) {}
+    private readonly agentHealthTracker: AgentHealthTracker,
+    options: {
+      maxProgressTrackers?: number;
+      maxDeployRequests?: number;
+      progressTrackerTtlMs?: number;
+      deployRequestTtlMs?: number;
+      cleanupIntervalMs?: number;
+    } = {}
+  ) {
+    this.maxProgressTrackers = options.maxProgressTrackers || 1000;
+    this.maxDeployRequests = options.maxDeployRequests || 1000;
+    this.progressTrackerTtlMs = options.progressTrackerTtlMs || 3600000; // 1 hour
+    this.deployRequestTtlMs = options.deployRequestTtlMs || 3600000; // 1 hour
+    this.cleanupIntervalMs = options.cleanupIntervalMs || 300000; // 5 minutes
+
+    this.startMemoryCleanup();
+  }
 
   /** Register a deploy request so we know where to post the result */
   registerDeployRequest(requestId: string, channelId: string, threadTs: string | null, userId: string): void {
-    this.deployRequests.set(requestId, { slackChannelId: channelId, slackThreadTs: threadTs, requestedBy: userId });
+    // Enforce size limit using LRU eviction
+    if (this.deployRequests.size >= this.maxDeployRequests) {
+      this.evictOldestDeployRequest();
+    }
+
+    this.deployRequests.set(requestId, {
+      slackChannelId: channelId,
+      slackThreadTs: threadTs,
+      requestedBy: userId,
+      createdAt: Date.now()
+    });
+  }
+
+  /**
+   * Start the memory cleanup interval
+   */
+  private startMemoryCleanup(): void {
+    this.cleanupInterval = setInterval(() => {
+      this.performMemoryCleanup();
+    }, this.cleanupIntervalMs);
+
+    logger.info({
+      cleanupIntervalMs: this.cleanupIntervalMs,
+      maxProgressTrackers: this.maxProgressTrackers,
+      maxDeployRequests: this.maxDeployRequests,
+      progressTrackerTtlMs: this.progressTrackerTtlMs,
+      deployRequestTtlMs: this.deployRequestTtlMs
+    }, 'Started memory cleanup for message router');
+  }
+
+  /**
+   * Stop the memory cleanup interval
+   */
+  stopMemoryCleanup(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+      logger.info('Stopped memory cleanup for message router');
+    }
+  }
+
+  /**
+   * Perform memory cleanup - remove expired entries
+   */
+  private performMemoryCleanup(): void {
+    const now = Date.now();
+    let cleanedProgressTrackers = 0;
+    let cleanedDeployRequests = 0;
+
+    // Clean up expired progress trackers
+    for (const [taskId, tracker] of this.progressTrackers.entries()) {
+      if (now - tracker.createdAt > this.progressTrackerTtlMs) {
+        this.progressTrackers.delete(taskId);
+        cleanedProgressTrackers++;
+      }
+    }
+
+    // Clean up expired deploy requests
+    for (const [requestId, request] of this.deployRequests.entries()) {
+      if (now - request.createdAt > this.deployRequestTtlMs) {
+        this.deployRequests.delete(requestId);
+        cleanedDeployRequests++;
+      }
+    }
+
+    if (cleanedProgressTrackers > 0 || cleanedDeployRequests > 0) {
+      logger.debug({
+        cleanedProgressTrackers,
+        cleanedDeployRequests,
+        remainingProgressTrackers: this.progressTrackers.size,
+        remainingDeployRequests: this.deployRequests.size
+      }, 'Memory cleanup completed');
+    }
+
+    // Update metrics
+    metrics.gauge('memory.progress_trackers', this.progressTrackers.size);
+    metrics.gauge('memory.deploy_requests', this.deployRequests.size);
+  }
+
+  /**
+   * Evict the oldest deploy request (LRU)
+   */
+  private evictOldestDeployRequest(): void {
+    let oldestRequestId: string | null = null;
+    let oldestTime = Date.now();
+
+    for (const [requestId, request] of this.deployRequests.entries()) {
+      if (request.createdAt < oldestTime) {
+        oldestTime = request.createdAt;
+        oldestRequestId = requestId;
+      }
+    }
+
+    if (oldestRequestId) {
+      this.deployRequests.delete(oldestRequestId);
+      logger.warn({ evictedRequestId: oldestRequestId }, 'Evicted oldest deploy request due to size limit');
+    }
+  }
+
+  /**
+   * Evict the oldest progress tracker (LRU)
+   */
+  private evictOldestProgressTracker(): void {
+    let oldestTaskId: string | null = null;
+    let oldestTime = Date.now();
+
+    for (const [taskId, tracker] of this.progressTrackers.entries()) {
+      if (tracker.createdAt < oldestTime) {
+        oldestTime = tracker.createdAt;
+        oldestTaskId = taskId;
+      }
+    }
+
+    if (oldestTaskId) {
+      this.progressTrackers.delete(oldestTaskId);
+      logger.warn({ evictedTaskId: oldestTaskId }, 'Evicted oldest progress tracker due to size limit');
+    }
+  }
+
+  /**
+   * Get memory statistics
+   */
+  getMemoryStats(): {
+    progressTrackers: { count: number; maxSize: number };
+    deployRequests: { count: number; maxSize: number };
+  } {
+    return {
+      progressTrackers: {
+        count: this.progressTrackers.size,
+        maxSize: this.maxProgressTrackers
+      },
+      deployRequests: {
+        count: this.deployRequests.size,
+        maxSize: this.maxDeployRequests
+      }
+    };
   }
 
   /**
@@ -100,17 +269,21 @@ export class MessageRouter {
   }
 
   private async handleTaskAck(payload: unknown): Promise<void> {
-    const parsed = taskAckSchema.parse(payload);
+    const parsed = taskAckSchema.parse(payload) as TaskAckData;
     const task = this.taskRepo.findById(parsed.taskId);
     if (!task) return;
 
     if (parsed.accepted) {
       this.taskRepo.update(parsed.taskId, { status: 'running' });
+      metrics.increment('tasks.accepted');
+      metrics.gauge(MetricNames.ACTIVE_TASKS, this.taskRepo.findByStatus('running').length);
     } else {
       this.taskRepo.update(parsed.taskId, {
         status: 'failed',
         errorMessage: parsed.reason ?? 'Task rejected by agent',
       });
+      metrics.increment('tasks.rejected');
+      metrics.increment(MetricNames.TASKS_FAILED);
       await this.swapReaction(task, 'x');
       await this.notifier.postMessage(
         task.slackChannelId,
@@ -121,7 +294,7 @@ export class MessageRouter {
   }
 
   private async handleTaskProgress(payload: unknown): Promise<void> {
-    const parsed = taskProgressSchema.parse(payload);
+    const parsed = taskProgressSchema.parse(payload) as TaskProgressData;
     const task = this.taskRepo.findById(parsed.taskId);
     if (!task) return;
 
@@ -129,7 +302,12 @@ export class MessageRouter {
       // Get or create progress tracker for this task
       let tracker = this.progressTrackers.get(parsed.taskId);
       if (!tracker) {
-        tracker = { messageTs: null, steps: [] };
+        // Enforce size limit using LRU eviction
+        if (this.progressTrackers.size >= this.maxProgressTrackers) {
+          this.evictOldestProgressTracker();
+        }
+
+        tracker = { messageTs: null, steps: [], createdAt: Date.now() };
         this.progressTrackers.set(parsed.taskId, tracker);
       }
 
@@ -178,9 +356,25 @@ export class MessageRouter {
   }
 
   private async handleTaskComplete(agentId: string, payload: unknown): Promise<void> {
-    const parsed = taskCompleteSchema.parse(payload);
+    const parsed = taskCompleteSchema.parse(payload) as TaskCompleteData;
     const task = this.taskRepo.findById(parsed.taskId);
     if (!task) return;
+
+    // Track metrics
+    metrics.increment(MetricNames.TASKS_COMPLETED);
+    if (parsed.inputTokens || parsed.outputTokens) {
+      metrics.histogram(MetricNames.TASK_TOKENS, (parsed.inputTokens || 0) + (parsed.outputTokens || 0));
+    }
+    if (parsed.estimatedCost) {
+      metrics.histogram(MetricNames.TASK_COST, parsed.estimatedCost);
+    }
+
+    // Calculate task duration if we have creation time
+    const taskDuration = Date.now() - new Date(task.createdAt).getTime();
+    metrics.histogram(MetricNames.TASK_DURATION, taskDuration);
+
+    // Record agent success
+    this.agentHealthTracker.recordSuccess(agentId);
 
     // Update DB (including session ID for thread continuation)
     this.taskRepo.complete(parsed.taskId, parsed.result, {
@@ -215,10 +409,28 @@ export class MessageRouter {
     const slackResult = markdownToSlack(parsed.result);
 
     // Format result using bot-specific formatter
-    const bot = BotRegistry.get(task.botName as any);
+    const bot = BotRegistry.get(task.botName as BotName);
     const blocks = bot
       ? bot.formatResult({ ...parsed, result: slackResult })
       : ResponseBuilder.taskCompleteBlocks(slackResult, parsed);
+
+    // Handle attachment failure notifications if present
+    if (parsed.attachmentResults) {
+      const failedAttachments = parsed.attachmentResults.filter(r => r.status === 'failed');
+      if (failedAttachments.length > 0 && task.slackMessageTs) {
+        await this.notifier.notifyAttachmentFailures(
+          task.slackChannelId,
+          task.slackMessageTs,
+          failedAttachments.map(f => ({
+            name: f.name,
+            error: f.error || 'Unknown error',
+            retries: f.retries || 0
+          })),
+          task.slackUserId,
+          task.slackThreadTs
+        );
+      }
+    }
 
     // Swap hourglass for success on the user's original message (only for root tasks)
     if (!task.parentTaskId) {
@@ -232,13 +444,46 @@ export class MessageRouter {
       task.slackThreadTs,
     );
 
-    // Audit log
-    this.auditLogRepo.log('task:completed', 'task', parsed.taskId, null, {
+    // Audit log with attachment failure information
+    const auditMetadata: Record<string, any> = {
       agentId,
       cost: parsed.estimatedCost,
       durationMs: parsed.durationMs,
       parentTaskId: task.parentTaskId,
-    });
+    };
+
+    // Add attachment failure information to audit log
+    if (parsed.attachmentResults) {
+      const failedAttachments = parsed.attachmentResults.filter(r => r.status === 'failed');
+      if (failedAttachments.length > 0) {
+        auditMetadata.attachmentFailures = failedAttachments.map(f => ({
+          name: f.name,
+          error: f.error,
+          retries: f.retries
+        }));
+        auditMetadata.attachmentFailureCount = failedAttachments.length;
+      }
+      auditMetadata.attachmentSuccessCount = parsed.attachmentResults.filter(r => r.status === 'success').length;
+    }
+
+    this.auditLogRepo.log('task:completed', 'task', parsed.taskId, null, auditMetadata);
+
+    // Log specific audit entry for attachment failures if any occurred
+    if (parsed.attachmentResults) {
+      const failedAttachments = parsed.attachmentResults.filter(r => r.status === 'failed');
+      if (failedAttachments.length > 0) {
+        this.auditLogRepo.log('attachment:failed', 'task', parsed.taskId, null, {
+          agentId,
+          failedAttachments: failedAttachments.map(f => ({
+            name: f.name,
+            error: f.error,
+            retries: f.retries
+          })),
+          failedCount: failedAttachments.length,
+          totalAttachments: parsed.attachmentResults.length,
+        });
+      }
+    }
 
     logger.info(
       { taskId: parsed.taskId, cost: parsed.estimatedCost, durationMs: parsed.durationMs, parentTaskId: task.parentTaskId },
@@ -259,7 +504,7 @@ export class MessageRouter {
       return;
     }
 
-    const bot = BotRegistry.get(task.botName as any);
+    const bot = BotRegistry.get(task.botName as BotName);
     if (!bot) {
       logger.error({ taskId: task.id, botName: task.botName }, 'Bot not found for decomposition');
       return;
@@ -369,11 +614,25 @@ export class MessageRouter {
   }
 
   private async handleTaskError(agentId: string, payload: unknown): Promise<void> {
-    const parsed = taskErrorSchema.parse(payload);
+    const parsed = taskErrorSchema.parse(payload) as TaskErrorData;
     const task = this.taskRepo.findById(parsed.taskId);
     if (!task) return;
 
+    // Track metrics
+    metrics.increment(MetricNames.TASKS_FAILED);
+
+    // Calculate task duration even for failures
+    const taskDuration = Date.now() - new Date(task.createdAt).getTime();
+    metrics.histogram(MetricNames.TASK_DURATION, taskDuration);
+
+    // Record agent failure
+    this.agentHealthTracker.recordFailure(agentId);
+
     this.taskRepo.fail(parsed.taskId, parsed.error);
+    // Save sessionId even on failure so the session can be resumed
+    if (parsed.sessionId) {
+      this.taskRepo.update(parsed.taskId, { sessionId: parsed.sessionId });
+    }
     this.streamAccumulator.removeStream(parsed.taskId);
     this.progressTrackers.delete(parsed.taskId);
 
@@ -382,7 +641,7 @@ export class MessageRouter {
       await this.handleAllSubtasksComplete(task.parentTaskId, agentId);
     }
 
-    const bot = BotRegistry.get(task.botName as any);
+    const bot = BotRegistry.get(task.botName as BotName);
     const blocks = bot
       ? bot.formatError(parsed.error, parsed.taskId)
       : ResponseBuilder.taskErrorBlocks(parsed.error, parsed.taskId);
@@ -412,6 +671,13 @@ export class MessageRouter {
     const parsed = (payload as { taskId: string; reason: string });
     const task = this.taskRepo.findById(parsed.taskId);
     if (!task) return;
+
+    // Track metrics
+    metrics.increment(MetricNames.TASKS_CANCELLED);
+
+    // Calculate task duration even for cancelled tasks
+    const taskDuration = Date.now() - new Date(task.createdAt).getTime();
+    metrics.histogram(MetricNames.TASK_DURATION, taskDuration);
 
     this.taskRepo.update(parsed.taskId, { status: 'cancelled' });
     this.streamAccumulator.removeStream(parsed.taskId);

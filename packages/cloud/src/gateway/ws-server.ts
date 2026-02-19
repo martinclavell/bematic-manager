@@ -8,9 +8,13 @@ import {
   createWSMessage,
   serializeMessage,
   authRequestSchema,
+  type AuthRequestPayload,
+  type AuthRequestData,
 } from '@bematic/common';
 import { AgentManager } from './agent-manager.js';
 import type { Config } from '../config.js';
+import type { ApiKeyService } from '../services/api-key.service.js';
+import { metrics, MetricNames } from '../utils/metrics.js';
 
 const logger = createLogger('ws-server');
 
@@ -18,9 +22,40 @@ export function createWSServer(
   server: Server,
   config: Config,
   agentManager: AgentManager,
+  apiKeyService: ApiKeyService,
   onMessage: (agentId: string, raw: string) => void,
 ) {
-  const wss = new WebSocketServer({ server, path: '/ws/agent' });
+  const wss = new WebSocketServer({
+    server,
+    path: '/ws/agent',
+    verifyClient: (info: { origin: string; secure: boolean; req: any }) => {
+      // Enforce WSS in production if configured
+      if (config.ssl.enforceWss && !info.secure) {
+        logger.warn(
+          {
+            origin: info.origin,
+            secure: info.secure,
+            headers: info.req.headers
+          },
+          'Rejected insecure WebSocket connection - WSS required'
+        );
+        return false;
+      }
+
+      // Log connection security status
+      logger.debug(
+        {
+          secure: info.secure,
+          protocol: info.secure ? 'wss' : 'ws',
+          origin: info.origin,
+          enforceWss: config.ssl.enforceWss
+        },
+        'WebSocket connection verification'
+      );
+
+      return true;
+    }
+  });
 
   // Heartbeat sweep interval
   const sweepInterval = setInterval(() => {
@@ -43,6 +78,10 @@ export function createWSServer(
   wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
     logger.info({ url: req.url }, 'New WebSocket connection');
 
+    // Track connection metrics
+    metrics.increment('ws.connections.total');
+    metrics.increment('ws.connections.active');
+
     let agentId: string | null = null;
     let authenticated = false;
 
@@ -60,9 +99,15 @@ export function createWSServer(
     }, config.ws.authTimeoutMs);
 
     ws.on('message', (data) => {
+      const startTime = Date.now();
+
       try {
         const raw = data.toString();
         const msg = parseMessage(raw);
+
+        // Track message metrics
+        metrics.increment(MetricNames.WS_MESSAGES_RECEIVED);
+        metrics.increment(`ws.messages.received.${msg.type}`);
 
         // Must authenticate first
         if (!authenticated) {
@@ -82,22 +127,39 @@ export function createWSServer(
             return;
           }
 
-          const { agentId: id, apiKey } = parsed.data;
+          const { agentId: id, apiKey } = parsed.data as AuthRequestData;
 
-          if (!config.agentApiKeys.includes(apiKey)) {
+          // Try database-based API key validation first
+          const keyValidation = apiKeyService.validateKey(apiKey);
+
+          // Fall back to config-based validation for backward compatibility
+          const isConfigKey = config.agentApiKeys.includes(apiKey);
+
+          if (!keyValidation.isValid && !isConfigKey) {
+            metrics.increment('ws.auth.failed');
             const resp = createWSMessage(MessageType.AUTH_RESPONSE, {
               success: false,
-              error: 'Invalid API key',
+              error: keyValidation.reason || 'Invalid API key',
             });
             ws.send(serializeMessage(resp));
             ws.close(4004, 'Invalid API key');
             return;
           }
 
+          // Log which authentication method was used
+          if (keyValidation.isValid) {
+            logger.info({ agentId: id, keyId: keyValidation.apiKey?.id }, 'Agent authenticated with database API key');
+          } else {
+            logger.info({ agentId: id }, 'Agent authenticated with legacy config API key');
+          }
+
+          metrics.increment('ws.auth.success');
+          metrics.increment(MetricNames.AGENTS_CONNECTED);
+
           clearTimeout(authTimer);
           authenticated = true;
           agentId = id;
-          agentManager.register(agentId, ws);
+          agentManager.register(id, ws);
 
           const resp = createWSMessage(MessageType.AUTH_RESPONSE, {
             success: true,
@@ -110,6 +172,9 @@ export function createWSServer(
 
         // Handle heartbeat pong
         if (msg.type === MessageType.HEARTBEAT_PONG && agentId) {
+          const pongPayload = msg.payload as { serverTime?: number };
+          const pongLatency = Date.now() - (pongPayload?.serverTime || Date.now());
+          metrics.histogram(MetricNames.AGENT_HEARTBEAT_LATENCY, pongLatency);
           agentManager.updateHeartbeat(agentId);
           return;
         }
@@ -118,21 +183,40 @@ export function createWSServer(
         if (agentId) {
           onMessage(agentId, raw);
         }
+
+        // Track message processing time
+        const processingTime = Date.now() - startTime;
+        metrics.histogram('ws.message.processing_time', processingTime);
       } catch (error) {
         logger.error({ error }, 'Error processing WS message');
+        metrics.increment('ws.messages.errors');
       }
     });
 
     ws.on('close', () => {
       clearTimeout(authTimer);
+
+      // Track disconnection metrics
+      metrics.decrement('ws.connections.active');
+
       if (agentId) {
-        agentManager.unregister(agentId);
-        logger.info({ agentId }, 'Agent disconnected');
+        // Only unregister if this WebSocket is still the active one for this agent.
+        // If a newer connection replaced us (via agentManager.register()),
+        // the old close handler must NOT remove the new connection.
+        const current = agentManager.getAgent(agentId);
+        if (current && current.ws === ws) {
+          metrics.increment(MetricNames.AGENTS_DISCONNECTED);
+          agentManager.unregister(agentId);
+          logger.info({ agentId }, 'Agent disconnected');
+        } else {
+          logger.info({ agentId }, 'Stale WebSocket closed (already replaced by new connection)');
+        }
       }
     });
 
     ws.on('error', (error) => {
       logger.error({ error, agentId }, 'WebSocket error');
+      metrics.increment('ws.connection.errors');
     });
   });
 

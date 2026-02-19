@@ -3,6 +3,9 @@
 > This folder is the comprehensive reference for any AI agent or developer working on this codebase.
 > Each document covers a focused topic. Read the relevant sections before making changes.
 
+**📋 [CHANGELOG](../CHANGELOG.md)** — Latest improvements and release notes  
+**✅ Status:** Production Ready (v2.0.0 - Feb 2025)
+
 ---
 
 ## Documents
@@ -23,6 +26,10 @@
 | 12 | [Build, Run & Deploy](./12-build-run-deploy.md) | Prerequisites, build commands, dev/test/deploy workflows |
 | 13 | [Coding Conventions](./13-coding-conventions.md) | TypeScript rules, naming, patterns, how-to guides |
 | 14 | [File Index](./14-file-index.md) | Complete file-by-file reference for every package |
+| 15 | [Advanced Patterns](./15-advanced-patterns.md) | Handler patterns, circuit breakers, performance optimization, refactoring strategies |
+| 16 | [Security & Compliance](./16-security-compliance.md) | Security model, authentication, file validation, audit trails, GDPR compliance |
+| 17 | [Operations & Troubleshooting](./17-operations-troubleshooting.md) | Health monitoring, debugging procedures, performance tuning, incident response |
+| 18 | [Extending Bematic](./18-extending-bematic.md) | Adding bots, custom integrations, database extensions, plugin development |
 
 ---
 
@@ -32,3 +39,7 @@
 2. **Adding a feature?** → Read [13 — Coding Conventions](./13-coding-conventions.md) and the relevant package doc
 3. **Debugging a data flow issue?** → See [08 — Data Flow](./08-data-flow.md) and [09 — WebSocket Protocol](./09-websocket-protocol.md)
 4. **Setting up locally?** → See [11 — Environment Variables](./11-environment-variables.md) and [12 — Build, Run & Deploy](./12-build-run-deploy.md)
+5. **System troubleshooting?** → See [17 — Operations & Troubleshooting](./17-operations-troubleshooting.md)
+6. **Extending the system?** → See [18 — Extending Bematic](./18-extending-bematic.md)
+7. **Security concerns?** → See [16 — Security & Compliance](./16-security-compliance.md)
+8. **Advanced architecture?** → See [15 — Advanced Patterns](./15-advanced-patterns.md)

@@ -7,6 +7,7 @@ import { auditLogs } from './schema/audit-logs.js';
 import { users, userProjectPermissions } from './schema/users.js';
 import { offlineQueue } from './schema/offline-queue.js';
 import { promptHistory } from './schema/prompt-history.js';
+import { apiKeys } from './schema/api-keys.js';
 
 /**
  * Push schema to database (create tables if not exist).
@@ -138,6 +139,16 @@ export function pushSchema(dbUrl?: string) {
     actual_duration_minutes INTEGER,
     timestamp TEXT NOT NULL,
     completed_at TEXT
+  )`);
+
+  db.run(sql`CREATE TABLE IF NOT EXISTS ${apiKeys} (
+    id TEXT PRIMARY KEY,
+    key TEXT NOT NULL UNIQUE,
+    agent_id TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER,
+    last_used_at INTEGER,
+    revoked INTEGER NOT NULL DEFAULT 0
   )`);
 
   return db;

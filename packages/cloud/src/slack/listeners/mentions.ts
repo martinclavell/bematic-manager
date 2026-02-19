@@ -3,6 +3,7 @@ import { Permission, createLogger } from '@bematic/common';
 import { BotRegistry } from '@bematic/bots';
 import type { AppContext } from '../../context.js';
 import { downloadSlackFiles, describeAttachments } from './file-utils.js';
+import { extractFiles, type SlackEvent } from '../../types/slack.js';
 
 const logger = createLogger('slack:mentions');
 
@@ -10,9 +11,7 @@ export function registerMentionListener(app: App, ctx: AppContext) {
   app.event('app_mention', async ({ event, say, client }) => {
     const { channel, ts } = event;
     const rawText = event.text ?? '';
-    const files = ('files' in event ? (event as any).files : undefined) as
-      | Array<{ url_private_download?: string; url_private: string; name: string; mimetype: string; filetype: string; size?: number }>
-      | undefined;
+    const files = extractFiles(event);
 
     const user = event.user ?? 'unknown';
     const hasFiles = !!(files && files.length > 0);

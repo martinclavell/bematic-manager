@@ -4,7 +4,7 @@ export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
   slackUserId: text('slack_user_id').notNull().unique(),
   slackUsername: text('slack_username').notNull(),
-  role: text('role').notNull().default('developer'),
+  role: text('role').notNull().default('viewer'),
   rateLimitOverride: integer('rate_limit_override'),
   active: integer('active', { mode: 'boolean' }).notNull().default(true),
   createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),

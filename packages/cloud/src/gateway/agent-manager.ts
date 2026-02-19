@@ -1,6 +1,7 @@
 import type { WebSocket } from 'ws';
-import { createLogger, type AgentStatusPayload } from '@bematic/common';
+import { createLogger, type AgentStatusPayload, agentCache, CacheKeys } from '@bematic/common';
 import { EventEmitter } from 'node:events';
+import { metrics, MetricNames } from '../utils/metrics.js';
 
 const logger = createLogger('agent-manager');
 
@@ -23,22 +24,57 @@ export class AgentManager extends EventEmitter {
       existing.ws.close(1000, 'Replaced by new connection');
     }
 
-    this.agents.set(agentId, {
+    const agent = {
       id: agentId,
       ws,
-      status: 'online',
+      status: 'online' as const,
       activeTasks: [],
       connectedAt: Date.now(),
       lastHeartbeat: Date.now(),
+    };
+
+    this.agents.set(agentId, agent);
+
+    // Cache agent status and metadata
+    agentCache.set(CacheKeys.agentStatus(agentId), {
+      status: agent.status,
+      activeTasks: agent.activeTasks,
+      connectedAt: agent.connectedAt,
+      lastHeartbeat: agent.lastHeartbeat,
+    });
+
+    agentCache.set(CacheKeys.agentMetadata(agentId), {
+      id: agentId,
+      isOnline: true,
+      connectedAt: agent.connectedAt,
     });
 
     logger.info({ agentId }, 'Agent registered');
+    metrics.increment(MetricNames.AGENTS_CONNECTED);
+    metrics.gauge(MetricNames.WS_CONNECTIONS, this.agents.size);
     this.emit('agent:connected', agentId);
   }
 
   unregister(agentId: string): void {
     this.agents.delete(agentId);
+
+    // Update cached agent status to offline
+    agentCache.set(CacheKeys.agentStatus(agentId), {
+      status: 'offline',
+      activeTasks: [],
+      connectedAt: 0,
+      lastHeartbeat: Date.now(),
+    }, 60 * 1000); // Keep offline status cached for 1 minute
+
+    agentCache.set(CacheKeys.agentMetadata(agentId), {
+      id: agentId,
+      isOnline: false,
+      disconnectedAt: Date.now(),
+    }, 60 * 1000); // Keep offline metadata for 1 minute
+
     logger.info({ agentId }, 'Agent unregistered');
+    metrics.increment(MetricNames.AGENTS_DISCONNECTED);
+    metrics.gauge(MetricNames.WS_CONNECTIONS, this.agents.size);
     this.emit('agent:disconnected', agentId);
   }
 
@@ -46,8 +82,29 @@ export class AgentManager extends EventEmitter {
     return this.agents.get(agentId);
   }
 
+  /**
+   * Get cached agent status (includes offline agents)
+   */
+  getCachedAgentStatus(agentId: string): AgentStatusPayload | null {
+    return agentCache.get<AgentStatusPayload>(CacheKeys.agentStatus(agentId));
+  }
+
+  /**
+   * Get cached agent metadata (includes offline agents)
+   */
+  getCachedAgentMetadata(agentId: string): { id: string; isOnline: boolean; connectedAt?: number; disconnectedAt?: number } | null {
+    return agentCache.get(CacheKeys.agentMetadata(agentId));
+  }
+
   isOnline(agentId: string): boolean {
-    return this.agents.has(agentId);
+    // Check in-memory first for fastest response
+    if (this.agents.has(agentId)) {
+      return true;
+    }
+
+    // Check cache for recent status
+    const cachedStatus = this.getCachedAgentStatus(agentId);
+    return cachedStatus?.status === 'online' || false;
   }
 
   send(agentId: string, data: string): boolean {
@@ -63,6 +120,14 @@ export class AgentManager extends EventEmitter {
     const agent = this.agents.get(agentId);
     if (agent) {
       agent.lastHeartbeat = Date.now();
+
+      // Update cached status with new heartbeat
+      agentCache.set(CacheKeys.agentStatus(agentId), {
+        status: agent.status,
+        activeTasks: agent.activeTasks,
+        connectedAt: agent.connectedAt,
+        lastHeartbeat: agent.lastHeartbeat,
+      });
     }
   }
 
@@ -71,6 +136,14 @@ export class AgentManager extends EventEmitter {
     if (agent) {
       agent.status = status.status;
       agent.activeTasks = status.activeTasks;
+
+      // Update cached status
+      agentCache.set(CacheKeys.agentStatus(agentId), {
+        status: status.status,
+        activeTasks: status.activeTasks,
+        connectedAt: agent.connectedAt,
+        lastHeartbeat: agent.lastHeartbeat,
+      });
     }
   }
 

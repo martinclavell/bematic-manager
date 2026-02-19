@@ -22,6 +22,7 @@ export type {
   TaskCompletePayload,
   TaskErrorPayload,
   TaskCancelPayload,
+  AttachmentResult,
 } from './task.js';
 export { TaskStatus } from './task.js';
 export type { TaskStatus as TaskStatusType } from './task.js';

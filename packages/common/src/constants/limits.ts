@@ -21,7 +21,7 @@ export const Limits = {
   SLACK_STREAM_UPDATE_INTERVAL_MS: 3_000,
 
   /** Max prompt length in characters */
-  MAX_PROMPT_LENGTH: 10_000,
+  MAX_PROMPT_LENGTH: 100_000,
 
   /** WebSocket reconnect base delay in ms */
   WS_RECONNECT_BASE_DELAY_MS: 1_000,
@@ -30,7 +30,7 @@ export const Limits = {
   WS_RECONNECT_MAX_DELAY_MS: 30_000,
 
   /** Max auto-continuations when Claude hits max_turns limit */
-  MAX_CONTINUATIONS: 3,
+  MAX_CONTINUATIONS: 20,
 
   /** Max turns per Claude invocation */
   MAX_TURNS_PER_INVOCATION: 200,
@@ -45,8 +45,8 @@ export const Limits = {
   /** Agent keepalive ping interval in ms (send ping to cloud every 20s) */
   AGENT_KEEPALIVE_INTERVAL_MS: 20_000,
 
-  /** Anthropic API call timeout in ms (5 minutes) */
-  CLAUDE_API_TIMEOUT_MS: 300_000,
+  /** Anthropic API call timeout in ms (30 minutes — allows long-running tasks with many continuations) */
+  CLAUDE_API_TIMEOUT_MS: 1_800_000,
 
   /** Circuit breaker: max consecutive reconnection failures before backing off */
   CIRCUIT_BREAKER_MAX_FAILURES: 10,

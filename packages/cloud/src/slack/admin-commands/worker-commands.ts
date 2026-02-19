@@ -31,7 +31,7 @@ export class WorkerCommands {
       const agent = this.ctx.agentManager.getAgent(agentId);
       if (!agent) continue;
 
-      const queueSize = this.ctx.offlineQueue.getQueueSize(agentId);
+      const queueSize = this.ctx.offlineQueueRepo.findPendingByAgentId(agentId).length;
       const projects = this.ctx.projectRepo.findByAgentId(agentId);
       const runningTasks = agent.activeTasks.map((taskId) => this.ctx.taskRepo.findById(taskId)).filter((t) => !!t);
 

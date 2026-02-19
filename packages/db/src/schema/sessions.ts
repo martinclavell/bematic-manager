@@ -11,6 +11,8 @@ export const sessions = sqliteTable('sessions', {
   estimatedCost: real('estimated_cost').notNull().default(0),
   durationMs: integer('duration_ms'),
   status: text('status').notNull().default('active'),
+  expiresAt: text('expires_at').notNull().$defaultFn(() => new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()),
+  lastActivityAt: text('last_activity_at').notNull().$defaultFn(() => new Date().toISOString()),
   createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
   completedAt: text('completed_at'),
 });

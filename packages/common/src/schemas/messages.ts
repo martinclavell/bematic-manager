@@ -27,12 +27,20 @@ const fileAttachmentSchema = z.object({
   size: z.number(),
 });
 
+const attachmentResultSchema = z.object({
+  name: z.string(),
+  status: z.enum(['success', 'failed']),
+  path: z.string().optional(),
+  error: z.string().optional(),
+  retries: z.number().optional(),
+});
+
 export const taskSubmitSchema = z.object({
   taskId: z.string(),
   projectId: z.string(),
   botName: z.string(),
   command: z.string(),
-  prompt: z.string().min(1).max(10_000),
+  prompt: z.string().min(1).max(100_000),
   systemPrompt: z.string(),
   localPath: z.string(),
   model: z.string(),
@@ -80,15 +88,27 @@ export const taskCompleteSchema = z.object({
   commandsRun: z.array(z.string()),
   durationMs: z.number(),
   continuations: z.number().int().min(0).optional(),
+  attachmentResults: z.array(attachmentResultSchema).optional(),
 });
 
 export const taskErrorSchema = z.object({
   taskId: z.string(),
   error: z.string(),
   recoverable: z.boolean(),
+  sessionId: z.string().nullable().optional(),
 });
 
 export const taskCancelSchema = z.object({
   taskId: z.string(),
   reason: z.string(),
 });
+
+// Inferred types for better TypeScript support
+export type TaskAckData = z.infer<typeof taskAckSchema>;
+export type TaskProgressData = z.infer<typeof taskProgressSchema>;
+export type TaskStreamData = z.infer<typeof taskStreamSchema>;
+export type TaskCompleteData = z.infer<typeof taskCompleteSchema>;
+export type TaskErrorData = z.infer<typeof taskErrorSchema>;
+export type TaskCancelData = z.infer<typeof taskCancelSchema>;
+export type AuthRequestData = z.infer<typeof authRequestSchema>;
+export type AuthResponseData = z.infer<typeof authResponseSchema>;

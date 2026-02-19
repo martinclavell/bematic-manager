@@ -6,3 +6,5 @@ export { AuditLogRepository } from './audit-log.repository.js';
 export { UserRepository } from './user.repository.js';
 export { OfflineQueueRepository } from './offline-queue.repository.js';
 export { PromptHistoryRepository } from "./prompt-history.repository.js";
+export { ApiKeyRepository } from './api-key.repository.js';
+export { ArchivedTaskRepository } from './archived-task.repository.js';

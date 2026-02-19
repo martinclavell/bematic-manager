@@ -35,6 +35,18 @@ export function loadAgentConfig() {
         10,
       ),
     },
+    resourceLimits: {
+      maxMemoryMB: parseInt(optionalEnv('AGENT_MAX_MEMORY_MB', '2048'), 10),
+      maxCpuPercent: parseInt(optionalEnv('AGENT_MAX_CPU_PERCENT', '80'), 10),
+      taskTimeoutMs: parseInt(optionalEnv('AGENT_TASK_TIMEOUT_MS', '1800000'), 10), // 30 minutes
+      healthCheckIntervalMs: parseInt(optionalEnv('AGENT_HEALTH_CHECK_INTERVAL_MS', '30000'), 10), // 30 seconds
+    },
+    tempFiles: {
+      maxAgeHours: parseInt(optionalEnv('TEMP_FILE_MAX_AGE_HOURS', '24'), 10),
+      maxTotalSizeMB: parseInt(optionalEnv('TEMP_FILE_MAX_SIZE_MB', '1000'), 10),
+      cleanupIntervalMs: parseInt(optionalEnv('TEMP_FILE_CLEANUP_INTERVAL_MS', '600000'), 10), // 10 minutes
+      tempDir: optionalEnv('TEMP_FILE_DIR', './temp'),
+    },
   };
 }
 
