@@ -8,6 +8,7 @@ import {
 import type { AppContext } from '../../context.js';
 import { BotRegistry } from '@bematic/bots';
 import {
+  handleRemindCommand,
   handleScheduleCommand,
   handleCronCreateCommand,
   handleScheduledListCommand,
@@ -761,6 +762,13 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
         }
 
         // ===== SCHEDULED TASKS & CRON JOBS =====
+        case 'remind':
+        case 'reminder': {
+          await ctx.authChecker.checkPermission(user_id, Permission.TASK_CREATE);
+          await handleRemindCommand(command, respond, client, ctx, subArgs);
+          break;
+        }
+
         case 'schedule': {
           await ctx.authChecker.checkPermission(user_id, Permission.TASK_CREATE);
           await handleScheduleCommand(command, respond, client, ctx, subArgs);

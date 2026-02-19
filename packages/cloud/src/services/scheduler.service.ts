@@ -7,6 +7,7 @@ import type {
   ProjectRepository,
 } from '@bematic/db';
 import type { CommandService } from './command.service.js';
+import type { NotificationService } from './notification.service.js';
 import { BotRegistry } from '@bematic/bots';
 
 const logger = createLogger('scheduler-service');
@@ -49,6 +50,7 @@ export class SchedulerService {
     private readonly auditLogRepo: AuditLogRepository,
     private readonly commandService: CommandService,
     private readonly projectRepo: ProjectRepository,
+    private readonly notifier: NotificationService,
   ) {}
 
   /**
@@ -200,7 +202,34 @@ export class SchedulerService {
     logger.info({ taskId: scheduledTask.id }, 'Executing scheduled task');
 
     try {
-      // Get project and bot
+      // Handle reminders differently - just post a message
+      if (scheduledTask.taskType === 'reminder') {
+        await this.notifier.postMessage(
+          scheduledTask.slackChannelId,
+          `:alarm_clock: **Reminder from <@${scheduledTask.userId}>**\n\n${scheduledTask.prompt}`,
+          scheduledTask.slackThreadTs || undefined,
+        );
+
+        // Mark as completed
+        this.scheduledTaskRepo.update(scheduledTask.id, {
+          status: 'completed',
+          lastExecutedAt: new Date().toISOString(),
+          lastTriggeredAt: new Date().toISOString(),
+        });
+
+        await this.auditLogRepo.log(
+          'reminder.delivered',
+          'scheduled_task',
+          scheduledTask.id,
+          scheduledTask.userId,
+          { message: scheduledTask.prompt },
+        );
+
+        logger.info({ taskId: scheduledTask.id }, 'Reminder delivered');
+        return;
+      }
+
+      // Get project and bot for regular tasks
       const project = this.projectRepo.findById(scheduledTask.projectId);
       if (!project) {
         throw new Error(`Project not found: ${scheduledTask.projectId}`);

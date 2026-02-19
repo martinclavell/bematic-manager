@@ -148,6 +148,7 @@ async function main() {
     auditLogRepo,
     commandService,
     projectRepo,
+    notifier,
   );
 
   // Wire up MessageRouter <-> CommandService for decomposition support
@@ -175,6 +176,7 @@ async function main() {
 
   // Build context
   const ctx: AppContext = {
+    db,
     projectRepo,
     taskRepo,
     auditLogRepo,

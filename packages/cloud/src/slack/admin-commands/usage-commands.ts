@@ -1,8 +1,7 @@
 import { createLogger } from '@bematic/common';
 import type { AppContext } from '../../context.js';
 import { sql } from 'drizzle-orm';
-import { sessions } from '@bematic/db/schema';
-import { tasks } from '@bematic/db/schema';
+import { sessions, tasks } from '@bematic/db';
 
 const logger = createLogger('admin:usage-commands');
 
@@ -180,7 +179,7 @@ export class UsageCommands {
 
     const result = db
       .select({
-        botType: tasks.botType,
+        botType: tasks.botName,
         taskCount: sql<number>`count(distinct ${tasks.id})`,
         totalTokens: sql<number>`sum(${sessions.inputTokens} + ${sessions.outputTokens})`,
         totalCost: sql<number>`sum(${sessions.estimatedCost})`,
@@ -188,7 +187,7 @@ export class UsageCommands {
       .from(sessions)
       .innerJoin(tasks, sql`${tasks.id} = ${sessions.taskId}`)
       .where(sql`${sessions.status} = 'completed'`)
-      .groupBy(tasks.botType)
+      .groupBy(tasks.botName)
       .all();
 
     if (result.length === 0) {
@@ -198,7 +197,7 @@ export class UsageCommands {
 
     let response = ':robot_face: *Usage by Bot*\n\n';
 
-    const sorted = result.sort((a, b) => (b.totalCost || 0) - (a.totalCost || 0));
+    const sorted = result.sort((a: typeof result[0], b: typeof result[0]) => (b.totalCost || 0) - (a.totalCost || 0));
 
     for (const row of sorted) {
       const botName = this.formatBotName(row.botType || 'unknown');
@@ -234,7 +233,7 @@ export class UsageCommands {
 
     let response = ':file_folder: *Usage by Project*\n\n';
 
-    const sorted = result.sort((a, b) => (b.totalCost || 0) - (a.totalCost || 0));
+    const sorted = result.sort((a: typeof result[0], b: typeof result[0]) => (b.totalCost || 0) - (a.totalCost || 0));
 
     for (const row of sorted) {
       const projectName = row.projectId || 'unknown';

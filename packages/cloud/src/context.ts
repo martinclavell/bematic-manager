@@ -1,4 +1,5 @@
 import type {
+  DB,
   ProjectRepository,
   TaskRepository,
   AuditLogRepository,
@@ -29,6 +30,9 @@ import type { OpsService } from './services/ops.service.js';
 
 /** Shared context injected into all Slack listeners */
 export interface AppContext {
+  // Database
+  db: DB;
+
   // Repositories
   projectRepo: ProjectRepository;
   taskRepo: TaskRepository;

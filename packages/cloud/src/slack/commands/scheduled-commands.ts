@@ -7,6 +7,122 @@ import { BotRegistry } from '@bematic/bots';
 const logger = createLogger('slack:scheduled-commands');
 
 /**
+ * Handle /bm remind <time> <message>
+ * Example: /bm remind "in 15 minutes" join meeting with customer
+ */
+export async function handleRemindCommand(
+  command: SlashCommand,
+  respond: RespondFn,
+  client: WebClient,
+  ctx: AppContext,
+  subArgs: string[],
+) {
+  const { user_id, channel_id } = command;
+
+  // Get user's timezone from Slack profile
+  let timezone = 'America/New_York'; // default
+  try {
+    const userInfo = await client.users.info({ user: user_id });
+    timezone = (userInfo.user as any)?.tz || 'America/New_York';
+  } catch (error) {
+    logger.warn({ error, user_id }, 'Failed to get user timezone, using default');
+  }
+
+  // Parse: remind "<time>" <message>
+  const fullText = subArgs.join(' ');
+
+  // Extract time (either quoted or first token(s))
+  let timeStr = '';
+  let message = '';
+
+  if (fullText.startsWith('"') || fullText.startsWith("'")) {
+    const quote = fullText[0];
+    const endQuote = fullText.indexOf(quote, 1);
+    if (endQuote === -1) {
+      await respond(':x: Invalid time format. Use quotes: `/bm remind "tomorrow 3pm" message here`');
+      return;
+    }
+    timeStr = fullText.slice(1, endQuote);
+    message = fullText.slice(endQuote + 1).trim();
+  } else {
+    // Try to parse first 1-3 words as time
+    const parts = fullText.split(/\s+/);
+    let parsed: Date | null = null;
+    for (let i = 1; i <= Math.min(3, parts.length); i++) {
+      const candidate = parts.slice(0, i).join(' ');
+      parsed = TimeParser.parseNatural(candidate, timezone);
+      if (parsed) {
+        timeStr = candidate;
+        message = parts.slice(i).join(' ');
+        break;
+      }
+    }
+    if (!parsed && parts.length > 0) {
+      timeStr = parts[0];
+      message = parts.slice(1).join(' ');
+    }
+  }
+
+  if (!message || message.trim().length === 0) {
+    await respond(
+      ':x: Usage: `/bm remind "<time>" <message>`\n' +
+      'Example: `/bm remind "in 15 minutes" join customer meeting`'
+    );
+    return;
+  }
+
+  // Validate time
+  const scheduledDate = TimeParser.parseNatural(timeStr, timezone);
+  if (!scheduledDate) {
+    await respond(`:x: Could not parse time: "${timeStr}". Try formats like:\n• "in 15 minutes"\n• "tomorrow 3pm"\n• "2025-03-01 14:00"`);
+    return;
+  }
+
+  if (!TimeParser.isFuture(scheduledDate)) {
+    await respond(`:x: Reminder time must be in the future. "${timeStr}" is in the past.`);
+    return;
+  }
+
+  // Get project (required for storage)
+  const project = ctx.projectResolver.tryResolve(channel_id);
+  if (!project) {
+    await respond(':x: No project configured for this channel. Use `/bm config` first.');
+    return;
+  }
+
+  try {
+    // Create scheduled reminder (using a special "reminder" task type)
+    const scheduled = await ctx.schedulerService.scheduleTask({
+      projectId: project.id,
+      userId: user_id,
+      slackChannelId: channel_id,
+      taskType: 'reminder',
+      botName: 'system', // No bot needed for reminders
+      command: 'remind',
+      prompt: message,
+      scheduledFor: scheduledDate.toISOString(),
+      timezone,
+    });
+
+    await respond(
+      `:white_check_mark: *Reminder set!*\n\n` +
+      `:alarm_clock: When: ${TimeParser.format(scheduledDate, timezone)} (${TimeParser.relative(scheduledDate, timezone)})\n` +
+      `:speech_balloon: Message: "${message}"\n` +
+      `:id: Reminder ID: \`${scheduled.id}\`\n\n` +
+      `_Use \`/bm scheduled list\` to view all reminders_`
+    );
+
+    logger.info(
+      { taskId: scheduled.id, user: user_id, scheduledFor: scheduledDate.toISOString() },
+      'Reminder created'
+    );
+  } catch (error) {
+    logger.error({ error, user: user_id }, 'Failed to create reminder');
+    await respond(`:x: Failed to create reminder: ${error}`);
+  }
+}
+
+/**
  * Handle /bm schedule <time> <bot> <command> <prompt>
  * Example: /bm schedule "tomorrow 3pm" coder fix optimize database queries
  */
