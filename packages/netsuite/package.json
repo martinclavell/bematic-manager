@@ -46,7 +46,7 @@
   "author": "Bematic",
   "license": "MIT",
   "dependencies": {
-    "@bematic/common": "workspace:*"
+    "@bematic/common": "*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
