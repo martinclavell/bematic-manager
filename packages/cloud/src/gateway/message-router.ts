@@ -471,12 +471,22 @@ export class MessageRouter {
       await this.swapReaction(task, 'white_check_mark');
     }
 
-    await this.notifier.postBlocks(
+    const blockPostResult = await this.notifier.postBlocks(
       task.slackChannelId,
       blocks,
       `Task completed: ${parsed.result.slice(0, 100)}`,
       task.slackThreadTs,
     );
+
+    // Fallback: if blocks failed to post, send plain text so the user isn't left hanging
+    if (!blockPostResult) {
+      logger.warn({ taskId: parsed.taskId, blockCount: blocks.length }, 'postBlocks failed — falling back to plain text');
+      await this.notifier.postMessage(
+        task.slackChannelId,
+        slackResult.slice(0, 3900),
+        task.slackThreadTs,
+      );
+    }
 
     // Audit log with attachment failure information
     const auditMetadata: Record<string, any> = {
@@ -718,12 +728,22 @@ export class MessageRouter {
       await this.swapReaction(task, 'x');
     }
 
-    await this.notifier.postBlocks(
+    const errorBlockResult = await this.notifier.postBlocks(
       task.slackChannelId,
       blocks,
       `Task failed: ${parsed.error}`,
       task.slackThreadTs,
     );
+
+    // Fallback: if blocks failed, post plain text
+    if (!errorBlockResult) {
+      logger.warn({ taskId: parsed.taskId }, 'Error postBlocks failed — falling back to plain text');
+      await this.notifier.postMessage(
+        task.slackChannelId,
+        `:x: *Task failed:*\n\`\`\`${parsed.error.slice(0, 2900)}\`\`\``,
+        task.slackThreadTs,
+      );
+    }
 
     this.auditLogRepo.log('task:failed', 'task', parsed.taskId, null, {
       agentId,

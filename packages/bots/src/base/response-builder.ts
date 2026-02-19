@@ -53,22 +53,28 @@ export function actions(
 ): SlackBlock {
   return {
     type: 'actions',
-    elements: buttons.map((b) => ({
-      type: 'button',
-      text: { type: 'plain_text', text: b.text },
-      action_id: b.actionId,
-      value: b.value,
-      style: b.style,
-    })),
+    elements: buttons.map((b) => {
+      const element: { type: 'button'; text: { type: 'plain_text'; text: string }; action_id: string; value?: string; style?: 'primary' | 'danger' } = {
+        type: 'button' as const,
+        text: { type: 'plain_text' as const, text: b.text },
+        action_id: b.actionId,
+      };
+      if (b.value) element.value = b.value;
+      if (b.style) element.style = b.style;
+      return element;
+    }),
   };
 }
 
 export function taskCompleteBlocks(
   result: string,
-  metrics: { inputTokens: number; outputTokens: number; estimatedCost: number; durationMs: number; filesChanged: string[]; basePath?: string },
+  metrics: { taskId?: string; inputTokens: number; outputTokens: number; estimatedCost: number; durationMs: number; filesChanged: string[]; basePath?: string },
 ): SlackBlock[] {
+  // Guard against empty result — Slack rejects section blocks with empty text
+  const displayResult = result.trim() || '_(Task completed with no text output)_';
+
   // Use smart truncation to preserve structure (code blocks, headers)
-  const { truncated, wasTruncated, originalLength } = truncateMessage(result, {
+  const { truncated, wasTruncated, originalLength } = truncateMessage(displayResult, {
     maxLength: Limits.SLACK_FINAL_DISPLAY_LENGTH,
     strategy: 'smart',
     indicator: `\n\n_...response truncated for Slack display_`,
@@ -127,12 +133,13 @@ export function taskCompleteBlocks(
     );
   }
 
-  // Add feedback buttons
+  // Add feedback buttons (use taskId for clean action_ids)
+  const feedbackId = metrics.taskId || 'task';
   blocks.push(
     actions(
-      { text: '👍 Helpful', actionId: `feedback_positive_${metrics.basePath || 'task'}`, value: '', style: 'primary' },
-      { text: '👎 Not Helpful', actionId: `feedback_negative_${metrics.basePath || 'task'}`, value: '' },
-      { text: '💡 Suggest Improvement', actionId: `feedback_suggest_${metrics.basePath || 'task'}`, value: '' }
+      { text: '👍 Helpful', actionId: `feedback_positive_${feedbackId}`, value: feedbackId, style: 'primary' },
+      { text: '👎 Not Helpful', actionId: `feedback_negative_${feedbackId}`, value: feedbackId },
+      { text: '💡 Suggest Improvement', actionId: `feedback_suggest_${feedbackId}`, value: feedbackId }
     )
   );
 
