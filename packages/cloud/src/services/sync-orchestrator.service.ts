@@ -292,16 +292,41 @@ export class SyncOrchestrator extends EventEmitter {
   }
 
   /**
-   * Wait for agent to reconnect after restart
+   * Wait for agent to reconnect after restart.
+   * Two-phase: first wait for the agent to go OFFLINE (old connection dies),
+   * then wait for it to come back ONLINE (new connection established).
+   * This prevents sending a deploy request to the dying old connection.
    */
   private waitForAgentReconnection(workflow: SyncWorkflow): void {
-    const timeout = 120_000; // 2 minutes timeout
+    const timeout = 120_000; // 2 minutes total timeout
     const startTime = Date.now();
+    let sawOffline = false;
 
     const checkInterval = setInterval(async () => {
-      // Check if agent is back online
-      if (this.agentManager.isOnline(workflow.agentId)) {
+      const online = this.agentManager.isOnline(workflow.agentId);
+
+      // Phase 1: wait for agent to go offline
+      if (!sawOffline) {
+        if (!online) {
+          sawOffline = true;
+          logger.info({ workflowId: workflow.id, agentId: workflow.agentId }, 'Agent went offline, waiting for reconnection');
+        }
+        // Still online on old connection — keep waiting
+        if (Date.now() - startTime > timeout) {
+          clearInterval(checkInterval);
+          await this.failWorkflow(
+            workflow,
+            'Agent did not disconnect after restart signal',
+            ':x: Agent did not restart. Sync workflow aborted.',
+          );
+        }
+        return;
+      }
+
+      // Phase 2: wait for agent to come back online
+      if (online) {
         clearInterval(checkInterval);
+        logger.info({ workflowId: workflow.id, agentId: workflow.agentId }, 'Agent reconnected');
         await this.proceedToDeploy(workflow);
         return;
       }
