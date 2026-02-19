@@ -52,6 +52,7 @@
 | `schema/offline-queue.ts` | Offline queue table definition |
 | `schema/api-keys.ts` | API keys table definition |
 | `schema/prompt-history.ts` | Prompt history table definition |
+| `schema/netsuite-configs.ts` | NetSuite configurations table definition |
 | `schema/index.ts` | Barrel export |
 | **Repositories** | |
 | `repositories/base.repository.ts` | Abstract base with DB injection |
@@ -63,6 +64,7 @@
 | `repositories/offline-queue.repository.ts` | Queue operations |
 | `repositories/api-key.repository.ts` | API key management and rotation |
 | `repositories/prompt-history.repository.ts` | Prompt history CRUD + search + stats |
+| `repositories/netsuite-config.repository.ts` | NetSuite config CRUD + upsert |
 | `repositories/index.ts` | Barrel export |
 
 ---
@@ -104,6 +106,8 @@
 | `slack/listeners/file-utils.ts` | Slack file attachment extraction for prompts |
 | `slack/listeners/commands.ts` | Slash command handlers |
 | `slack/listeners/actions.ts` | Interactive action handlers (retry/cancel) |
+| `slack/listeners/bm-command.ts` | /bm unified command handler |
+| `slack/listeners/netsuite-command.ts` | /bm netsuite integration commands |
 | `slack/listeners/config.ts` | /bm-config project configuration |
 | `slack/listeners/admin.ts` | /bm-admin administrative commands |
 | `slack/listeners/index.ts` | Barrel export |
@@ -142,6 +146,7 @@
 | `services/project.service.ts` | Project CRUD service |
 | `services/deploy.service.ts` | Railway deployment integration |
 | `services/retention.service.ts` | Data retention policy enforcement |
+| `services/netsuite.service.ts` | NetSuite OAuth 1.0 integration & credential encryption |
 | `services/health.service.ts` | Health check and metrics reporting |
 | `services/api-key.service.ts` | API key generation, validation, and rotation |
 | `services/index.ts` | Barrel export |

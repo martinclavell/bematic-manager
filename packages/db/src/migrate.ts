@@ -8,6 +8,7 @@ import { users, userProjectPermissions } from './schema/users.js';
 import { offlineQueue } from './schema/offline-queue.js';
 import { promptHistory } from './schema/prompt-history.js';
 import { apiKeys } from './schema/api-keys.js';
+import { netsuiteConfigs } from './schema/netsuite-configs.js';
 
 /**
  * Push schema to database (create tables if not exist).
@@ -149,6 +150,22 @@ export function pushSchema(dbUrl?: string) {
     expires_at INTEGER,
     last_used_at INTEGER,
     revoked INTEGER NOT NULL DEFAULT 0
+  )`);
+
+  db.run(sql`CREATE TABLE IF NOT EXISTS ${netsuiteConfigs} (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL UNIQUE,
+    account_number TEXT NOT NULL,
+    production_url TEXT NOT NULL,
+    sandbox_url TEXT,
+    restlet_url TEXT NOT NULL,
+    consumer_key TEXT NOT NULL,
+    consumer_secret TEXT NOT NULL,
+    token_id TEXT NOT NULL,
+    token_secret TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
   )`);
 
   return db;

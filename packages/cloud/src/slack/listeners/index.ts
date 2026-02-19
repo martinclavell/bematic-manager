@@ -7,12 +7,14 @@ import { registerActionListeners } from './actions.js';
 import { registerBmCommandListener, registerConfigModalHandler } from './bm-command.js';
 import { registerAdminListener } from './admin.js';
 import { registerAgentsResetListener } from './agents-reset.js';
+import { registerNetSuiteCommandListener } from './netsuite-command.js';
 
 export function registerAllListeners(app: App, ctx: AppContext) {
   registerMentionListener(app, ctx);
   registerMessageListener(app, ctx);
   registerBmCommandListener(app, ctx); // New unified /bm command
   registerConfigModalHandler(app, ctx); // Config modal submission handler
+  registerNetSuiteCommandListener(app, ctx); // NetSuite integration commands
   registerCommandListeners(app, ctx); // Legacy bot-specific commands (deprecated)
   registerActionListeners(app, ctx);
   registerAdminListener(app, ctx); // Keep for backwards compatibility

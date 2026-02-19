@@ -15,6 +15,7 @@ import {
   PromptHistoryRepository,
   ApiKeyRepository,
   ArchivedTaskRepository,
+  NetSuiteConfigRepository,
 } from '@bematic/db';
 import { registerAllBots } from '@bematic/bots';
 import { loadConfig } from './config.js';
@@ -35,6 +36,7 @@ import { ApiKeyService } from './services/api-key.service.js';
 import { HealthService } from './services/health.service.js';
 import { RetentionService } from './services/retention.service.js';
 import { SlackUserService } from './services/slack-user.service.js';
+import { NetSuiteService } from './services/netsuite.service.js';
 import { AgentHealthTracker } from './gateway/agent-health-tracker.js';
 import { metrics, MetricNames } from './utils/metrics.js';
 import { createSecurityHeadersMiddleware, applySecurityHeaders } from './middleware/security-headers.js';
@@ -59,6 +61,7 @@ async function main() {
   const promptHistoryRepo = new PromptHistoryRepository(db);
   const apiKeyRepo = new ApiKeyRepository(db);
   const archivedTaskRepo = new ArchivedTaskRepository(db);
+  const netsuiteConfigRepo = new NetSuiteConfigRepository(db);
 
   // Register all bots
   registerAllBots();
@@ -129,6 +132,7 @@ async function main() {
     archivedTaskRepo,
   );
   const slackUserService = new SlackUserService(app.client);
+  const netsuiteService = new NetSuiteService(netsuiteConfigRepo);
 
   // Wire up MessageRouter <-> CommandService for decomposition support
   messageRouter.setCommandService(commandService, projectRepo);
@@ -148,6 +152,7 @@ async function main() {
     offlineQueueRepo,
     promptHistoryRepo,
     apiKeyRepo,
+    netsuiteConfigRepo,
     commandService,
     projectService,
     notifier,
@@ -156,6 +161,7 @@ async function main() {
     healthService,
     retentionService,
     slackUserService,
+    netsuiteService,
     agentManager,
     messageRouter,
     agentHealthTracker,

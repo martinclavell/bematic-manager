@@ -14,6 +14,7 @@ export {
   promptHistory,
   apiKeys,
   archivedTasks,
+  netsuiteConfigs,
 } from './schema/index.js';
 export type {
   ProjectRow,
@@ -35,6 +36,8 @@ export type {
   ApiKeyInsert,
   ArchivedTaskRow,
   ArchivedTaskInsert,
+  NetSuiteConfigRow,
+  NetSuiteConfigInsert,
 } from './schema/index.js';
 
 // Repositories
@@ -48,4 +51,5 @@ export {
   PromptHistoryRepository,
   ApiKeyRepository,
   ArchivedTaskRepository,
+  NetSuiteConfigRepository,
 } from './repositories/index.js';

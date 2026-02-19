@@ -24,6 +24,7 @@
 | `CLOUD_SSL_CERT_PATH` | No | — | Path to TLS certificate file |
 | `CLOUD_SSL_KEY_PATH` | No | — | Path to TLS private key file |
 | `CLOUD_ENFORCE_WSS` | No | `true` (prod), `false` (dev) | Reject non-WSS connections |
+| `NETSUITE_ENCRYPTION_KEY` | Yes* | — | 64-char hex string (32 bytes) for AES-256 credential encryption (required if using NetSuite integration) |
 
 ---
 

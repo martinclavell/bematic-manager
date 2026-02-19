@@ -56,6 +56,7 @@ Executed in order for every incoming Slack event:
 | Mentions | `mentions.ts` | `@BematicManager ...` | Primary UX — resolve bot, parse command, create task, submit to agent |
 | Messages | `messages.ts` | Channel messages | Auto-detect tasks in configured project channels |
 | BM Command | `bm-command.ts` | `/bm [subcommand]` | Main unified command handler with admin handlers architecture |
+| NetSuite Command | `netsuite-command.ts` | `/bm netsuite` | NetSuite integration commands (config, get, seo, test) |
 | Actions | `actions.ts` | Button clicks | Retry/cancel task interactive actions |
 | Admin (legacy) | `admin.ts` | `/bm-admin` | Legacy admin commands (kept for backwards compatibility) |
 | File Utils | `file-utils.ts` | File uploads | Secure file validation and processing |
@@ -197,6 +198,7 @@ Primary command interface for development, operations, and configuration:
 | `DeployService` | `deploy.service.ts` | Railway deployment integration |
 | `RetentionService` | `retention.service.ts` | Data retention policy enforcement with archiving capabilities |
 | `HealthService` | `health.service.ts` | Health check and metrics reporting with performance tracking |
+| `NetSuiteService` | `netsuite.service.ts` | NetSuite integration: OAuth 1.0 authentication, RESTlet API calls, credential encryption |
 
 ---
 

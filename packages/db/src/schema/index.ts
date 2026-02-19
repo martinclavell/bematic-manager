@@ -23,3 +23,6 @@ export type { ApiKeyRow, ApiKeyInsert } from './api-keys.js';
 
 export { archivedTasks } from './archived-tasks.js';
 export type { ArchivedTaskRow, ArchivedTaskInsert } from './archived-tasks.js';
+
+export { netsuiteConfigs } from './netsuite-configs.js';
+export type { NetSuiteConfigRow, NetSuiteConfigInsert } from './netsuite-configs.js';

@@ -163,6 +163,23 @@ All tables use TEXT primary keys (nanoid-generated) except `audit_logs`, `offlin
 | `timestamp` | TEXT NOT NULL | ISO string |
 | `completed_at` | TEXT NULL | ISO string |
 
+### `netsuite_configs` table
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | TEXT PK | nanoid |
+| `project_id` | TEXT NOT NULL UNIQUE | FK to `projects.id`, CASCADE on delete |
+| `account_number` | TEXT NOT NULL | NetSuite account number |
+| `production_url` | TEXT NOT NULL | Production NetSuite URL |
+| `sandbox_url` | TEXT NULL | Optional sandbox URL |
+| `restlet_url` | TEXT NOT NULL | RESTlet endpoint URL |
+| `consumer_key` | TEXT NOT NULL | Encrypted OAuth consumer key |
+| `consumer_secret` | TEXT NOT NULL | Encrypted OAuth consumer secret |
+| `token_id` | TEXT NOT NULL | Encrypted OAuth token ID |
+| `token_secret` | TEXT NOT NULL | Encrypted OAuth token secret |
+| `created_at` | TEXT NOT NULL | ISO string |
+| `updated_at` | TEXT NOT NULL | ISO string |
+
 ---
 
 ## Repositories
@@ -177,6 +194,7 @@ All repositories extend `BaseRepository` which receives a DB instance via constr
 | `UserRepository` | `create`, `findById`, `findBySlackUserId`, `upsert`, `updateRole`, `findAll` |
 | `AuditLogRepository` | `create`, `log(action, resourceType, resourceId?, userId?, metadata?)`, `findRecent(limit?)` |
 | `OfflineQueueRepository` | `enqueue`, `findPendingByAgentId`, `markDelivered`, `cleanExpired` |
+| `NetSuiteConfigRepository` | `create`, `findById`, `findByProjectId`, `findAll`, `update`, `upsertByProjectId`, `delete`, `deleteByProjectId` |
 | `ApiKeyRepository` | `create`, `findById`, `findByKey`, `findByAgentId`, `updateLastUsed`, `revoke`, `findActive`, `cleanup` |
 | `PromptHistoryRepository` | `create`, `log(prompt, options?)`, `findById`, `findAll(options?)`, `findRecent(limit?)`, `update`, `complete`, `fail`, `cancel`, `getStats`, `getCategories`, `getTags`, `delete` |
 

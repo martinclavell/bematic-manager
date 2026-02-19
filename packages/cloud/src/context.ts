@@ -6,6 +6,7 @@ import type {
   OfflineQueueRepository,
   PromptHistoryRepository,
   ApiKeyRepository,
+  NetSuiteConfigRepository,
 } from '@bematic/db';
 import type { CommandService } from './services/command.service.js';
 import type { ProjectService } from './services/project.service.js';
@@ -15,6 +16,7 @@ import type { ApiKeyService } from './services/api-key.service.js';
 import type { HealthService } from './services/health.service.js';
 import type { RetentionService } from './services/retention.service.js';
 import type { SlackUserService } from './services/slack-user.service.js';
+import type { NetSuiteService } from './services/netsuite.service.js';
 import type { AgentManager } from './gateway/agent-manager.js';
 import type { MessageRouter } from './gateway/message-router.js';
 import type { AgentHealthTracker } from './gateway/agent-health-tracker.js';
@@ -29,6 +31,7 @@ export interface AppContext {
   offlineQueueRepo: OfflineQueueRepository;
   promptHistoryRepo: PromptHistoryRepository;
   apiKeyRepo: ApiKeyRepository;
+  netsuiteConfigRepo: NetSuiteConfigRepository;
 
   // Services
   commandService: CommandService;
@@ -39,6 +42,7 @@ export interface AppContext {
   healthService: HealthService;
   retentionService: RetentionService;
   slackUserService: SlackUserService;
+  netsuiteService: NetSuiteService;
 
   // Gateway
   agentManager: AgentManager;
