@@ -783,6 +783,12 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
             '`/bm restart --rebuild` - Restart agents with rebuild\n\n' +
             '*Configuration:*\n' +
             '`/bm config` or `/bm configure` or `/bm setup` - Configure project settings\n\n' +
+            '*NetSuite Integration:*\n' +
+            '`/bm netsuite config` - Configure NetSuite credentials & endpoints\n' +
+            '`/bm netsuite get <type> <id>` - Fetch NetSuite record (e.g. `customer 1233`)\n' +
+            '`/bm netsuite seo <url>` - Generate SEO debug URL with prerender flags\n' +
+            '`/bm netsuite test` - Test NetSuite connection & authentication\n' +
+            '`/bm netsuite help` - Show detailed NetSuite commands help\n\n' +
             '*Help:*\n' +
             '`/bm help` or `/bm ?` - Show this help message\n\n' +
             '*For coding tasks*, use natural language mentions:\n' +

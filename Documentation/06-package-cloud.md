@@ -161,6 +161,10 @@ Primary command interface for development, operations, and configuration:
 | `/bm usage` | USER_MANAGE | View session usage & statistics |
 | `/bm logs [limit]` | USER_MANAGE | View prompt history with optional filters |
 | `/bm config` | PROJECT_MANAGE | Configure project settings via modal (name, path, agent, model, budget, auto-commit) |
+| `/bm netsuite config` | PROJECT_MANAGE | Configure NetSuite credentials & endpoints (OAuth 1.0, RESTlet URL) |
+| `/bm netsuite get <type> <id>` | TASK_CREATE | Fetch NetSuite record via RESTlet (e.g. `customer 1233`) |
+| `/bm netsuite seo <url>` | TASK_CREATE | Generate SEO debug URL with prerender flags |
+| `/bm netsuite test` | TASK_CREATE | Test NetSuite connection & authentication |
 
 **Project Configuration**:
 
