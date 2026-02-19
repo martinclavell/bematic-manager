@@ -79,5 +79,6 @@ export interface AppContext {
   };
   repositories: {
     archivedTaskRepo: import('@bematic/db').ArchivedTaskRepository;
+    scheduledTaskRepo: ScheduledTaskRepository;
   };
 }

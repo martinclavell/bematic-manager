@@ -86,6 +86,7 @@ The cloud package uses a modular handler pattern for extensibility:
 | Sessions | `admin-commands/sessions.ts` | Session management and cleanup |
 | Users | `admin-commands/users.ts` | User management and permissions |
 | Temp Files | `admin-commands/temp-files.ts` | Temporary file cleanup and management |
+| Scheduled Tasks | `admin-commands/scheduled-tasks.ts` | View statistics and clean up old scheduled tasks |
 
 ### Cache & Performance Handlers
 
@@ -175,6 +176,12 @@ Primary command interface for development, operations, and configuration:
 | `/bm netsuite get <type> <id>` | TASK_CREATE | Fetch NetSuite record via RESTlet (e.g. `customer 1233`) |
 | `/bm netsuite seo <url>` | TASK_CREATE | Generate SEO debug URL with prerender flags |
 | `/bm netsuite test` | TASK_CREATE | Test NetSuite connection & authentication |
+| `/bm schedule <time> <command>` | TASK_CREATE | Schedule a one-time task (e.g., `schedule tomorrow 9am fix bug`) |
+| `/bm schedule-cron <cron> <command>` | TASK_CREATE | Schedule a recurring task (e.g., `schedule-cron "0 0 * * *" build`) |
+| `/bm scheduled list` | TASK_CREATE | List all scheduled tasks for current project |
+| `/bm scheduled pause <id>` | TASK_CREATE | Pause a scheduled task |
+| `/bm scheduled resume <id>` | TASK_CREATE | Resume a paused task |
+| `/bm scheduled cancel <id>` | TASK_CREATE | Cancel and delete a scheduled task |
 
 **Project Configuration**:
 
@@ -257,6 +264,8 @@ Administrative commands for system management, monitoring, and operations:
 | `/bm-admin usage today\|week\|month` | Usage for specific time period |
 | `/bm-admin usage by-bot` | Usage breakdown by bot type |
 | `/bm-admin usage by-project` | Usage breakdown by project |
+| `/bm-admin scheduled-stats` | Show comprehensive scheduled tasks statistics |
+| `/bm-admin scheduled-cleanup [--dry-run\|--force]` | Clean up old completed/failed scheduled tasks |
 
 **Usage Tracking**:
 
@@ -292,6 +301,33 @@ Quick link to Claude.ai web UI usage page included in output for manual verifica
 | `RetentionService` | `retention.service.ts` | Data retention policy enforcement with archiving capabilities |
 | `HealthService` | `health.service.ts` | Health check and metrics reporting with performance tracking |
 | `NetSuiteService` | `netsuite.service.ts` | NetSuite integration: OAuth 1.0 authentication, RESTlet API calls, credential encryption |
+| `SchedulerService` | `scheduler.service.ts` | Scheduled task management: create, update, execute scheduled tasks with cron support |
+
+---
+
+## Background Workers
+
+### Scheduler Worker (`workers/scheduler-worker.ts`)
+
+Background process that executes scheduled tasks on time:
+
+- **Tick Interval**: Checks for due tasks every 30 seconds
+- **Execution**: Finds tasks with `next_execution_at <= now` and status = 'active'
+- **Task Processing**: Submits due tasks via `CommandService` with original Slack context
+- **Cron Handling**: Calculates next execution time for recurring tasks using `cron-parser`
+- **Error Handling**: Marks tasks as failed if execution errors occur (max 3 retries)
+- **Quota Enforcement**: Respects per-user task limits (50 scheduled tasks max)
+- **Frequency Validation**: Rejects cron expressions with intervals < 1 hour
+- **Timezone Support**: Executes tasks in user's timezone (from Slack profile)
+- **Audit Trail**: Logs all scheduled task executions
+
+**Scheduled Task Features**:
+- **Natural Language Parsing**: "tomorrow 9am", "in 2 hours", "next Friday" via `chrono-node`
+- **Cron Expressions**: Full cron support (e.g., "0 0 * * *" for daily at midnight)
+- **One-time Tasks**: Execute once at specific time
+- **Recurring Jobs**: Repeat on schedule with optional max executions
+- **Pause/Resume**: Temporarily disable tasks without deleting
+- **Expiration**: Auto-cancel tasks after specified date
 
 ---
 

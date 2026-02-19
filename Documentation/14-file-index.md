@@ -31,6 +31,8 @@
 | `utils/retry.ts` | Exponential backoff retry utility |
 | `utils/ws-helpers.ts` | WebSocket message creation, serialization, parsing |
 | `utils/message-truncation.ts` | Intelligent message truncation for Slack limits (head/tail/smart strategies) |
+| `utils/time-parser.ts` | Natural language time parsing using chrono-node |
+| `utils/cron-parser.ts` | Cron expression validation and description |
 | `utils/index.ts` | Barrel export |
 
 ---
@@ -53,6 +55,7 @@
 | `schema/api-keys.ts` | API keys table definition |
 | `schema/prompt-history.ts` | Prompt history table definition |
 | `schema/netsuite-configs.ts` | NetSuite configurations table definition |
+| `schema/scheduled-tasks.ts` | Scheduled tasks table definition |
 | `schema/index.ts` | Barrel export |
 | **Repositories** | |
 | `repositories/base.repository.ts` | Abstract base with DB injection |
@@ -65,6 +68,7 @@
 | `repositories/api-key.repository.ts` | API key management and rotation |
 | `repositories/prompt-history.repository.ts` | Prompt history CRUD + search + stats |
 | `repositories/netsuite-config.repository.ts` | NetSuite config CRUD + upsert |
+| `repositories/scheduled-task.repository.ts` | Scheduled task CRUD + due task queries |
 | `repositories/index.ts` | Barrel export |
 
 ---
@@ -122,6 +126,8 @@
 | `slack/admin-commands/logs-commands.ts` | Log viewing commands |
 | `slack/admin-commands/retention-commands.ts` | Data retention commands |
 | `slack/admin-commands/worker-commands.ts` | Worker management commands |
+| `slack/admin-commands/scheduled-tasks.ts` | Scheduled task statistics and cleanup |
+| `slack/commands/scheduled-commands.ts` | User-facing scheduled task commands |
 | **WebSocket Gateway** | |
 | `gateway/ws-server.ts` | WebSocket server setup |
 | `gateway/agent-manager.ts` | Agent connection pool management |
@@ -151,7 +157,10 @@
 | `services/netsuite.service.ts` | NetSuite OAuth 1.0 integration & credential encryption |
 | `services/health.service.ts` | Health check and metrics reporting |
 | `services/api-key.service.ts` | API key generation, validation, and rotation |
+| `services/scheduler.service.ts` | Scheduled task creation, execution, and cron management |
 | `services/index.ts` | Barrel export |
+| **Workers** | |
+| `workers/scheduler-worker.ts` | Background worker for scheduled task execution |
 | **Service Handlers** | |
 | `services/handlers/index.ts` | Barrel export |
 | `services/handlers/decomposition-handler.ts` | Task decomposition logic |

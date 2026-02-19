@@ -123,6 +123,25 @@ export function registerAdminListener(app: App, ctx: AppContext) {
           await respond(result);
           break;
         }
+
+        case 'scheduled-stats':
+        case 'scheduled-cleanup': {
+          const { handleScheduledTasksCommand } = await import('../admin-commands/scheduled-tasks.js');
+          const context = { args: [subcommand.replace('scheduled-', ''), ...args.slice(1)], userId: user_id, channelId: channel_id };
+
+          if (!ctx.repositories?.scheduledTaskRepo) {
+            await respond('❌ Scheduled tasks repository not available. Please check system configuration.');
+            break;
+          }
+
+          const result = await handleScheduledTasksCommand(
+            context,
+            ctx.repositories.scheduledTaskRepo
+          );
+          await respond(result);
+          break;
+        }
+
         case 'help':
         default:
           await respond(
@@ -144,7 +163,9 @@ export function registerAdminListener(app: App, ctx: AppContext) {
             '`/bm-admin cache <subcommand>` - Cache management (stats, clear, warm, invalidate)\n' +
             '`/bm-admin performance <subcommand>` - Performance monitoring (metrics, summary, events, reset)\n' +
             '`/bm-admin archive <subcommand>` - Archive management (list, restore, delete, stats)\n' +
-            '`/bm-admin metrics <subcommand>` - Real-time metrics (show, summary, top, reset, export)\n',
+            '`/bm-admin metrics <subcommand>` - Real-time metrics (show, summary, top, reset, export)\n' +
+            '`/bm-admin scheduled-stats` - Show scheduled tasks statistics\n' +
+            '`/bm-admin scheduled-cleanup` - Clean up old scheduled tasks (--dry-run, --force)\n',
           );
           break;
       }

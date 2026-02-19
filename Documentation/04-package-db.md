@@ -181,6 +181,37 @@ All tables use TEXT primary keys (nanoid-generated) except `audit_logs`, `offlin
 | `created_at` | TEXT NOT NULL | ISO string |
 | `updated_at` | TEXT NOT NULL | ISO string |
 
+### `scheduled_tasks` table
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | TEXT PK | nanoid |
+| `project_id` | TEXT NOT NULL FK→projects | |
+| `user_id` | TEXT NOT NULL | Slack user ID |
+| `task_type` | TEXT NOT NULL | reminder/prompt_execution/recurring_job |
+| `bot_name` | TEXT NOT NULL | coder/reviewer/ops/planner |
+| `command` | TEXT NOT NULL | e.g., "fix", "review" |
+| `prompt` | TEXT NOT NULL | Task prompt |
+| `scheduled_for` | TEXT NOT NULL | ISO timestamp for next execution |
+| `timezone` | TEXT NOT NULL | e.g., 'America/New_York' |
+| `cron_expression` | TEXT NULL | For recurring tasks (e.g., '0 0 * * *') |
+| `is_recurring` | BOOLEAN NOT NULL | default: false |
+| `last_executed_at` | TEXT NULL | ISO string |
+| `next_execution_at` | TEXT NULL | Cached next run time |
+| `execution_count` | INTEGER NOT NULL | default: 0 |
+| `max_executions` | INTEGER NULL | Limit for recurring tasks |
+| `status` | TEXT NOT NULL | pending/active/paused/completed/cancelled/failed, default: 'pending' |
+| `enabled` | BOOLEAN NOT NULL | default: true |
+| `slack_channel_id` | TEXT NOT NULL | |
+| `slack_thread_ts` | TEXT NULL | Original thread context |
+| `metadata` | TEXT NOT NULL | JSON, default: `{}` |
+| `created_at` | TEXT NOT NULL | ISO string |
+| `updated_at` | TEXT NOT NULL | ISO string |
+| `last_triggered_at` | TEXT NULL | ISO string |
+| `expires_at` | TEXT NULL | Auto-cancel after this date |
+
+**Indexes**: `next_execution_at`, `status+enabled`, `project_id`, `user_id`
+
 ---
 
 ## Repositories
@@ -198,6 +229,7 @@ All repositories extend `BaseRepository` which receives a DB instance via constr
 | `NetSuiteConfigRepository` | `create`, `findById`, `findByProjectId`, `findAll`, `update`, `upsertByProjectId`, `delete`, `deleteByProjectId` |
 | `ApiKeyRepository` | `create`, `findById`, `findByKey`, `findByAgentId`, `updateLastUsed`, `revoke`, `findActive`, `cleanup` |
 | `PromptHistoryRepository` | `create`, `log(prompt, options?)`, `findById`, `findAll(options?)`, `findRecent(limit?)`, `update`, `complete`, `fail`, `cancel`, `getStats`, `getCategories`, `getTags`, `delete` |
+| `ScheduledTaskRepository` | `create`, `findById`, `findAll(options?)`, `findByProjectId`, `findByUserId`, `findDue`, `findUpcoming(limit)`, `findActive`, `findByStatus`, `update`, `pause`, `resume`, `cancel`, `markExecuted`, `delete`, `countByUser` |
 
 ---
 
@@ -267,10 +299,10 @@ npm run log-prompt -- "Update docs" --category documentation --context "API refe
 
 ```typescript
 // Row types (select)
-ProjectRow, TaskRow, SessionRow, UserRow, UserProjectPermissionRow, AuditLogRow, OfflineQueueRow, ApiKeyRow, PromptHistoryRow
+ProjectRow, TaskRow, SessionRow, UserRow, UserProjectPermissionRow, AuditLogRow, OfflineQueueRow, ApiKeyRow, PromptHistoryRow, ScheduledTaskRow
 
 // Insert types
-ProjectInsert, TaskInsert, SessionInsert, UserInsert, AuditLogInsert, OfflineQueueInsert, ApiKeyInsert, PromptHistoryInsert
+ProjectInsert, TaskInsert, SessionInsert, UserInsert, AuditLogInsert, OfflineQueueInsert, ApiKeyInsert, PromptHistoryInsert, ScheduledTaskInsert
 
 // Database connection type
 DB
