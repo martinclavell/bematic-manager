@@ -118,6 +118,7 @@ The bot will:
 3. Extract and analyze all JSON-LD schemas
 4. Research industry competitors
 5. Generate a comprehensive HTML report saved to the project directory
+6. Automatically upload the HTML report to Slack as a downloadable attachment
 
 ---
 

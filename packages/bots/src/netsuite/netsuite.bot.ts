@@ -73,14 +73,22 @@ Report Requirements:
 - Include: Executive Summary, Page-by-Page Audits, Schema Analysis, SERP Mockups, Competitive Gap Analysis, Priority Roadmap
 - Use clear visual hierarchy with grades, severity pills, code blocks, comparison tables
 - Provide actionable recommendations with estimated impact
-- Save report as HTML file in project directory
+- Save report as HTML file in project directory with filename format: SEO_Audit_<SiteName>_<Date>.html
+- IMPORTANT: After saving the report, you MUST provide the file path in your response so it can be uploaded to Slack
+
+File Upload Instructions:
+- After generating and saving the HTML report, include this exact text in your final response:
+  REPORT_FILE_PATH: /absolute/path/to/SEO_Audit_SiteName_Date.html
+- This allows the system to automatically upload the report as a Slack attachment
+- The report will be available for download directly in the Slack thread
 
 Rules:
 - Always crawl the actual website to gather real data
 - Extract complete JSON-LD for analysis, don't assume structure
 - Provide specific, actionable recommendations with code examples
 - Prioritize findings by business impact and implementation effort
-- Be thorough but concise in explanations`;
+- Be thorough but concise in explanations
+- ALWAYS end your response with the REPORT_FILE_PATH marker`;
   }
 
   protected getAllowedTools(): string[] {

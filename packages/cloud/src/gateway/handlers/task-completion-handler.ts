@@ -103,6 +103,9 @@ export class TaskCompletionHandler {
       task.slackThreadTs,
     );
 
+    // Check for file upload marker in result (for NetSuite audits, etc.)
+    await this.handleFileUploadIfPresent(task, parsed.result);
+
     // Log to audit trail
     this.auditLogRepo.log('task:completed', 'task', parsed.taskId, null, {
       agentId,
@@ -110,6 +113,46 @@ export class TaskCompletionHandler {
       durationMs: parsed.durationMs,
       parentTaskId: task.parentTaskId,
     });
+  }
+
+  private async handleFileUploadIfPresent(task: TaskRow, result: string): Promise<void> {
+    // Look for REPORT_FILE_PATH: marker in the result
+    const filePathMatch = result.match(/REPORT_FILE_PATH:\s*(.+?)(?:\n|$)/);
+    if (!filePathMatch) return;
+
+    const filePath = filePathMatch[1]!.trim();
+
+    try {
+      // Extract filename from path
+      const filename = filePath.split('/').pop() || 'audit_report.html';
+
+      // Upload file to Slack
+      await this.notifier.uploadFile(
+        task.slackChannelId,
+        filePath,
+        filename,
+        'SEO Audit Report',
+        '📊 Your SEO audit report is ready! Click to download and view the comprehensive analysis.',
+        task.slackThreadTs,
+      );
+
+      logger.info(
+        { taskId: task.id, filePath, filename },
+        'Successfully uploaded audit report to Slack',
+      );
+    } catch (error) {
+      logger.error(
+        { error, taskId: task.id, filePath },
+        'Failed to upload audit report to Slack',
+      );
+
+      // Post error message to user
+      await this.notifier.postMessage(
+        task.slackChannelId,
+        `⚠️ Report generated at \`${filePath}\` but failed to upload to Slack. Please check the file manually.`,
+        task.slackThreadTs,
+      );
+    }
   }
 
   private async handleDecompositionTaskComplete(task: TaskRow, planningResult: string): Promise<void> {

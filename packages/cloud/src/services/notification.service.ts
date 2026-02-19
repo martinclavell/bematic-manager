@@ -279,4 +279,53 @@ ${attachmentList}
 
     await this.postMessage(channel, message, threadTs);
   }
+
+  /**
+   * Upload a file to Slack
+   */
+  async uploadFile(
+    channel: string,
+    filePath: string,
+    filename: string,
+    title?: string,
+    initialComment?: string,
+    threadTs?: string | null,
+  ): Promise<void> {
+    const startTime = Date.now();
+
+    try {
+      await withSlackRetry(
+        async () => {
+          const fs = await import('node:fs/promises');
+          const fileContent = await fs.readFile(filePath);
+
+          return this.client.files.uploadV2({
+            channel_id: channel,
+            file: fileContent,
+            filename,
+            title: title || filename,
+            initial_comment: initialComment,
+            thread_ts: threadTs ?? undefined,
+          });
+        },
+        { operation: 'uploadFile', channel },
+      );
+
+      // Track successful metrics
+      const duration = Date.now() - startTime;
+      metrics.increment(MetricNames.SLACK_MESSAGES_SENT);
+      metrics.histogram(MetricNames.SLACK_API_LATENCY, duration);
+
+      logger.info({ channel, filename, threadTs }, 'File uploaded successfully');
+    } catch (error) {
+      // Track failed metrics
+      const duration = Date.now() - startTime;
+      metrics.increment(MetricNames.SLACK_MESSAGES_FAILED);
+      metrics.histogram(MetricNames.SLACK_API_LATENCY, duration);
+
+      logger.error({ error, channel, filename }, 'Failed to upload file to Slack after retries');
+      this.failedQueue.enqueue('uploadFile', channel, { filePath, filename, title, initialComment, threadTs }, error);
+      throw error;
+    }
+  }
 }

@@ -206,7 +206,7 @@ Primary command interface for development, operations, and configuration:
 | Service | File | Purpose |
 |---------|------|---------|
 | `CommandService` | `command.service.ts` | Orchestrates: bot resolution → model routing → task creation → agent submission; handles task cancellation |
-| `NotificationService` | `notification.service.ts` | Slack messaging (progress, completion, errors, stream updates) and emoji reactions |
+| `NotificationService` | `notification.service.ts` | Slack messaging (progress, completion, errors, stream updates), emoji reactions, and file uploads |
 | `ProjectService` | `project.service.ts` | CRUD operations for project configuration |
 | `ApiKeyService` | `api-key.service.ts` | API key generation, validation, rotation, and management with database storage |
 | `SlackUserService` | `slack-user.service.ts` | User management, profile caching, and Slack integration |
