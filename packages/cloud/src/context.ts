@@ -7,6 +7,8 @@ import type {
   PromptHistoryRepository,
   ApiKeyRepository,
   NetSuiteConfigRepository,
+  PendingActionRepository,
+  FeedbackSuggestionRepository,
 } from '@bematic/db';
 import type { CommandService } from './services/command.service.js';
 import type { ProjectService } from './services/project.service.js';
@@ -32,6 +34,8 @@ export interface AppContext {
   promptHistoryRepo: PromptHistoryRepository;
   apiKeyRepo: ApiKeyRepository;
   netsuiteConfigRepo: NetSuiteConfigRepository;
+  pendingActionRepo: PendingActionRepository;
+  feedbackSuggestionRepo: FeedbackSuggestionRepository;
 
   // Services
   commandService: CommandService;

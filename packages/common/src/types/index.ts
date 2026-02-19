@@ -12,6 +12,8 @@ export type {
   SystemRestartPayload,
   DeployRequestPayload,
   DeployResultPayload,
+  PathValidateRequestPayload,
+  PathValidateResultPayload,
 } from './messages.js';
 
 export type {
@@ -58,3 +60,11 @@ export type {
   BotExecutionConfig,
   SubtaskDefinition,
 } from './bot.js';
+
+export type {
+  ActionType,
+  ActionContext,
+  ActionResult,
+  FeedbackSuggestion,
+  FeedbackAnalysis,
+} from './actions.js';

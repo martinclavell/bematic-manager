@@ -25,6 +25,10 @@ export const MessageType = {
   DEPLOY_REQUEST: 'deploy:request',
   DEPLOY_RESULT: 'deploy:result',
 
+  // Path validation
+  PATH_VALIDATE_REQUEST: 'path:validate:request',
+  PATH_VALIDATE_RESULT: 'path:validate:result',
+
   // System
   SYSTEM_ERROR: 'system:error',
   SYSTEM_SHUTDOWN: 'system:shutdown',

@@ -127,15 +127,32 @@ export function taskCompleteBlocks(
     );
   }
 
+  // Add feedback buttons
+  blocks.push(
+    actions(
+      { text: '👍 Helpful', actionId: `feedback_positive_${metrics.basePath || 'task'}`, value: '', style: 'primary' },
+      { text: '👎 Not Helpful', actionId: `feedback_negative_${metrics.basePath || 'task'}`, value: '' },
+      { text: '💡 Suggest Improvement', actionId: `feedback_suggest_${metrics.basePath || 'task'}`, value: '' }
+    )
+  );
+
   return blocks;
 }
 
-export function taskErrorBlocks(error: string, taskId: string): SlackBlock[] {
-  return [
+export function taskErrorBlocks(error: string, recoverable: boolean, taskId: string): SlackBlock[] {
+  const blocks: SlackBlock[] = [
     section(`:x: *Task failed*\n\`\`\`${error}\`\`\``),
     context(`Task: \`${taskId}\``),
-    actions({ text: 'Retry', actionId: `retry_task_${taskId}`, value: taskId, style: 'primary' }),
   ];
+
+  // Only show retry button if the error is recoverable
+  if (recoverable) {
+    blocks.push(
+      actions({ text: 'Retry', actionId: `retry_task_${taskId}`, value: taskId, style: 'primary' })
+    );
+  }
+
+  return blocks;
 }
 
 export function queuedOfflineBlocks(taskId: string): SlackBlock[] {
@@ -145,7 +162,7 @@ export function queuedOfflineBlocks(taskId: string): SlackBlock[] {
   ];
 }
 
-/** Display the decomposition plan with subtask list */
+/** Display the decomposition plan with subtask list and approval buttons */
 export function subtaskPlanBlocks(parentTaskId: string, subtasks: SubtaskDefinition[]): SlackBlock[] {
   const list = subtasks
     .map((s, i) => `:white_small_square: *${i + 1}.* ${s.title} (\`${s.command}\`)`)
@@ -155,7 +172,12 @@ export function subtaskPlanBlocks(parentTaskId: string, subtasks: SubtaskDefinit
     section(`:jigsaw: *Task decomposed into ${subtasks.length} subtasks*`),
     section(list),
     divider(),
-    context(`Parent: \`${parentTaskId}\``, 'Subtasks will execute sequentially'),
+    context(`Parent: \`${parentTaskId}\``, 'Review the plan and approve to proceed'),
+    actions(
+      { text: 'Approve Plan', actionId: `approve_plan_${parentTaskId}`, value: parentTaskId, style: 'primary' },
+      { text: 'Request Changes', actionId: `request_changes_${parentTaskId}`, value: parentTaskId },
+      { text: 'Cancel', actionId: `cancel_plan_${parentTaskId}`, value: parentTaskId, style: 'danger' }
+    ),
   ];
 }
 

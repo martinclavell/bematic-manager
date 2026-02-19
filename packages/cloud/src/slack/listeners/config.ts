@@ -1,5 +1,5 @@
 import type { App } from '@slack/bolt';
-import { Permission, createLogger, generateProjectId, generateId } from '@bematic/common';
+import { Permission, createLogger, generateProjectId, generateId, MessageType, createWSMessage, serializeMessage } from '@bematic/common';
 import type { AppContext } from '../../context.js';
 
 const logger = createLogger('slack:config');
@@ -191,6 +191,59 @@ export function registerConfigListener(app: App, ctx: AppContext) {
     await ack();
 
     const existing = ctx.projectResolver.tryResolve(channelId);
+
+    // Validate and create path on agent if it doesn't exist
+    const pathValidationId = generateId('path-validate');
+
+    try {
+      // Send path validation request to agent
+      const agent = ctx.agentManager.getAgent(agentId);
+      if (agent?.status === 'online') {
+        // Wait for validation result with timeout
+        const validationResult = await new Promise<{ success: boolean; exists: boolean; created: boolean; error?: string }>((resolve) => {
+          const timeout = setTimeout(() => {
+            resolve({ success: false, exists: false, created: false, error: 'Path validation timeout' });
+          }, 10000); // 10 second timeout
+
+          // Register callback for validation result
+          ctx.messageRouter.registerPathValidation(pathValidationId, (result) => {
+            clearTimeout(timeout);
+            resolve(result);
+          });
+
+          // Send validation request
+          ctx.agentManager.send(agentId, serializeMessage(createWSMessage(MessageType.PATH_VALIDATE_REQUEST, {
+            requestId: pathValidationId,
+            localPath,
+            agentId,
+          })));
+        });
+
+        if (!validationResult.success) {
+          await client.chat.postEphemeral({
+            channel: channelId,
+            user: body.user.id,
+            text: `:x: Failed to validate/create path: ${validationResult.error}`,
+          });
+          return;
+        }
+      } else {
+        logger.warn({ agentId }, 'Agent offline - skipping path validation');
+        await client.chat.postEphemeral({
+          channel: channelId,
+          user: body.user.id,
+          text: `:warning: Agent \`${agentId}\` is offline. Path validation skipped. Make sure the path exists or the agent is running.`,
+        });
+      }
+    } catch (error) {
+      logger.error({ error }, 'Path validation failed');
+      await client.chat.postEphemeral({
+        channel: channelId,
+        user: body.user.id,
+        text: `:x: Path validation error: ${error instanceof Error ? error.message : String(error)}`,
+      });
+      return;
+    }
 
     if (existing) {
       ctx.projectService.update(existing.id, {

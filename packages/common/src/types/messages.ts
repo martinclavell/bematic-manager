@@ -27,6 +27,8 @@ export interface MessagePayloadMap {
   [MessageType.AGENT_METRICS]: AgentMetricsPayload;
   [MessageType.DEPLOY_REQUEST]: DeployRequestPayload;
   [MessageType.DEPLOY_RESULT]: DeployResultPayload;
+  [MessageType.PATH_VALIDATE_REQUEST]: PathValidateRequestPayload;
+  [MessageType.PATH_VALIDATE_RESULT]: PathValidateResultPayload;
   [MessageType.SYSTEM_ERROR]: SystemErrorPayload;
   [MessageType.SYSTEM_SHUTDOWN]: SystemShutdownPayload;
   [MessageType.SYSTEM_RESTART]: SystemRestartPayload;
@@ -115,4 +117,18 @@ export interface DeployResultPayload {
 export interface SystemRestartPayload {
   reason: string;
   rebuild: boolean;
+}
+
+export interface PathValidateRequestPayload {
+  requestId: string;
+  localPath: string;
+  agentId: string;
+}
+
+export interface PathValidateResultPayload {
+  requestId: string;
+  success: boolean;
+  exists: boolean;
+  created: boolean;
+  error?: string;
 }

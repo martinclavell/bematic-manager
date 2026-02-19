@@ -32,6 +32,8 @@ export type {
   SystemRestartPayload,
   DeployRequestPayload,
   DeployResultPayload,
+  PathValidateRequestPayload,
+  PathValidateResultPayload,
   Task,
   TaskSubmitPayload,
   TaskProgressPayload,

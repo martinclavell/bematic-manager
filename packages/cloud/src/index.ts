@@ -16,6 +16,8 @@ import {
   ApiKeyRepository,
   ArchivedTaskRepository,
   NetSuiteConfigRepository,
+  PendingActionRepository,
+  FeedbackSuggestionRepository,
 } from '@bematic/db';
 import { registerAllBots } from '@bematic/bots';
 import { loadConfig } from './config.js';
@@ -62,6 +64,8 @@ async function main() {
   const apiKeyRepo = new ApiKeyRepository(db);
   const archivedTaskRepo = new ArchivedTaskRepository(db);
   const netsuiteConfigRepo = new NetSuiteConfigRepository(db);
+  const pendingActionRepo = new PendingActionRepository(db);
+  const feedbackSuggestionRepo = new FeedbackSuggestionRepository(db);
 
   // Register all bots
   registerAllBots();
@@ -153,6 +157,8 @@ async function main() {
     promptHistoryRepo,
     apiKeyRepo,
     netsuiteConfigRepo,
+    pendingActionRepo,
+    feedbackSuggestionRepo,
     commandService,
     projectService,
     notifier,

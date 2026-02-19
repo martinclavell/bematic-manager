@@ -9,3 +9,5 @@ export { PromptHistoryRepository } from "./prompt-history.repository.js";
 export { ApiKeyRepository } from './api-key.repository.js';
 export { ArchivedTaskRepository } from './archived-task.repository.js';
 export { NetSuiteConfigRepository } from './netsuite-config.repository.js';
+export { PendingActionRepository } from './pending-action.repository.js';
+export { FeedbackSuggestionRepository } from './feedback-suggestion.repository.js';

@@ -2,6 +2,8 @@ import 'dotenv/config';
 import process from 'node:process';
 process.setMaxListeners(20);
 import { execSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { mkdir } from 'node:fs/promises';
 import {
   MessageType,
   createLogger,
@@ -10,6 +12,7 @@ import {
   type TaskSubmitPayload,
   type SystemRestartPayload,
   type DeployRequestPayload,
+  type PathValidateRequestPayload,
 } from '@bematic/common';
 import { loadAgentConfig } from './config.js';
 import { setupGlobalErrorHandlers } from './error-handlers.js';
@@ -158,6 +161,13 @@ async function main() {
         break;
       }
 
+      case MessageType.PATH_VALIDATE_REQUEST: {
+        const payload = parsed.payload as PathValidateRequestPayload;
+        logger.info({ requestId: payload.requestId, localPath: payload.localPath }, 'Path validation request received');
+        handlePathValidate(wsClient, payload);
+        break;
+      }
+
       case MessageType.SYSTEM_SHUTDOWN: {
         logger.info('Received shutdown signal from cloud');
         shutdown('SYSTEM_SHUTDOWN', 0);
@@ -214,6 +224,45 @@ async function main() {
   process.on('SIGINT', () => shutdown('SIGINT', 0));
 
   logger.info('Bematic Agent fully initialized');
+}
+
+async function handlePathValidate(wsClient: WSClient, payload: PathValidateRequestPayload) {
+  try {
+    logger.info({ localPath: payload.localPath }, 'Validating local path...');
+
+    const pathExists = existsSync(payload.localPath);
+    let created = false;
+
+    if (!pathExists) {
+      logger.info({ localPath: payload.localPath }, 'Path does not exist, creating...');
+      await mkdir(payload.localPath, { recursive: true });
+      created = true;
+      logger.info({ localPath: payload.localPath }, 'Path created successfully');
+    } else {
+      logger.info({ localPath: payload.localPath }, 'Path already exists');
+    }
+
+    wsClient.send(
+      createWSMessage(MessageType.PATH_VALIDATE_RESULT, {
+        requestId: payload.requestId,
+        success: true,
+        exists: pathExists,
+        created,
+      }),
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error({ error: message, localPath: payload.localPath }, 'Path validation failed');
+    wsClient.send(
+      createWSMessage(MessageType.PATH_VALIDATE_RESULT, {
+        requestId: payload.requestId,
+        success: false,
+        exists: false,
+        created: false,
+        error: message,
+      }),
+    );
+  }
 }
 
 function handleDeploy(wsClient: WSClient, payload: DeployRequestPayload) {

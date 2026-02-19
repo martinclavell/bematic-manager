@@ -26,3 +26,9 @@ export type { ArchivedTaskRow, ArchivedTaskInsert } from './archived-tasks.js';
 
 export { netsuiteConfigs } from './netsuite-configs.js';
 export type { NetSuiteConfigRow, NetSuiteConfigInsert } from './netsuite-configs.js';
+
+export { pendingActions } from './pending-actions.js';
+export type { PendingActionRow, PendingActionInsert } from './pending-actions.js';
+
+export { feedbackSuggestions } from './feedback-suggestions.js';
+export type { FeedbackSuggestionRow, FeedbackSuggestionInsert } from './feedback-suggestions.js';

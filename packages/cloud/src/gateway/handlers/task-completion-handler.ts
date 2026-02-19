@@ -97,6 +97,16 @@ export class TaskCompletionHandler {
     // Add success reaction to original message (root tasks only)
     if (!task.parentTaskId && task.slackMessageTs) {
       await this.swapReaction(task, 'white_check_mark');
+
+      // If this is a thread reply, also update the main thread message
+      if (task.slackThreadTs && task.slackMessageTs !== task.slackThreadTs) {
+        await this.notifier.removeReaction(
+          task.slackChannelId,
+          task.slackThreadTs,
+          'hourglass_flowing_sand',
+        );
+        await this.notifier.addReaction(task.slackChannelId, task.slackThreadTs, 'hourglass_flowing_sand');
+      }
     }
 
     // Post completion blocks to Slack
