@@ -84,11 +84,15 @@ export class TaskCompletionHandler {
     // Convert markdown to Slack format
     const slackResult = markdownToSlack(parsed.result);
 
+    // Get project to access localPath for basePath stripping
+    const project = this.projectRepo?.findById(task.projectId);
+    const basePath = project?.localPath;
+
     // Format result using bot-specific formatter
     const bot = BotRegistry.get(task.botName);
     const blocks = bot
-      ? bot.formatResult({ ...parsed, result: slackResult })
-      : ResponseBuilder.taskCompleteBlocks(slackResult, parsed);
+      ? bot.formatResult({ ...parsed, result: slackResult, basePath })
+      : ResponseBuilder.taskCompleteBlocks(slackResult, { ...parsed, basePath });
 
     // Add success reaction to original message (root tasks only)
     if (!task.parentTaskId && task.slackMessageTs) {

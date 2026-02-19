@@ -81,13 +81,14 @@ If the push fails (e.g. no upstream), use: \`git push -u origin HEAD\``;
     };
   }
 
-  formatResult(result: TaskCompletePayload): SlackBlock[] {
+  formatResult(result: TaskCompletePayload & { basePath?: string }): SlackBlock[] {
     return rb.taskCompleteBlocks(result.result, {
       inputTokens: result.inputTokens,
       outputTokens: result.outputTokens,
       estimatedCost: result.estimatedCost,
       durationMs: result.durationMs,
       filesChanged: result.filesChanged,
+      basePath: result.basePath,
     });
   }
 

@@ -102,6 +102,8 @@ export interface TaskCompletePayload {
   continuations?: number;
   /** Attachment processing results */
   attachmentResults?: AttachmentResult[];
+  /** Base path to strip from file paths in display (optional, added by completion handler) */
+  basePath?: string;
 }
 
 export interface TaskErrorPayload {

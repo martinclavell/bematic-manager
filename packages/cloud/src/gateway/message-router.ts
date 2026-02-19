@@ -8,6 +8,7 @@ import {
   taskCompleteSchema,
   taskErrorSchema,
   type DeployResultPayload,
+  type PathValidateResultPayload,
   type BotName,
   type TaskCompletePayload,
   type TaskAckData,
@@ -42,9 +43,13 @@ interface DeployRequest {
   createdAt: number;
 }
 
+/** Callback for path validation results */
+type PathValidationCallback = (result: { success: boolean; exists: boolean; created: boolean; error?: string }) => void;
+
 export class MessageRouter {
   private progressTrackers = new Map<string, ProgressTracker>();
   private deployRequests = new Map<string, DeployRequest>();
+  private pathValidationCallbacks = new Map<string, PathValidationCallback>();
   private commandService: CommandService | null = null;
   private projectRepo: ProjectRepository | null = null;
   private cleanupInterval: NodeJS.Timeout | null = null;
@@ -92,6 +97,11 @@ export class MessageRouter {
       requestedBy: userId,
       createdAt: Date.now()
     });
+  }
+
+  /** Register a path validation callback */
+  registerPathValidation(requestId: string, callback: PathValidationCallback): void {
+    this.pathValidationCallbacks.set(requestId, callback);
   }
 
   /**
@@ -260,6 +270,9 @@ export class MessageRouter {
       case MessageType.DEPLOY_RESULT:
         await this.handleDeployResult(agentId, msg.payload as DeployResultPayload);
         break;
+      case MessageType.PATH_VALIDATE_RESULT:
+        this.handlePathValidateResult(msg.payload as PathValidateResultPayload);
+        break;
       case MessageType.AGENT_STATUS:
         logger.debug({ agentId, payload: msg.payload }, 'Agent status update');
         break;
@@ -408,11 +421,15 @@ export class MessageRouter {
     // Convert markdown to Slack mrkdwn
     const slackResult = markdownToSlack(parsed.result);
 
+    // Get project to access localPath for basePath stripping
+    const project = this.projectRepo?.findById(task.projectId);
+    const basePath = project?.localPath;
+
     // Format result using bot-specific formatter
     const bot = BotRegistry.get(task.botName as BotName);
     const blocks = bot
-      ? bot.formatResult({ ...parsed, result: slackResult })
-      : ResponseBuilder.taskCompleteBlocks(slackResult, parsed);
+      ? bot.formatResult({ ...parsed, result: slackResult, basePath })
+      : ResponseBuilder.taskCompleteBlocks(slackResult, { ...parsed, basePath });
 
     // Handle attachment failure notifications if present
     if (parsed.attachmentResults) {
@@ -611,6 +628,25 @@ export class MessageRouter {
     }
 
     logger.info({ requestId: payload.requestId, success: payload.success, agentId }, 'Deploy result received');
+  }
+
+  private handlePathValidateResult(payload: PathValidateResultPayload): void {
+    const callback = this.pathValidationCallbacks.get(payload.requestId);
+    this.pathValidationCallbacks.delete(payload.requestId);
+
+    if (!callback) {
+      logger.warn({ requestId: payload.requestId }, 'Path validation result for unknown request');
+      return;
+    }
+
+    callback({
+      success: payload.success,
+      exists: payload.exists,
+      created: payload.created,
+      error: payload.error,
+    });
+
+    logger.info({ requestId: payload.requestId, success: payload.success, exists: payload.exists, created: payload.created }, 'Path validation result received');
   }
 
   private async handleTaskError(agentId: string, payload: unknown): Promise<void> {

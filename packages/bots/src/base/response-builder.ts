@@ -65,7 +65,7 @@ export function actions(
 
 export function taskCompleteBlocks(
   result: string,
-  metrics: { inputTokens: number; outputTokens: number; estimatedCost: number; durationMs: number; filesChanged: string[] },
+  metrics: { inputTokens: number; outputTokens: number; estimatedCost: number; durationMs: number; filesChanged: string[]; basePath?: string },
 ): SlackBlock[] {
   // Use smart truncation to preserve structure (code blocks, headers)
   const { truncated, wasTruncated, originalLength } = truncateMessage(result, {
@@ -102,7 +102,24 @@ export function taskCompleteBlocks(
   );
 
   if (metrics.filesChanged.length > 0) {
-    const fileList = metrics.filesChanged.map((f) => `• ${f}`).join('\n');
+    // Strip basePath from file paths if provided
+    const stripBasePath = (path: string): string => {
+      if (!metrics.basePath) return path;
+      // Normalize both paths to use forward slashes for comparison
+      const normalizedPath = path.replace(/\\/g, '/');
+      const normalizedBase = metrics.basePath.replace(/\\/g, '/');
+      // Remove trailing slash from base if present
+      const baseWithoutTrailingSlash = normalizedBase.endsWith('/')
+        ? normalizedBase.slice(0, -1)
+        : normalizedBase;
+
+      if (normalizedPath.startsWith(baseWithoutTrailingSlash + '/')) {
+        return normalizedPath.slice(baseWithoutTrailingSlash.length + 1);
+      }
+      return path;
+    };
+
+    const fileList = metrics.filesChanged.map((f) => `• ${stripBasePath(f)}`).join('\n');
     // Truncate file list if extremely long
     const displayList = fileList.length > 500 ? fileList.slice(0, 500) + `\n...and ${metrics.filesChanged.length - fileList.slice(0, 500).split('\n').length} more` : fileList;
     blocks.push(
