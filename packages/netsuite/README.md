@@ -1,17 +1,22 @@
 # @bematic/netsuite
 
-Comprehensive, modular NetSuite integration library for Node.js applications.
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-blue.svg)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-20.0+-green.svg)](https://nodejs.org/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
 
-## Features
+Comprehensive, modular NetSuite integration library for Node.js applications. Built with TypeScript, designed for extensibility, and production-ready.
 
-- **Multiple Auth Methods**: OAuth 1.0, OAuth 2.0 (planned)
-- **Multiple API Clients**: RESTlet, SuiteQL (planned), REST API 2.0 (planned)
-- **Type-Safe**: Full TypeScript support with NetSuite record types
-- **Pluggable Architecture**: Extend functionality with custom plugins
-- **Adapters**: Built-in Slack, database, and API adapters
-- **Encryption**: AES-256-GCM credential encryption
-- **SEO Tools**: SuiteCommerce SEO debugging utilities
-- **Extensible**: Easy to add new services, record types, and integrations
+## ✨ Features
+
+- 🔐 **Multiple Auth Methods** - OAuth 1.0 (OAuth 2.0 planned)
+- 🌐 **Multiple API Clients** - RESTlet, SuiteQL (planned), REST API 2.0 (planned)
+- 📘 **Type-Safe** - Full TypeScript support with NetSuite record types
+- 🔌 **Pluggable Architecture** - Extend functionality with custom plugins
+- 🔄 **Adapters** - Built-in Slack, database, and API adapters
+- 🔒 **Encryption** - AES-256-GCM credential encryption
+- 🔍 **SEO Tools** - SuiteCommerce SEO debugging utilities
+- 🚀 **Extensible** - Easy to add new services, record types, and integrations
+- ⚡ **Production-Ready** - Retry logic, timeout handling, error management
 
 ## Installation
 
@@ -287,27 +292,94 @@ const response = await client.restlet.get('/endpoint', {}, {
 });
 ```
 
-## License
+## 📚 Documentation
 
-MIT
+Comprehensive documentation is available in the [docs/](./docs/) directory:
 
-## Contributing
+### Getting Started
+- **[Quick Start Guide](./docs/guides/01-quick-start.md)** - Get up and running in 5 minutes
+- **[Installation & Setup](./docs/guides/02-installation.md)** - Detailed installation instructions
+- **[Configuration Guide](./docs/guides/03-configuration.md)** - Configure NetSuite connections
+- **[Authentication](./docs/guides/04-authentication.md)** - OAuth 1.0 setup and best practices
+
+### Core Concepts
+- **[Architecture Overview](./docs/guides/05-architecture.md)** - System design and principles
+- **[Client Usage](./docs/guides/06-client-usage.md)** - Working with NetSuite clients
+- **[Error Handling](./docs/guides/07-error-handling.md)** - Handling errors effectively
+- **[Type Safety](./docs/guides/08-type-safety.md)** - TypeScript usage and custom types
+
+### Services & Integration
+- **[Record Operations](./docs/guides/09-record-operations.md)** - CRUD operations for NetSuite records
+- **[SEO Debugging](./docs/guides/10-seo-debugging.md)** - SuiteCommerce SEO tools
+- **[Slack Integration](./docs/guides/13-slack-integration.md)** - Building Slack bots
+- **[Plugin System](./docs/guides/15-plugin-overview.md)** - Extend functionality with plugins
+
+### API Reference
+- **[Core API](./docs/api/core.md)** - Client, Auth, Crypto, Config
+- **[Services API](./docs/api/services.md)** - RecordService, SEOService
+- **[Adapters API](./docs/api/adapters.md)** - Storage, Slack adapters
+- **[Types API](./docs/api/types.md)** - TypeScript type definitions
+- **[Errors API](./docs/api/errors.md)** - Error classes and handling
+
+### Examples
+- **[Basic RESTlet Calls](./docs/examples/01-basic-restlet.md)** - Simple API requests
+- **[Record CRUD Operations](./docs/examples/02-record-crud.md)** - Working with records
+- **[SEO Debugging Examples](./docs/examples/03-seo-debugging.md)** - SEO analysis
+- **[Slack Bot Integration](./docs/examples/04-slack-bot.md)** - Slack command examples
+- **[Error Handling Patterns](./docs/examples/07-error-handling.md)** - Error handling best practices
+
+## 🏗️ Design Principles
+
+This library follows a modular, layered architecture:
+
+- **Core Layer** - Authentication, encryption, HTTP clients
+- **Services Layer** - Business logic and NetSuite operations
+- **Adapters Layer** - External system integration (Slack, databases)
+- **Plugins Layer** - Extensibility via middleware pattern
+
+See [Architecture Overview](./docs/guides/05-architecture.md) for details.
+
+## 🤝 Contributing
 
 Contributions welcome! This is a modular architecture designed for extensibility.
 
 ### Adding New Services
 
 1. Create service file in `src/services/<category>/<service-name>.ts`
-2. Export from `src/services/index.ts`
-3. Add tests
-4. Update documentation
+2. Implement service using dependency injection pattern
+3. Export from `src/services/index.ts`
+4. Add comprehensive tests
+5. Update documentation in `docs/`
 
 ### Adding New Adapters
 
 1. Create adapter file in `src/adapters/<adapter-name>/<adapter-name>-adapter.ts`
-2. Export from `src/adapters/index.ts`
-3. Document integration steps
+2. Implement required adapter interface
+3. Export from `src/adapters/index.ts`
+4. Document integration steps in `docs/`
+5. Add example usage
 
-## Support
+### Adding Plugins
 
-For issues and feature requests, please open a GitHub issue.
+1. Extend `BaseNetSuitePlugin` class
+2. Implement lifecycle hooks (`beforeRequest`, `afterResponse`, etc.)
+3. Add tests and documentation
+4. Submit PR with clear description
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for detailed guidelines.
+
+## 📄 License
+
+MIT - See [LICENSE](./LICENSE.md) for details.
+
+## 🆘 Support
+
+- **Documentation**: [Full Documentation](./docs/README.md)
+- **Examples**: [Example Code](./docs/examples/)
+- **API Reference**: [API Documentation](./docs/api/)
+- **Issues**: [GitHub Issues](https://github.com/martinclavell/bematic-manager/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/martinclavell/bematic-manager/discussions)
+
+---
+
+**Built with ❤️ by the Bematic team**
