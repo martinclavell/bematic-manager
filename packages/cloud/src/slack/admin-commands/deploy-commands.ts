@@ -6,6 +6,7 @@ import {
   generateId,
 } from '@bematic/common';
 import type { AppContext } from '../../context.js';
+import type { NotificationService } from '../../services/notification.service.js';
 
 const logger = createLogger('admin:deploy-commands');
 
@@ -64,7 +65,7 @@ export class DeployCommands {
     );
   }
 
-  async deployStatus(channelId: string, respond: RespondFn): Promise<void> {
+  async deployStatus(channelId: string, respond: RespondFn, notifier: NotificationService): Promise<void> {
     if (!this.ctx.deployService.isConfigured()) {
       await respond(':x: Railway API token not configured.');
       return;
@@ -81,13 +82,15 @@ export class DeployCommands {
       return;
     }
 
+    await respond(':railway_car: Fetching deployment status...');
+
     const deployment = await this.ctx.deployService.getLatestDeployment(
       project.railwayServiceId,
       project.railwayEnvironmentId,
     );
 
     if (!deployment) {
-      await respond(':information_source: No deployments found for this service.');
+      await notifier.postMessage(channelId, ':information_source: No deployments found for this service.');
       return;
     }
 
@@ -96,7 +99,8 @@ export class DeployCommands {
       : deployment.status === 'FAILED' || deployment.status === 'CRASHED' ? ':x:'
       : ':grey_question:';
 
-    await respond(
+    await notifier.postMessage(
+      channelId,
       `${statusIcon} *Latest Deployment*\n` +
       `> ID: \`${deployment.id}\`\n` +
       `> Status: \`${deployment.status}\`\n` +
@@ -105,7 +109,7 @@ export class DeployCommands {
     );
   }
 
-  async deployLogs(channelId: string, respond: RespondFn): Promise<void> {
+  async deployLogs(channelId: string, respond: RespondFn, notifier: NotificationService): Promise<void> {
     if (!this.ctx.deployService.isConfigured()) {
       await respond(':x: Railway API token not configured.');
       return;
@@ -117,20 +121,23 @@ export class DeployCommands {
       return;
     }
 
+    await respond(':page_facing_up: Fetching deployment logs...');
+
     const deployment = await this.ctx.deployService.getLatestDeployment(
       project.railwayServiceId,
       project.railwayEnvironmentId,
     );
 
     if (!deployment) {
-      await respond(':information_source: No deployments found.');
+      await notifier.postMessage(channelId, ':information_source: No deployments found.');
       return;
     }
 
     const logs = await this.ctx.deployService.getDeploymentLogs(deployment.id);
     const truncated = logs.length > 2900 ? logs.slice(-2900) + '\n...(truncated)' : logs;
 
-    await respond(
+    await notifier.postMessage(
+      channelId,
       `:page_facing_up: *Deploy Logs* (\`${deployment.status}\`)\n\`\`\`${truncated}\`\`\``,
     );
   }

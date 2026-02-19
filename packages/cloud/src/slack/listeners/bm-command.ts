@@ -143,6 +143,9 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
             return;
           }
 
+          // Ack briefly, then post full dashboard in thread
+          await respond(':factory: Fetching workers dashboard...');
+
           const sections: string[] = [
             `:factory: *Workers Dashboard* (${agentIds.length} agent${agentIds.length === 1 ? '' : 's'} connected)`,
           ];
@@ -214,7 +217,8 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
             `\n:bar_chart: *Totals:* ${totalRunning} running | ${totalQueued} queued | ${agentIds.length} agent${agentIds.length === 1 ? '' : 's'}`,
           );
 
-          await respond(sections.join('\n'));
+          // Post full dashboard in a thread
+          await ctx.notifier.postMessage(channel_id, sections.join('\n'));
           break;
         }
 
@@ -224,8 +228,11 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
         case 'stats': {
           await ctx.authChecker.checkPermission(user_id, Permission.USER_MANAGE);
 
+          await respond(':bar_chart: Fetching usage statistics...');
+
           const stats = ctx.promptHistoryRepo.getStats();
-          await respond(
+          await ctx.notifier.postMessage(
+            channel_id,
             ':bar_chart: *Session Usage & Statistics*\n' +
             `> Total Sessions: ${stats.total}\n` +
             `> :white_check_mark: Completed: ${stats.completed}\n` +
@@ -427,8 +434,10 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
           const searchText = subArgs.find((a, i) => subArgs[i - 1] === '--search');
 
           if (subArgs.includes('--stats')) {
+            await respond(':bar_chart: Fetching prompt history statistics...');
             const stats = ctx.promptHistoryRepo.getStats();
-            await respond(
+            await ctx.notifier.postMessage(
+              channel_id,
               ':bar_chart: *Prompt History Statistics*\n' +
               `> Total: ${stats.total}\n` +
               `> :white_check_mark: Completed: ${stats.completed}\n` +
@@ -440,6 +449,8 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
             return;
           }
 
+          await respond(':notebook: Fetching prompt history...');
+
           const prompts = ctx.promptHistoryRepo.findAll({
             category,
             status,
@@ -449,7 +460,7 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
           });
 
           if (prompts.length === 0) {
-            await respond(':inbox_tray: No prompts found matching your criteria.');
+            await ctx.notifier.postMessage(channel_id, ':inbox_tray: No prompts found matching your criteria.');
             return;
           }
 
@@ -483,7 +494,7 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
             lines.push(`\n_Showing first 20 of ${prompts.length} results_`);
           }
 
-          await respond(lines.join('\n'));
+          await ctx.notifier.postMessage(channel_id, lines.join('\n'));
           break;
         }
 
@@ -491,6 +502,8 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
         case 'queue':
         case 'queued': {
           await ctx.authChecker.checkPermission(user_id, Permission.USER_MANAGE);
+
+          await respond(':inbox_tray: Fetching queued tasks...');
 
           const project = ctx.projectResolver.tryResolve(channel_id);
           let queuedTasks: any[] = [];
@@ -509,7 +522,7 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
           }
 
           if (queuedTasks.length === 0) {
-            await respond(':white_check_mark: No tasks in queue.');
+            await ctx.notifier.postMessage(channel_id, ':white_check_mark: No tasks in queue.');
             return;
           }
 
@@ -532,7 +545,7 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
             lines.push(`\n_Showing first 20 of ${queuedTasks.length} queued tasks_`);
           }
 
-          await respond(lines.join('\n'));
+          await ctx.notifier.postMessage(channel_id, lines.join('\n'));
           break;
         }
 

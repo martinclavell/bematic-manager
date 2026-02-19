@@ -1,5 +1,6 @@
 import { createLogger } from '@bematic/common';
 import type { AppContext } from '../../context.js';
+import type { NotificationService } from '../../services/notification.service.js';
 
 const logger = createLogger('admin:retention-commands');
 
@@ -13,7 +14,9 @@ type RespondFn = (message: string) => Promise<void>;
 export class RetentionCommands {
   constructor(private readonly ctx: AppContext) {}
 
-  async retentionStats(respond: RespondFn): Promise<void> {
+  async retentionStats(respond: RespondFn, channelId: string, notifier: NotificationService): Promise<void> {
+    await respond(':wastebasket: Fetching retention statistics...');
+
     const stats = await this.ctx.retentionService.getRetentionStats();
 
     let response = ':wastebasket: *Data Retention Statistics*\n\n';
@@ -26,10 +29,10 @@ export class RetentionCommands {
     response += `*Total records eligible for cleanup: ${total}*\n\n`;
     response += 'Use `/bm-admin retention-run` to execute cleanup.';
 
-    await respond(response);
+    await notifier.postMessage(channelId, response);
   }
 
-  async retentionRun(userId: string, respond: RespondFn): Promise<void> {
+  async retentionRun(userId: string, respond: RespondFn, channelId: string, notifier: NotificationService): Promise<void> {
     await respond(':hourglass_flowing_sand: Running retention cleanup...');
 
     const results = await this.ctx.retentionService.runRetentionPolicies();
@@ -51,6 +54,6 @@ export class RetentionCommands {
       { ...results, total },
     );
 
-    await respond(response);
+    await notifier.postMessage(channelId, response);
   }
 }

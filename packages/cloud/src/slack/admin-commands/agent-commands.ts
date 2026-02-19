@@ -5,6 +5,7 @@ import {
   serializeMessage,
 } from '@bematic/common';
 import type { AppContext } from '../../context.js';
+import type { NotificationService } from '../../services/notification.service.js';
 
 const logger = createLogger('admin:agent-commands');
 
@@ -53,13 +54,15 @@ export class AgentCommands {
     );
   }
 
-  async agentStatus(respond: RespondFn): Promise<void> {
+  async agentStatus(respond: RespondFn, channelId: string, notifier: NotificationService): Promise<void> {
     const agentIds = this.ctx.agentManager.getConnectedAgentIds();
 
     if (agentIds.length === 0) {
       await respond(':red_circle: No agents connected.');
       return;
     }
+
+    await respond(':satellite: Fetching agent status...');
 
     const lines = agentIds.map((id) => {
       const agent = this.ctx.agentManager.getAgent(id);
@@ -68,16 +71,18 @@ export class AgentCommands {
       return `- \`${id}\`: *${agent.status}* | Active tasks: ${agent.activeTasks.length} | Connected: ${uptime}s ago`;
     });
 
-    await respond(`:satellite: *Connected Agents (${agentIds.length}):*\n${lines.join('\n')}`);
+    await notifier.postMessage(channelId, `:satellite: *Connected Agents (${agentIds.length}):*\n${lines.join('\n')}`);
   }
 
-  async agentHealth(respond: RespondFn): Promise<void> {
+  async agentHealth(respond: RespondFn, channelId: string, notifier: NotificationService): Promise<void> {
     const allHealth = this.ctx.agentHealthTracker.getAllAgentHealth();
 
     if (allHealth.length === 0) {
       await respond(':red_circle: No agents have reported health data yet.');
       return;
     }
+
+    await respond(':heart: Fetching agent health status...');
 
     let response = ':heart: *Agent Health Status*\n\n';
 
@@ -102,7 +107,7 @@ export class AgentCommands {
       response += `\n:warning: ${unhealthy.length} agent(s) are unhealthy and may not accept tasks.`;
     }
 
-    await respond(response);
+    await notifier.postMessage(channelId, response);
   }
 
   async agentHealthReset(args: string[], userId: string, respond: RespondFn): Promise<void> {

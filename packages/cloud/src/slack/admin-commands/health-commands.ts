@@ -1,5 +1,6 @@
 import { createLogger } from '@bematic/common';
 import type { AppContext } from '../../context.js';
+import type { NotificationService } from '../../services/notification.service.js';
 
 const logger = createLogger('admin:health-commands');
 
@@ -13,7 +14,9 @@ type RespondFn = (message: string) => Promise<void>;
 export class HealthCommands {
   constructor(private readonly ctx: AppContext) {}
 
-  async health(respond: RespondFn): Promise<void> {
+  async health(respond: RespondFn, channelId: string, notifier: NotificationService): Promise<void> {
+    await respond(':heart: Fetching system health...');
+
     const health = await this.ctx.healthService.getHealth();
 
     const statusEmoji =
@@ -42,10 +45,12 @@ export class HealthCommands {
 
     response += `\nUptime: ${this.formatDuration(health.uptime)}`;
 
-    await respond(response);
+    await notifier.postMessage(channelId, response);
   }
 
-  async metrics(respond: RespondFn): Promise<void> {
+  async metrics(respond: RespondFn, channelId: string, notifier: NotificationService): Promise<void> {
+    await respond(':bar_chart: Fetching system metrics...');
+
     const health = await this.ctx.healthService.getHealth();
 
     let response = ':bar_chart: *System Metrics*\n\n';
@@ -73,7 +78,7 @@ export class HealthCommands {
       }
     }
 
-    await respond(response);
+    await notifier.postMessage(channelId, response);
   }
 
   private formatDuration(ms: number): string {

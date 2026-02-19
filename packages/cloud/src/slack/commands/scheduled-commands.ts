@@ -18,6 +18,7 @@ export async function handleRemindCommand(
   subArgs: string[],
 ) {
   const { user_id, channel_id } = command;
+  const notifier = ctx.notifier;
 
   // Get user's timezone from Slack profile
   let timezone = 'America/New_York'; // default
@@ -104,7 +105,10 @@ export async function handleRemindCommand(
       timezone,
     });
 
-    await respond(
+    await respond(':white_check_mark: Reminder created!');
+
+    await notifier.postMessage(
+      channel_id,
       `:white_check_mark: *Reminder set!*\n\n` +
       `:alarm_clock: When: ${TimeParser.format(scheduledDate, timezone)} (${TimeParser.relative(scheduledDate, timezone)})\n` +
       `:speech_balloon: Message: "${message}"\n` +
@@ -134,6 +138,7 @@ export async function handleScheduleCommand(
   subArgs: string[],
 ) {
   const { user_id, channel_id } = command;
+  const notifier = ctx.notifier;
 
   // Get user's timezone from Slack profile
   let timezone = 'America/New_York'; // default
@@ -220,7 +225,10 @@ export async function handleScheduleCommand(
         timezone,
       });
 
-      await respond(
+      await respond(':white_check_mark: Reminder created!');
+
+      await notifier.postMessage(
+        channel_id,
         `:white_check_mark: *Reminder set!*\n\n` +
         `:alarm_clock: When: ${TimeParser.format(scheduledDate, timezone)} (${TimeParser.relative(scheduledDate, timezone)})\n` +
         `:speech_balloon: Message: "${reminderMessage}"\n` +
@@ -272,7 +280,10 @@ export async function handleScheduleCommand(
     const formattedTime = TimeParser.format(scheduledDate, timezone);
     const relativeTime = TimeParser.relative(scheduledDate, timezone);
 
-    await respond(
+    await respond(':white_check_mark: Task scheduled!');
+
+    await notifier.postMessage(
+      channel_id,
       `:white_check_mark: *Task scheduled successfully!*\n\n` +
       `:robot_face: Bot: \`${botName}\`\n` +
       `:gear: Command: \`${commandName}\`\n` +
@@ -304,6 +315,7 @@ export async function handleCronCreateCommand(
   subArgs: string[],
 ) {
   const { user_id, channel_id } = command;
+  const notifier = ctx.notifier;
 
   // Get user's timezone
   let timezone = 'America/New_York';
@@ -392,7 +404,10 @@ export async function handleCronCreateCommand(
     const description = CronParser.describe(cronExpression);
     const nextExecutions = CronParser.getNextN(cronExpression, 3, timezone);
 
-    await respond(
+    await respond(':white_check_mark: Cron job created!');
+
+    await notifier.postMessage(
+      channel_id,
       `:white_check_mark: *Cron job created successfully!*\n\n` +
       `:robot_face: Bot: \`${botName}\`\n` +
       `:gear: Command: \`${commandName}\`\n` +
@@ -424,6 +439,7 @@ export async function handleScheduledListCommand(
   subArgs: string[],
 ) {
   const { user_id, channel_id } = command;
+  const notifier = ctx.notifier;
 
   const showAll = subArgs.includes('--all');
   const showUser = subArgs.includes('--user');
@@ -486,7 +502,8 @@ export async function handleScheduledListCommand(
 
   sections.push('\n_Use `/bm scheduled show <id>` for details_');
 
-  await respond(sections.join('\n'));
+  await respond(':calendar: Fetching scheduled tasks...');
+  await notifier.postMessage(channel_id, sections.join('\n'));
 }
 
 /**
@@ -498,7 +515,8 @@ export async function handleScheduledShowCommand(
   ctx: AppContext,
   subArgs: string[],
 ) {
-  const { user_id } = command;
+  const { user_id, channel_id } = command;
+  const notifier = ctx.notifier;
 
   if (subArgs.length === 0) {
     await respond(':x: Usage: `/bm scheduled show <task-id>`');
@@ -556,7 +574,8 @@ export async function handleScheduledShowCommand(
 
   details += `\n_Created: ${new Date(task.createdAt).toLocaleString()}_`;
 
-  await respond(details);
+  await respond(':calendar: Fetching task details...');
+  await notifier.postMessage(channel_id, details);
 }
 
 /**

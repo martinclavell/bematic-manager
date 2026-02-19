@@ -1,5 +1,6 @@
 import { createLogger } from '@bematic/common';
 import type { AppContext } from '../../context.js';
+import type { NotificationService } from '../../services/notification.service.js';
 
 const logger = createLogger('admin:worker-commands');
 
@@ -12,13 +13,15 @@ type RespondFn = (message: string) => Promise<void>;
 export class WorkerCommands {
   constructor(private readonly ctx: AppContext) {}
 
-  async workers(respond: RespondFn): Promise<void> {
+  async workers(respond: RespondFn, channelId: string, notifier: NotificationService): Promise<void> {
     const agentIds = this.ctx.agentManager.getConnectedAgentIds();
 
     if (agentIds.length === 0) {
       await respond(':red_circle: *Workers Dashboard* — No agents connected.');
       return;
     }
+
+    await respond(':factory: Fetching workers dashboard...');
 
     const sections: string[] = [
       `:factory: *Workers Dashboard* (${agentIds.length} agent${agentIds.length === 1 ? '' : 's'} connected)`,
@@ -72,6 +75,6 @@ export class WorkerCommands {
 
     sections.push(`\n*Totals:* ${totalRunning} running, ${totalQueued} queued`);
 
-    await respond(sections.join('\n'));
+    await notifier.postMessage(channelId, sections.join('\n'));
   }
 }

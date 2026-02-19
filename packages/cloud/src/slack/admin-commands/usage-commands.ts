@@ -1,5 +1,6 @@
 import { createLogger } from '@bematic/common';
 import type { AppContext } from '../../context.js';
+import type { NotificationService } from '../../services/notification.service.js';
 import { sql } from 'drizzle-orm';
 import { sessions, tasks } from '@bematic/db';
 
@@ -38,31 +39,31 @@ interface UsageByEntity {
 export class UsageCommands {
   constructor(private readonly ctx: AppContext) {}
 
-  async usage(args: string[], respond: RespondFn): Promise<void> {
+  async usage(args: string[], respond: RespondFn, channelId: string, notifier: NotificationService): Promise<void> {
     const subcommand = args[0]?.toLowerCase();
 
     try {
       switch (subcommand) {
         case 'today':
-          await this.usageToday(respond);
+          await this.usageToday(respond, channelId, notifier);
           break;
         case 'week':
-          await this.usageWeek(respond);
+          await this.usageWeek(respond, channelId, notifier);
           break;
         case 'month':
-          await this.usageMonth(respond);
+          await this.usageMonth(respond, channelId, notifier);
           break;
         case 'by-bot':
-          await this.usageByBot(respond);
+          await this.usageByBot(respond, channelId, notifier);
           break;
         case 'by-project':
-          await this.usageByProject(respond);
+          await this.usageByProject(respond, channelId, notifier);
           break;
         case 'set-budget':
           await this.setMonthlyBudget(args.slice(1), respond);
           break;
         default:
-          await this.usageOverview(respond);
+          await this.usageOverview(respond, channelId, notifier);
           break;
       }
     } catch (error) {
@@ -71,7 +72,8 @@ export class UsageCommands {
     }
   }
 
-  private async usageOverview(respond: RespondFn): Promise<void> {
+  private async usageOverview(respond: RespondFn, channelId: string, notifier: NotificationService): Promise<void> {
+    await respond(':bar_chart: Fetching usage overview...');
     const allTimeStats = this.getUsageStats();
     const monthStats = this.getUsageStats(this.getMonthStart());
     const weekStats = this.getUsageStats(this.getWeekStart());
@@ -124,29 +126,32 @@ export class UsageCommands {
     // Link to Claude.ai usage page
     response += `:link: <https://claude.ai/settings/usage|View Claude.ai Web UI Usage>`;
 
-    await respond(response);
+    await notifier.postMessage(channelId, response);
   }
 
-  private async usageToday(respond: RespondFn): Promise<void> {
+  private async usageToday(respond: RespondFn, channelId: string, notifier: NotificationService): Promise<void> {
     const stats = this.getUsageStats(this.getTodayStart());
-    await this.sendPeriodUsage('Today', stats, respond);
+    await this.sendPeriodUsage('Today', stats, respond, channelId, notifier);
   }
 
-  private async usageWeek(respond: RespondFn): Promise<void> {
+  private async usageWeek(respond: RespondFn, channelId: string, notifier: NotificationService): Promise<void> {
     const stats = this.getUsageStats(this.getWeekStart());
-    await this.sendPeriodUsage('This Week', stats, respond);
+    await this.sendPeriodUsage('This Week', stats, respond, channelId, notifier);
   }
 
-  private async usageMonth(respond: RespondFn): Promise<void> {
+  private async usageMonth(respond: RespondFn, channelId: string, notifier: NotificationService): Promise<void> {
     const stats = this.getUsageStats(this.getMonthStart());
-    await this.sendPeriodUsage('This Month', stats, respond);
+    await this.sendPeriodUsage('This Month', stats, respond, channelId, notifier);
   }
 
   private async sendPeriodUsage(
     period: string,
     stats: UsageStats,
     respond: RespondFn,
+    channelId: string,
+    notifier: NotificationService,
   ): Promise<void> {
+    await respond(`:bar_chart: Fetching usage for ${period}...`);
     let response = `:bar_chart: *Usage - ${period}*\n\n`;
 
     response += `*Summary:*\n`;
@@ -171,10 +176,11 @@ export class UsageCommands {
       }
     }
 
-    await respond(response);
+    await notifier.postMessage(channelId, response);
   }
 
-  private async usageByBot(respond: RespondFn): Promise<void> {
+  private async usageByBot(respond: RespondFn, channelId: string, notifier: NotificationService): Promise<void> {
+    await respond(':robot_face: Fetching usage by bot...');
     const db = this.ctx.db;
 
     const result = db
@@ -191,7 +197,7 @@ export class UsageCommands {
       .all();
 
     if (result.length === 0) {
-      await respond(':information_source: No usage data available yet.');
+      await notifier.postMessage(channelId, ':information_source: No usage data available yet.');
       return;
     }
 
@@ -207,10 +213,11 @@ export class UsageCommands {
       response += `• Cost: $${(row.totalCost || 0).toFixed(4)}\n\n`;
     }
 
-    await respond(response);
+    await notifier.postMessage(channelId, response);
   }
 
-  private async usageByProject(respond: RespondFn): Promise<void> {
+  private async usageByProject(respond: RespondFn, channelId: string, notifier: NotificationService): Promise<void> {
+    await respond(':file_folder: Fetching usage by project...');
     const db = this.ctx.db;
 
     const result = db
@@ -227,7 +234,7 @@ export class UsageCommands {
       .all();
 
     if (result.length === 0) {
-      await respond(':information_source: No usage data available yet.');
+      await notifier.postMessage(channelId, ':information_source: No usage data available yet.');
       return;
     }
 
@@ -243,7 +250,7 @@ export class UsageCommands {
       response += `• Cost: $${(row.totalCost || 0).toFixed(4)}\n\n`;
     }
 
-    await respond(response);
+    await notifier.postMessage(channelId, response);
   }
 
   private async setMonthlyBudget(args: string[], respond: RespondFn): Promise<void> {

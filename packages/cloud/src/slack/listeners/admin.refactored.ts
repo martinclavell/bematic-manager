@@ -47,11 +47,11 @@ export function registerAdminListener(app: App, ctx: AppContext) {
           break;
 
         case 'agent-status':
-          await agentCommands.agentStatus(respond);
+          await agentCommands.agentStatus(respond, channel_id, ctx.notifier);
           break;
 
         case 'agent-health':
-          await agentCommands.agentHealth(respond);
+          await agentCommands.agentHealth(respond, channel_id, ctx.notifier);
           break;
 
         case 'agent-health-reset':
@@ -60,25 +60,25 @@ export function registerAdminListener(app: App, ctx: AppContext) {
 
         // Worker dashboard
         case 'workers':
-          await workerCommands.workers(respond);
+          await workerCommands.workers(respond, channel_id, ctx.notifier);
           break;
 
         // Health & Metrics
         case 'health':
-          await healthCommands.health(respond);
+          await healthCommands.health(respond, channel_id, ctx.notifier);
           break;
 
         case 'metrics':
-          await healthCommands.metrics(respond);
+          await healthCommands.metrics(respond, channel_id, ctx.notifier);
           break;
 
         // Data retention
         case 'retention-stats':
-          await retentionCommands.retentionStats(respond);
+          await retentionCommands.retentionStats(respond, channel_id, ctx.notifier);
           break;
 
         case 'retention-run':
-          await retentionCommands.retentionRun(user_id, respond);
+          await retentionCommands.retentionRun(user_id, respond, channel_id, ctx.notifier);
           break;
 
         // Deployment
@@ -87,21 +87,21 @@ export function registerAdminListener(app: App, ctx: AppContext) {
           break;
 
         case 'deploy-status':
-          await deployCommands.deployStatus(channel_id, respond);
+          await deployCommands.deployStatus(channel_id, respond, ctx.notifier);
           break;
 
         case 'deploy-logs':
-          await deployCommands.deployLogs(channel_id, respond);
+          await deployCommands.deployLogs(channel_id, respond, ctx.notifier);
           break;
 
         // Logs & History
         case 'logs':
-          await logsCommands.logs(args, respond);
+          await logsCommands.logs(args, respond, channel_id, ctx.notifier);
           break;
 
         // Usage & Budget
         case 'usage':
-          await usageCommands.usage(args.slice(1), respond);
+          await usageCommands.usage(args.slice(1), respond, channel_id, ctx.notifier);
           break;
 
         // Help

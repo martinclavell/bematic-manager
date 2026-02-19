@@ -1,5 +1,6 @@
 import { createLogger } from '@bematic/common';
 import type { AppContext } from '../../context.js';
+import type { NotificationService } from '../../services/notification.service.js';
 
 const logger = createLogger('admin:logs-commands');
 
@@ -14,7 +15,7 @@ type RespondFn = (message: string) => Promise<void>;
 export class LogsCommands {
   constructor(private readonly ctx: AppContext) {}
 
-  async logs(args: string[], respond: RespondFn): Promise<void> {
+  async logs(args: string[], respond: RespondFn, channelId: string, notifier: NotificationService): Promise<void> {
     const limit = parseInt(args[1] || '20', 10);
     const category = args.find((a, i) => args[i - 1] === '--category');
     const status = args.find((a, i) => args[i - 1] === '--status');
@@ -23,9 +24,11 @@ export class LogsCommands {
 
     // Show stats if requested
     if (args.includes('--stats')) {
-      await this.showStats(respond);
+      await this.showStats(respond, channelId, notifier);
       return;
     }
+
+    await respond(':notebook: Fetching prompt history...');
 
     // Fetch prompts
     const prompts = this.ctx.promptHistoryRepo.findAll({
@@ -37,7 +40,7 @@ export class LogsCommands {
     });
 
     if (prompts.length === 0) {
-      await respond(':inbox_tray: No prompts found matching your criteria.');
+      await notifier.postMessage(channelId, ':inbox_tray: No prompts found matching your criteria.');
       return;
     }
 
@@ -72,12 +75,14 @@ export class LogsCommands {
       lines.push(`\n_Showing first 20 of ${prompts.length} results_`);
     }
 
-    await respond(lines.join('\n'));
+    await notifier.postMessage(channelId, lines.join('\n'));
   }
 
-  private async showStats(respond: RespondFn): Promise<void> {
+  private async showStats(respond: RespondFn, channelId: string, notifier: NotificationService): Promise<void> {
+    await respond(':bar_chart: Fetching prompt history statistics...');
     const stats = this.ctx.promptHistoryRepo.getStats();
-    await respond(
+    await notifier.postMessage(
+      channelId,
       ':bar_chart: *Prompt History Statistics*\n' +
       `> Total: ${stats.total}\n` +
       `> :white_check_mark: Completed: ${stats.completed}\n` +
