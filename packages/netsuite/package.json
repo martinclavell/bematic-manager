@@ -1,0 +1,56 @@
+{
+  "name": "@bematic/netsuite",
+  "version": "1.0.0",
+  "description": "Modular NetSuite integration library with OAuth, RESTlet, SuiteQL, and SDF support",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./core": {
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.js"
+    },
+    "./adapters": {
+      "types": "./dist/adapters/index.d.ts",
+      "import": "./dist/adapters/index.js"
+    },
+    "./services": {
+      "types": "./dist/services/index.d.ts",
+      "import": "./dist/services/index.js"
+    },
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "netsuite",
+    "oauth",
+    "restlet",
+    "suiteql",
+    "sdf",
+    "suitecommerce",
+    "erp",
+    "integration"
+  ],
+  "author": "Bematic",
+  "license": "MIT",
+  "dependencies": {
+    "@bematic/common": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  }
+}
