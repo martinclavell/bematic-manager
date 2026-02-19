@@ -36,6 +36,7 @@ interface SyncWorkflow {
 export class SyncOrchestrator extends EventEmitter {
   private workflows = new Map<string, SyncWorkflow>();
   private taskToWorkflowMap = new Map<string, string>(); // taskId -> workflowId
+  private deployToWorkflowMap = new Map<string, string>(); // deployRequestId -> workflowId
   private cleanupInterval: NodeJS.Timeout;
 
   constructor(
@@ -159,6 +160,41 @@ export class SyncOrchestrator extends EventEmitter {
       await this.handleTestComplete(workflow, success);
     } else if (taskId === workflow.buildTaskId) {
       await this.handleBuildComplete(workflow, success);
+    }
+  }
+
+  /**
+   * Handle deploy completion event from MessageRouter.
+   * Called when a DEPLOY_RESULT is received for any deploy request.
+   */
+  async onDeployComplete(deployRequestId: string, success: boolean): Promise<void> {
+    const workflowId = this.deployToWorkflowMap.get(deployRequestId);
+    if (!workflowId) {
+      // Not a sync workflow deploy, ignore
+      return;
+    }
+
+    this.deployToWorkflowMap.delete(deployRequestId);
+
+    const workflow = this.workflows.get(workflowId);
+    if (!workflow) {
+      logger.warn({ workflowId, deployRequestId }, 'Workflow not found for deploy result');
+      return;
+    }
+
+    logger.info(
+      { workflowId, deployRequestId, success },
+      'Deploy completed in sync workflow',
+    );
+
+    if (success) {
+      await this.completeWorkflow(workflow);
+    } else {
+      await this.failWorkflow(
+        workflow,
+        'Deployment failed',
+        ':x: Deployment failed. Sync workflow aborted.',
+      );
     }
   }
 
@@ -327,39 +363,20 @@ export class SyncOrchestrator extends EventEmitter {
       'Deploy request sent',
     );
 
-    // Deployment completion will be handled by the normal deploy flow
-    // We'll mark the workflow as completed when deploy result comes back
-    this.waitForDeployCompletion(workflow);
-  }
+    // Register mapping so onDeployComplete can find this workflow
+    this.deployToWorkflowMap.set(deployRequestId, workflow.id);
 
-  /**
-   * Wait for deployment to complete
-   * This is handled by listening to deploy results via the normal flow
-   */
-  private waitForDeployCompletion(workflow: SyncWorkflow): void {
-    const timeout = 300_000; // 5 minutes timeout for deploy
-    const startTime = Date.now();
-
-    const checkInterval = setInterval(async () => {
-      // Check if deploy request has been handled (removed from message router)
-      // For now, we'll use a timeout-based approach since deploy results go through
-      // the normal MessageRouter flow and post to Slack directly
-
-      // After deploy posts to Slack, we can mark workflow as complete
-      // For simplicity, we'll just set a reasonable timeout
-      if (Date.now() - startTime > timeout) {
-        clearInterval(checkInterval);
-        // Don't fail the workflow - deployment might have succeeded
-        // Just mark as completed and let the deploy result speak for itself
-        await this.completeWorkflow(workflow);
-      }
-    }, 5000); // Check every 5 seconds
-
-    // Alternative: Mark complete immediately since deploy handles its own notifications
+    // Safety timeout: if deploy result never comes back, fail the workflow
     setTimeout(async () => {
-      clearInterval(checkInterval);
-      await this.completeWorkflow(workflow);
-    }, 10_000); // Give deploy 10s to start, then consider sync workflow complete
+      if (workflow.status === 'deploying') {
+        this.deployToWorkflowMap.delete(deployRequestId);
+        await this.failWorkflow(
+          workflow,
+          'Deploy timed out — no result received from agent',
+          ':x: Deploy timed out after 5 minutes. Check agent logs.',
+        );
+      }
+    }, 300_000);
   }
 
   /**
@@ -460,6 +477,9 @@ export class SyncOrchestrator extends EventEmitter {
         if (workflow.buildTaskId) {
           this.taskToWorkflowMap.delete(workflow.buildTaskId);
         }
+        if (workflow.deployRequestId) {
+          this.deployToWorkflowMap.delete(workflow.deployRequestId);
+        }
 
         this.workflows.delete(workflowId);
         cleaned++;
@@ -494,6 +514,7 @@ export class SyncOrchestrator extends EventEmitter {
     clearInterval(this.cleanupInterval);
     this.workflows.clear();
     this.taskToWorkflowMap.clear();
+    this.deployToWorkflowMap.clear();
     logger.info('Sync orchestrator stopped');
   }
 }

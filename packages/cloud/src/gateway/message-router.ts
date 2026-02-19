@@ -645,6 +645,13 @@ export class MessageRouter {
     }
 
     logger.info({ requestId: payload.requestId, success: payload.success, agentId }, 'Deploy result received');
+
+    // Notify sync orchestrator if this deploy is part of a sync workflow
+    if (this.syncOrchestrator) {
+      this.syncOrchestrator.onDeployComplete(payload.requestId, payload.success).catch((err) => {
+        logger.error({ err, requestId: payload.requestId }, 'Error notifying sync orchestrator of deploy result');
+      });
+    }
   }
 
   private handlePathValidateResult(payload: PathValidateResultPayload): void {

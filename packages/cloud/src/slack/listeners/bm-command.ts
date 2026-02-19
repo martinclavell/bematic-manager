@@ -698,43 +698,56 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
             return;
           }
 
-          // Start orchestrated sync workflow
+          // Ack the command silently — we'll post the real message via notifier
+          await respond(':arrows_counterclockwise: Starting sync workflow...');
+
+          // Post the summary to the channel to get a thread parent ts
+          const threadTs = await ctx.notifier.postMessage(
+            channel_id,
+            `:arrows_counterclockwise: *Sync workflow started* for *${project.name}* by <@${user_id}>\n` +
+            `> 1. :hourglass_flowing_sand: Run tests\n` +
+            `> 2. :hourglass_flowing_sand: Build project\n` +
+            `> 3. :clock1: Restart agent\n` +
+            `> 4. :clock1: Deploy to Railway\n\n` +
+            `_Progress updates in thread below._`,
+          );
+
+          // Start orchestrated sync workflow (all updates go into the thread)
           const workflowId = await ctx.syncOrchestrator.startSync(
             project.id,
             resolvedAgentId,
             channel_id,
-            null,
+            threadTs ?? null,
             user_id,
           );
 
-          // Submit test task
+          // Submit test task (runs in the thread)
           const testCommand = opsBot.parseCommand('test');
           const testTaskId = await ctx.commandService.submit({
             bot: opsBot,
             command: testCommand,
             project,
-            slackContext: { channelId: channel_id, threadTs: null, userId: user_id },
+            slackContext: { channelId: channel_id, threadTs: threadTs ?? null, userId: user_id },
           });
           ctx.syncOrchestrator.registerTestTask(workflowId, testTaskId);
 
-          // Submit build task
+          // Submit build task (runs in the thread)
           const buildCommand = opsBot.parseCommand('build');
           const buildTaskId = await ctx.commandService.submit({
             bot: opsBot,
             command: buildCommand,
             project,
-            slackContext: { channelId: channel_id, threadTs: null, userId: user_id },
+            slackContext: { channelId: channel_id, threadTs: threadTs ?? null, userId: user_id },
           });
           ctx.syncOrchestrator.registerBuildTask(workflowId, buildTaskId);
 
-          await respond(
-            `:arrows_counterclockwise: *Sync started* (workflow \`${workflowId}\`)\n` +
-            `> 1. :hourglass_flowing_sand: Tests queued (\`${testTaskId}\`)\n` +
-            `> 2. :hourglass_flowing_sand: Build queued (\`${buildTaskId}\`)\n` +
-            `> 3. :clock1: Agent restart after tests + build pass\n` +
-            `> 4. :clock1: Railway deployment after agent reconnects\n\n` +
-            `Each step proceeds only after the previous one succeeds.`
+          // Post task IDs into the thread
+          await ctx.notifier.postMessage(
+            channel_id,
+            `:clipboard: Test task: \`${testTaskId}\`\n:clipboard: Build task: \`${buildTaskId}\`\n:label: Workflow: \`${workflowId}\``,
+            threadTs,
           );
+
           break;
         }
 

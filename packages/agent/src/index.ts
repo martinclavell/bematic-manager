@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import process from 'node:process';
 process.setMaxListeners(20);
-import { execSync } from 'node:child_process';
+import { exec } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import {
@@ -267,36 +267,38 @@ async function handlePathValidate(wsClient: WSClient, payload: PathValidateReque
 }
 
 function handleDeploy(wsClient: WSClient, payload: DeployRequestPayload) {
-  try {
-    logger.info({ localPath: payload.localPath }, 'Running railway up...');
-    const output = execSync('railway up --detach', {
-      cwd: payload.localPath,
-      encoding: 'utf-8',
-      timeout: 120_000,
-    });
+  logger.info({ localPath: payload.localPath }, 'Running railway up...');
 
-    // Extract build logs URL from output
+  exec('railway up --detach', {
+    cwd: payload.localPath,
+    encoding: 'utf-8',
+    timeout: 120_000,
+  }, (err, stdout, stderr) => {
+    if (err) {
+      const message = stderr || err.message;
+      logger.error({ error: message }, 'Deploy failed');
+      wsClient.send(
+        createWSMessage(MessageType.DEPLOY_RESULT, {
+          requestId: payload.requestId,
+          success: false,
+          output: message,
+        }),
+      );
+      return;
+    }
+
+    const output = stdout.trim();
     const urlMatch = output.match(/(https:\/\/railway\.com\/[^\s]+)/);
 
     wsClient.send(
       createWSMessage(MessageType.DEPLOY_RESULT, {
         requestId: payload.requestId,
         success: true,
-        output: output.trim(),
+        output,
         buildLogsUrl: urlMatch?.[1],
       }),
     );
-  } catch (err) {
-    const message = err instanceof Error ? (err as any).stderr || err.message : String(err);
-    logger.error({ error: message }, 'Deploy failed');
-    wsClient.send(
-      createWSMessage(MessageType.DEPLOY_RESULT, {
-        requestId: payload.requestId,
-        success: false,
-        output: message,
-      }),
-    );
-  }
+  });
 }
 
 main().catch((err) => {
