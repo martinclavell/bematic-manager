@@ -269,10 +269,16 @@ async function handlePathValidate(wsClient: WSClient, payload: PathValidateReque
 function handleDeploy(wsClient: WSClient, payload: DeployRequestPayload) {
   logger.info({ localPath: payload.localPath }, 'Running railway up...');
 
-  exec('railway up --detach', {
+  // Ensure Node 22 is active via nvm before running railway CLI
+  const command = process.platform === 'win32'
+    ? 'nvm use 22 && railway up --detach'
+    : 'source ~/.nvm/nvm.sh && nvm use 22 && railway up --detach';
+
+  exec(command, {
     cwd: payload.localPath,
     encoding: 'utf-8',
     timeout: 120_000,
+    shell: process.platform === 'win32' ? 'cmd.exe' : '/bin/bash',
   }, (err, stdout, stderr) => {
     if (err) {
       const message = stderr || err.message;
