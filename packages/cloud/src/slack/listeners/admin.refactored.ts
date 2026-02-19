@@ -8,6 +8,7 @@ import {
   RetentionCommands,
   DeployCommands,
   LogsCommands,
+  UsageCommands,
 } from '../admin-commands/index.js';
 
 const logger = createLogger('slack:admin');
@@ -24,6 +25,7 @@ export function registerAdminListener(app: App, ctx: AppContext) {
   const retentionCommands = new RetentionCommands(ctx);
   const deployCommands = new DeployCommands(ctx);
   const logsCommands = new LogsCommands(ctx);
+  const usageCommands = new UsageCommands(ctx);
 
   app.command('/bm-admin', async ({ command, ack, respond }) => {
     await ack();
@@ -97,6 +99,11 @@ export function registerAdminListener(app: App, ctx: AppContext) {
           await logsCommands.logs(args, respond);
           break;
 
+        // Usage & Budget
+        case 'usage':
+          await usageCommands.usage(args.slice(1), respond);
+          break;
+
         // Help
         case 'help':
         default:
@@ -119,7 +126,10 @@ export function registerAdminListener(app: App, ctx: AppContext) {
             '`/bm-admin logs --stats` - Show prompt history statistics\n' +
             '`/bm-admin logs --category <name>` - Filter by category\n' +
             '`/bm-admin logs --status <status>` - Filter by status\n' +
-            '`/bm-admin logs --tag <tag>` - Filter by tag\n',
+            '`/bm-admin logs --tag <tag>` - Filter by tag\n' +
+            '`/bm-admin usage` - Show API usage overview and budget\n' +
+            '`/bm-admin usage today|week|month` - Show usage for period\n' +
+            '`/bm-admin usage by-bot|by-project` - Show usage breakdown\n',
           );
           break;
       }

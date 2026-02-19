@@ -71,11 +71,21 @@ The cloud package uses a modular handler pattern for extensibility:
 
 | Handler | File | Purpose |
 |---------|------|----------|
+| Agent | `admin-commands/agent-commands.ts` | Agent restart, status, and health monitoring |
+| Worker | `admin-commands/worker-commands.ts` | Worker dashboard and task management |
+| Health | `admin-commands/health-commands.ts` | System health checks and metrics |
+| Retention | `admin-commands/retention-commands.ts` | Data retention policy management |
+| Deploy | `admin-commands/deploy-commands.ts` | Project deployment automation |
+| Logs | `admin-commands/logs-commands.ts` | Prompt history and audit logs |
+| Usage | `admin-commands/usage-commands.ts` | Claude API usage tracking and budget management |
 | API Keys | `admin-commands/api-keys.ts` | Generate, rotate, and manage agent API keys |
 | Archive | `admin-commands/archive.ts` | Data archival and retention management |
 | Cache | `admin-commands/cache.ts` | Cache management and statistics |
 | Metrics | `admin-commands/metrics.ts` | System metrics and performance monitoring |
 | Performance | `admin-commands/performance.ts` | Performance tuning and optimization |
+| Sessions | `admin-commands/sessions.ts` | Session management and cleanup |
+| Users | `admin-commands/users.ts` | User management and permissions |
+| Temp Files | `admin-commands/temp-files.ts` | Temporary file cleanup and management |
 
 ### Cache & Performance Handlers
 
@@ -220,6 +230,52 @@ When **Auto Commit & Push** is enabled:
 12. Cloud posts deployment status to Slack channel
 
 **Note**: `/bm-admin` is kept for backwards compatibility but `/bm` is the primary interface.
+
+---
+
+## Admin Commands (`/bm-admin`)
+
+Administrative commands for system management, monitoring, and operations:
+
+| Command | Purpose |
+|---------|---------|
+| `/bm-admin workers` | Dashboard of all agents, projects & active tasks |
+| `/bm-admin restart-agent [--rebuild]` | Restart all connected agents (optionally with rebuild) |
+| `/bm-admin agent-status` | Show connected agent status |
+| `/bm-admin agent-health` | Show circuit breaker status for all agents |
+| `/bm-admin agent-health-reset <id>` | Reset circuit breaker for specific agent |
+| `/bm-admin health` | Show system health status |
+| `/bm-admin metrics` | Show system metrics |
+| `/bm-admin retention-stats` | Show retention cleanup statistics |
+| `/bm-admin retention-run` | Manually run retention cleanup |
+| `/bm-admin deploy` | Deploy project linked to current channel |
+| `/bm-admin deploy-status` | Check latest deployment status |
+| `/bm-admin deploy-logs` | View latest deployment logs |
+| `/bm-admin logs [limit]` | View prompt history |
+| `/bm-admin logs --stats` | Show prompt history statistics |
+| `/bm-admin usage` | Claude API usage overview and budget tracking |
+| `/bm-admin usage today\|week\|month` | Usage for specific time period |
+| `/bm-admin usage by-bot` | Usage breakdown by bot type |
+| `/bm-admin usage by-project` | Usage breakdown by project |
+
+**Usage Tracking**:
+
+The `/bm-admin usage` commands provide comprehensive Claude API usage analytics:
+
+- **Token Usage**: Input/output token counts aggregated by period
+- **Cost Tracking**: Estimated API costs based on model pricing
+- **Model Breakdown**: Usage statistics per model (Sonnet 4.5, Opus 4, etc.)
+- **Entity Breakdown**: Usage by bot type or by project
+- **Success Rates**: Task completion vs failure rates
+- **Time Periods**: Today, this week, this month, all-time
+
+All usage data is sourced from the `sessions` table which tracks:
+- `inputTokens`, `outputTokens`: Token counts per session
+- `estimatedCost`: Calculated cost based on model pricing
+- `model`: Which Claude model was used
+- Task associations for grouping by bot/project
+
+Quick link to Claude.ai web UI usage page included in output for manual verification of overall account usage.
 
 ---
 

@@ -4,6 +4,7 @@ export { HealthCommands } from './health-commands.js';
 export { RetentionCommands } from './retention-commands.js';
 export { DeployCommands } from './deploy-commands.js';
 export { LogsCommands } from './logs-commands.js';
+export { UsageCommands } from './usage-commands.js';
 export { ApiKeyCommands } from './api-keys.js';
 export { registerCacheCommands as CacheCommands } from './cache.js';
 export { handleArchiveCommand } from './archive.js';
