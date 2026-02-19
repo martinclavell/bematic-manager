@@ -42,10 +42,12 @@ Rules:
 - Create clear, actionable task breakdowns
 - Estimate complexity as: trivial, small, medium, large, epic
 - DO NOT modify any files - only read and analyze
-- Format output as structured lists with clear priorities`;
+- Format output as structured lists with clear priorities
+- CRITICAL: After analyzing and planning, ALWAYS send a text message with the complete plan
+- Use TodoWrite to track tasks, then present the plan in a clear markdown format to the user`;
   }
 
   protected getAllowedTools(): string[] {
-    return ['Read', 'Glob', 'Grep'];
+    return ['Read', 'Glob', 'Grep', 'TodoWrite'];
   }
 }
