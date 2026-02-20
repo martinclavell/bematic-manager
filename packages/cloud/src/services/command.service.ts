@@ -57,6 +57,8 @@ export class CommandService {
       localPath: project.localPath,
       defaultModel: project.defaultModel,
       defaultMaxBudget: project.defaultMaxBudget,
+      channelId: slackContext.channelId,
+      channelName: undefined, // TODO: Fetch from Slack API if needed
     });
 
     // Append file description to the prompt if attachments were downloaded
@@ -169,6 +171,8 @@ export class CommandService {
       localPath: project.localPath,
       defaultModel: project.defaultModel,
       defaultMaxBudget: project.defaultMaxBudget,
+      channelId: slackContext.channelId,
+      channelName: undefined, // TODO: Fetch from Slack API if needed
     });
 
     if (!decompositionConfig) {
@@ -384,6 +388,8 @@ export class CommandService {
       localPath: project.localPath,
       defaultModel: project.defaultModel,
       defaultMaxBudget: project.defaultMaxBudget,
+      channelId: task.slackChannelId,
+      channelName: undefined, // TODO: Fetch from Slack API if needed
     });
 
     // Create a new task based on the old one

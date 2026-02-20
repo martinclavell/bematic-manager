@@ -730,8 +730,8 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
             `:arrows_counterclockwise: *Sync workflow started* for *${project.name}* by <@${user_id}>\n` +
             `> 1. :hourglass_flowing_sand: Run tests\n` +
             `> 2. :hourglass_flowing_sand: Build project\n` +
-            `> 3. :clock1: Restart agent\n` +
-            `> 4. :clock1: Deploy to Railway\n\n` +
+            `> 3. :clock1: Deploy to Railway\n` +
+            `> 4. :clock1: Restart agent\n\n` +
             `_Progress updates in thread below._`,
           );
 

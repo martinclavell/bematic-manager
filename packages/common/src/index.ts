@@ -62,6 +62,7 @@ export type {
   ParsedCommand,
   BotExecutionConfig,
   SubtaskDefinition,
+  BotProjectContext,
   ActionType,
   ActionContext,
   ActionResult,

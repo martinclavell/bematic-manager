@@ -105,6 +105,9 @@ export interface DeployRequestPayload {
   slackChannelId: string;
   slackThreadTs: string | null;
   requestedBy: string;
+  railwayProjectId?: string | null;
+  railwayServiceId?: string | null;
+  railwayEnvironmentId?: string | null;
 }
 
 export interface DeployResultPayload {

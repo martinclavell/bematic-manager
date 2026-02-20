@@ -18,7 +18,7 @@ interface SyncWorkflow {
   slackChannelId: string;
   slackThreadTs: string | null;
   requestedBy: string;
-  status: 'pending' | 'testing' | 'building' | 'restarting' | 'deploying' | 'completed' | 'failed';
+  status: 'pending' | 'testing' | 'building' | 'deploying' | 'completed' | 'failed';
   testTaskId: string | null;
   buildTaskId: string | null;
   deployRequestId: string | null;
@@ -188,6 +188,8 @@ export class SyncOrchestrator extends EventEmitter {
     );
 
     if (success) {
+      // Deploy succeeded — send restart signal (fire-and-forget) then complete
+      this.sendRestartSignal(workflow);
       await this.completeWorkflow(workflow);
     } else {
       await this.failWorkflow(
@@ -222,9 +224,9 @@ export class SyncOrchestrator extends EventEmitter {
       workflow.slackThreadTs,
     );
 
-    // If build is also complete, proceed to restart
+    // If build is also complete, proceed to deploy (deploy before restart)
     if (buildComplete) {
-      await this.proceedToRestart(workflow);
+      await this.proceedToDeploy(workflow);
     }
   }
 
@@ -252,106 +254,21 @@ export class SyncOrchestrator extends EventEmitter {
       workflow.slackThreadTs,
     );
 
-    // If tests are also complete (or no test task), proceed to restart
+    // If tests are also complete (or no test task), proceed to deploy (deploy before restart)
     if (testComplete) {
-      await this.proceedToRestart(workflow);
+      await this.proceedToDeploy(workflow);
     }
   }
 
   /**
-   * Proceed to agent restart phase
-   */
-  private async proceedToRestart(workflow: SyncWorkflow): Promise<void> {
-    workflow.status = 'restarting';
-
-    await this.notifier.postMessage(
-      workflow.slackChannelId,
-      ':arrows_counterclockwise: Restarting agent...',
-      workflow.slackThreadTs,
-    );
-
-    const { restarted } = this.opsService.sendRestart({
-      agentIds: [workflow.agentId],
-      reason: `Sync workflow ${workflow.id} requested by <@${workflow.requestedBy}>`,
-      rebuild: false,
-    });
-
-    if (restarted === 0) {
-      await this.failWorkflow(
-        workflow,
-        'Failed to send restart signal to agent',
-        ':x: Failed to restart agent. Sync workflow aborted.',
-      );
-      return;
-    }
-
-    logger.info({ workflowId: workflow.id, agentId: workflow.agentId }, 'Restart signal sent');
-
-    // Set up listener for agent reconnection
-    this.waitForAgentReconnection(workflow);
-  }
-
-  /**
-   * Wait for agent to reconnect after restart.
-   * Two-phase: first wait for the agent to go OFFLINE (old connection dies),
-   * then wait for it to come back ONLINE (new connection established).
-   * This prevents sending a deploy request to the dying old connection.
-   */
-  private waitForAgentReconnection(workflow: SyncWorkflow): void {
-    const timeout = 120_000; // 2 minutes total timeout
-    const startTime = Date.now();
-    let sawOffline = false;
-
-    const checkInterval = setInterval(async () => {
-      const online = this.agentManager.isOnline(workflow.agentId);
-
-      // Phase 1: wait for agent to go offline
-      if (!sawOffline) {
-        if (!online) {
-          sawOffline = true;
-          logger.info({ workflowId: workflow.id, agentId: workflow.agentId }, 'Agent went offline, waiting for reconnection');
-        }
-        // Still online on old connection — keep waiting
-        if (Date.now() - startTime > timeout) {
-          clearInterval(checkInterval);
-          await this.failWorkflow(
-            workflow,
-            'Agent did not disconnect after restart signal',
-            ':x: Agent did not restart. Sync workflow aborted.',
-          );
-        }
-        return;
-      }
-
-      // Phase 2: wait for agent to come back online
-      if (online) {
-        clearInterval(checkInterval);
-        logger.info({ workflowId: workflow.id, agentId: workflow.agentId }, 'Agent reconnected');
-        await this.proceedToDeploy(workflow);
-        return;
-      }
-
-      // Check timeout
-      if (Date.now() - startTime > timeout) {
-        clearInterval(checkInterval);
-        await this.failWorkflow(
-          workflow,
-          'Agent did not reconnect within timeout',
-          ':x: Agent did not reconnect after restart. Sync workflow aborted.',
-        );
-      }
-    }, 2000); // Check every 2 seconds
-  }
-
-  /**
-   * Proceed to deployment phase
+   * Proceed to deployment phase (runs before restart)
    */
   private async proceedToDeploy(workflow: SyncWorkflow): Promise<void> {
     workflow.status = 'deploying';
 
     await this.notifier.postMessage(
       workflow.slackChannelId,
-      ':rocket: Agent restarted. Starting deployment...',
+      ':rocket: Starting deployment...',
       workflow.slackThreadTs,
     );
 
@@ -405,6 +322,23 @@ export class SyncOrchestrator extends EventEmitter {
   }
 
   /**
+   * Send agent restart signal (fire-and-forget, last step after deploy)
+   */
+  private sendRestartSignal(workflow: SyncWorkflow): void {
+    const { restarted } = this.opsService.sendRestart({
+      agentIds: [workflow.agentId],
+      reason: `Sync workflow ${workflow.id} requested by <@${workflow.requestedBy}>`,
+      rebuild: false,
+    });
+
+    if (restarted > 0) {
+      logger.info({ workflowId: workflow.id, agentId: workflow.agentId }, 'Restart signal sent after deploy');
+    } else {
+      logger.warn({ workflowId: workflow.id, agentId: workflow.agentId }, 'Could not send restart signal (agent may already be offline)');
+    }
+  }
+
+  /**
    * Mark workflow as completed successfully
    */
   private async completeWorkflow(workflow: SyncWorkflow): Promise<void> {
@@ -412,10 +346,20 @@ export class SyncOrchestrator extends EventEmitter {
     workflow.completedAt = Date.now();
 
     const durationMs = workflow.completedAt - workflow.createdAt;
+    const durationSec = Math.round(durationMs / 1000);
+    const durationStr = durationSec < 60
+      ? `${durationSec}s`
+      : `${Math.floor(durationSec / 60)}m ${durationSec % 60}s`;
 
     logger.info(
       { workflowId: workflow.id, durationMs },
       'Sync workflow completed',
+    );
+
+    await this.notifier.postMessage(
+      workflow.slackChannelId,
+      `:white_check_mark: *Sync workflow completed* in ${durationStr}. Agent restart signal sent.`,
+      workflow.slackThreadTs,
     );
 
     this.auditLogRepo.log(

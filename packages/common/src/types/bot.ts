@@ -32,6 +32,16 @@ export interface SubtaskDefinition {
   command: string;
 }
 
+/** Context about the project and Slack channel where the bot is executing */
+export interface BotProjectContext {
+  name: string;
+  localPath: string;
+  defaultModel: string;
+  defaultMaxBudget: number;
+  channelId: string;
+  channelName?: string;
+}
+
 export interface BotPlugin {
   name: BotName;
   displayName: string;
@@ -45,7 +55,7 @@ export interface BotPlugin {
   /** Build the Claude execution config for a parsed command */
   buildExecutionConfig(
     command: ParsedCommand,
-    projectContext: { name: string; localPath: string; defaultModel: string; defaultMaxBudget: number },
+    projectContext: BotProjectContext,
   ): BotExecutionConfig;
 
   /** Format a completed task result into Slack blocks */
@@ -67,6 +77,6 @@ export interface BotPlugin {
    */
   buildDecompositionConfig(
     command: ParsedCommand,
-    projectContext: { name: string; localPath: string; defaultModel: string; defaultMaxBudget: number },
+    projectContext: BotProjectContext,
   ): BotExecutionConfig | null;
 }

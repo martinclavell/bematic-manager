@@ -12,7 +12,13 @@ import type { MessageRouter } from '../gateway/message-router.js';
 const logger = createLogger('ops-service');
 
 export interface SendDeployParams {
-  project: { id: string; localPath: string };
+  project: {
+    id: string;
+    localPath: string;
+    railwayProjectId?: string | null;
+    railwayServiceId?: string | null;
+    railwayEnvironmentId?: string | null;
+  };
   agentId: string;
   slackChannelId: string;
   slackThreadTs: string | null;
@@ -51,6 +57,9 @@ export class OpsService {
       slackChannelId,
       slackThreadTs,
       requestedBy,
+      railwayProjectId: project.railwayProjectId,
+      railwayServiceId: project.railwayServiceId,
+      railwayEnvironmentId: project.railwayEnvironmentId,
     });
 
     this.messageRouter.registerDeployRequest(requestId, slackChannelId, slackThreadTs, requestedBy);

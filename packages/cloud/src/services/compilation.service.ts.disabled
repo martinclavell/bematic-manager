@@ -2,9 +2,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import {
   createLogger,
   generateId,
-  type TaskRow,
 } from '@bematic/common';
-import type { TaskRepository, SessionRepository, SessionInsert } from '@bematic/db';
+import type { TaskRepository, SessionRepository, SessionInsert, TaskRow } from '@bematic/db';
 
 const logger = createLogger('compilation-service');
 
@@ -205,8 +204,8 @@ Generate a comprehensive but concise summary that captures the essential context
       });
 
       const summary = response.content
-        .filter(block => block.type === 'text')
-        .map(block => (block as { type: 'text'; text: string }).text)
+        .filter((block: Anthropic.ContentBlock) => block.type === 'text')
+        .map((block: Anthropic.ContentBlock) => (block as { type: 'text'; text: string }).text)
         .join('\n');
 
       logger.info({ summaryLength: summary.length }, 'Received summary from Claude API');

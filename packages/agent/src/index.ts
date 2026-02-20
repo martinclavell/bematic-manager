@@ -2,6 +2,7 @@ import 'dotenv/config';
 import process from 'node:process';
 process.setMaxListeners(20);
 import { exec } from 'node:child_process';
+import { dirname } from 'node:path';
 import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import {
@@ -269,38 +270,37 @@ async function handlePathValidate(wsClient: WSClient, payload: PathValidateReque
 function handleDeploy(wsClient: WSClient, payload: DeployRequestPayload) {
   logger.info({ localPath: payload.localPath }, 'Running Railway deployment...');
 
-  // Validate Railway token
-  if (!process.env.RAILWAY_TOKEN) {
-    logger.error('RAILWAY_TOKEN not set in environment');
-    wsClient.send(
-      createWSMessage(MessageType.DEPLOY_RESULT, {
-        requestId: payload.requestId,
-        success: false,
-        output: 'RAILWAY_TOKEN environment variable is not set. Configure it in agent .env file.',
-      }),
-    );
-    return;
-  }
-
-  // Use npx to ensure Railway CLI is available, regardless of global install
-  // This works cross-platform and auto-installs if needed
   const command = 'npx @railway/cli up --detach';
 
-  logger.info({ command, cwd: payload.localPath, platform: process.platform }, 'Executing deployment command');
+  // Derive node bin dir from running process so npx is always found
+  const nodeBinDir = dirname(process.execPath);
+  const separator = process.platform === 'win32' ? ';' : ':';
+  const deployPath = `${nodeBinDir}${separator}${process.env.PATH || ''}`;
+
+  // Build deploy environment: pass through host env (includes Railway browser auth)
+  // but remove RAILWAY_TOKEN/RAILWAY_API_TOKEN so they don't override browser session.
+  // Project targeting comes from the payload (configured via /bm config).
+  const deployEnv: Record<string, string | undefined> = { ...process.env, PATH: deployPath };
+  delete deployEnv.RAILWAY_TOKEN;
+  delete deployEnv.RAILWAY_API_TOKEN;
+  if (payload.railwayProjectId) deployEnv.RAILWAY_PROJECT_ID = payload.railwayProjectId;
+  if (payload.railwayServiceId) deployEnv.RAILWAY_SERVICE_ID = payload.railwayServiceId;
+  if (payload.railwayEnvironmentId) deployEnv.RAILWAY_ENVIRONMENT_ID = payload.railwayEnvironmentId;
+
+  logger.info({
+    command,
+    cwd: payload.localPath,
+    hasProjectId: !!payload.railwayProjectId,
+    hasServiceId: !!payload.railwayServiceId,
+  }, 'Starting Railway deploy');
 
   exec(command, {
     cwd: payload.localPath,
     encoding: 'utf-8',
-    timeout: 300_000, // 5 minutes (increased for slow connections)
-    shell: true, // Use default shell (cmd.exe on Windows, /bin/sh on Unix)
-    env: {
-      ...process.env,
-      // Ensure Railway token is available
-      RAILWAY_TOKEN: process.env.RAILWAY_TOKEN,
-      // Ensure PATH includes npm global bin for Railway CLI
-      PATH: process.env.PATH,
-    },
-  }, (err, stdout, stderr) => {
+    timeout: 300_000,
+    shell: process.platform === 'win32' ? (process.env.ComSpec || 'C:\\Windows\\System32\\cmd.exe') : '/bin/bash',
+    env: deployEnv,
+  }, (err: Error | null, stdout: string, stderr: string) => {
     if (err) {
       const message = stderr || err.message;
       logger.error({

@@ -1,4 +1,4 @@
-import { BotName, type BotCommand, type BotExecutionConfig, type ParsedCommand } from '@bematic/common';
+import { BotName, type BotCommand, type BotExecutionConfig, type ParsedCommand, type BotProjectContext } from '@bematic/common';
 import { BaseBotPlugin } from '../base/base-bot.js';
 
 /** Commands that are complex enough to benefit from decomposition */
@@ -69,7 +69,7 @@ Rules:
 
   buildDecompositionConfig(
     command: ParsedCommand,
-    projectContext: { name: string; localPath: string; defaultModel: string; defaultMaxBudget: number },
+    projectContext: BotProjectContext,
   ): BotExecutionConfig | null {
     if (!this.shouldDecompose(command)) return null;
 

@@ -6,6 +6,7 @@ import type {
   SlackBlock,
   TaskCompletePayload,
   BotName,
+  BotProjectContext,
 } from '@bematic/common';
 import { parseCommandText } from './command-parser.js';
 import { routeToModel } from './model-router.js';
@@ -55,7 +56,7 @@ If the push fails (e.g. no upstream), use: \`git push -u origin HEAD\``;
 
   buildExecutionConfig(
     command: ParsedCommand,
-    projectContext: { name: string; localPath: string; defaultModel: string; defaultMaxBudget: number },
+    projectContext: BotProjectContext,
   ): BotExecutionConfig {
     const botCommand = this.commands.find(
       (c) => c.name === command.command || c.aliases.includes(command.command),
@@ -72,8 +73,17 @@ If the push fails (e.g. no upstream), use: \`git push -u origin HEAD\``;
         ? parseFloat(command.flags['budget'] as string)
         : projectContext.defaultMaxBudget;
 
+    // Build system prompt with project and channel context
+    const contextInfo = `
+## Project Context
+- **Project**: ${projectContext.name}
+- **Local Path**: ${projectContext.localPath}
+- **Slack Channel ID**: ${projectContext.channelId}${projectContext.channelName ? `\n- **Channel Name**: ${projectContext.channelName}` : ''}
+
+**IMPORTANT**: This task is running in the context of Slack channel \`${projectContext.channelId}\`. If the user asks you to send a message to a Slack channel, THIS is the channel they're referring to (unless they explicitly specify a different channel ID).`;
+
     return {
-      systemPrompt: `${this.baseSystemPrompt}\n\n${this.getSystemPrompt()}`,
+      systemPrompt: `${this.baseSystemPrompt}${contextInfo}\n\n${this.getSystemPrompt()}`,
       prompt,
       model: routing.model,
       maxBudget,
@@ -105,7 +115,7 @@ If the push fails (e.g. no upstream), use: \`git push -u origin HEAD\``;
   /** By default, bots do not support decomposition */
   buildDecompositionConfig(
     _command: ParsedCommand,
-    _projectContext: { name: string; localPath: string; defaultModel: string; defaultMaxBudget: number },
+    _projectContext: BotProjectContext,
   ): BotExecutionConfig | null {
     return null;
   }

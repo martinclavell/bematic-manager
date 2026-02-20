@@ -22,7 +22,7 @@ import type { HealthService } from './services/health.service.js';
 import type { RetentionService } from './services/retention.service.js';
 import type { SlackUserService } from './services/slack-user.service.js';
 import type { NetSuiteService } from './services/netsuite.service.js';
-import type { CompilationService } from './services/compilation.service.js';
+// import type { CompilationService } from './services/compilation.service.js';
 import type { AgentManager } from './gateway/agent-manager.js';
 import type { MessageRouter } from './gateway/message-router.js';
 import type { AgentHealthTracker } from './gateway/agent-health-tracker.js';
@@ -58,7 +58,7 @@ export interface AppContext {
   slackUserService: SlackUserService;
   netsuiteService: NetSuiteService;
   schedulerService: SchedulerService;
-  compilationService: CompilationService;
+  // compilationService: CompilationService;
 
   // Gateway
   agentManager: AgentManager;
