@@ -146,9 +146,19 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
           // Ack briefly, then post full dashboard in thread
           await respond(':factory: Fetching workers dashboard...');
 
-          const sections: string[] = [
-            `:factory: *Workers Dashboard* (${agentIds.length} agent${agentIds.length === 1 ? '' : 's'} connected)`,
-          ];
+          // Check if this is the global admin channel or a project-specific channel
+          const isGlobalChannel = ctx.config.globalAdminChannelId && channel_id === ctx.config.globalAdminChannelId;
+          const currentProject = isGlobalChannel ? null : ctx.projectResolver.tryResolve(channel_id);
+
+          const sections: string[] = [];
+
+          if (isGlobalChannel) {
+            sections.push(`:factory: *Workers Dashboard* (${agentIds.length} agent${agentIds.length === 1 ? '' : 's'} connected) — Global View`);
+          } else if (currentProject) {
+            sections.push(`:factory: *Workers Dashboard for ${currentProject.name}*`);
+          } else {
+            sections.push(`:factory: *Workers Dashboard* (${agentIds.length} agent${agentIds.length === 1 ? '' : 's'} connected)`);
+          }
 
           let totalRunning = 0;
           let totalQueued = 0;
@@ -156,6 +166,23 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
           for (const agentId of agentIds) {
             const agent = ctx.agentManager.getAgent(agentId);
             if (!agent) continue;
+
+            // Get all projects for this agent
+            const pinnedProjects = ctx.projectRepo.findByAgentId(agentId);
+            const autoProjects = ctx.projectRepo.findByAgentId('auto');
+            const allAgentProjects = [...pinnedProjects, ...autoProjects];
+
+            // Filter projects based on current channel context
+            const agentProjects = isGlobalChannel
+              ? allAgentProjects  // Global channel: show all projects
+              : currentProject
+                ? allAgentProjects.filter(p => p.id === currentProject.id)  // Project channel: only show this project
+                : allAgentProjects;  // No project configured: show all
+
+            // If filtering by project and this agent has no matching projects, skip it
+            if (!isGlobalChannel && currentProject && agentProjects.length === 0) {
+              continue;
+            }
 
             const uptimeMs = Date.now() - agent.connectedAt;
             const uptimeStr = formatDuration(uptimeMs);
@@ -167,10 +194,6 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
               : agent.status === 'busy' ? ':large_yellow_circle:'
               : ':red_circle:';
 
-            // Show projects pinned to this agent + auto-routed projects
-            const pinnedProjects = ctx.projectRepo.findByAgentId(agentId);
-            const autoProjects = ctx.projectRepo.findByAgentId('auto');
-            const agentProjects = [...pinnedProjects, ...autoProjects];
             const projectNames = agentProjects.length > 0
               ? agentProjects.map((p) => `${p.name}${p.agentId === 'auto' ? ' (auto)' : ''}`).join(', ')
               : '_none_';
@@ -213,9 +236,15 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
             sections.push(section);
           }
 
-          sections.push(
-            `\n:bar_chart: *Totals:* ${totalRunning} running | ${totalQueued} queued | ${agentIds.length} agent${agentIds.length === 1 ? '' : 's'}`,
-          );
+          // Only show totals if we have sections (agents with matching projects)
+          if (sections.length > 1) {
+            const agentCount = sections.length - 1; // Subtract header
+            sections.push(
+              `\n:bar_chart: *Totals:* ${totalRunning} running | ${totalQueued} queued | ${agentCount} agent${agentCount === 1 ? '' : 's'}`,
+            );
+          } else if (currentProject) {
+            sections.push(`\n:information_source: No agents found working on project *${currentProject.name}*`);
+          }
 
           // Post full dashboard in a thread
           await ctx.notifier.postMessage(channel_id, sections.join('\n'));

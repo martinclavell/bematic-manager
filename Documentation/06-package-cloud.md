@@ -163,7 +163,7 @@ Primary command interface for development, operations, and configuration:
 | `/bm status` | TASK_CREATE | Check git status & project health |
 | `/bm sync` | USER_MANAGE | All-in-one: run tests → build → restart agent → deploy to Railway |
 | `/bm deploy` | USER_MANAGE | Deploy to Railway |
-| `/bm agents` | USER_MANAGE | Dashboard showing all agents, projects, and active tasks with IDs |
+| `/bm agents` (alias: `/bm workers`) | USER_MANAGE | Dashboard showing agents, projects, and active tasks. Shows all projects in global admin channel (set via `GLOBAL_ADMIN_CHANNEL_ID`), or only the current project in project-specific channels. |
 | `/bm queue` | USER_MANAGE | List all queued/pending tasks (project-specific or global) |
 | `/bm cancel <task-id>` | USER_MANAGE | Cancel a specific running or queued task (stops execution on agent) |
 | `/bm clear-queue` | USER_MANAGE | Clear all queued tasks for current project |

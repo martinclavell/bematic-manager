@@ -176,6 +176,7 @@ async function main() {
 
   // Build context
   const ctx: AppContext = {
+    config,
     db,
     projectRepo,
     taskRepo,

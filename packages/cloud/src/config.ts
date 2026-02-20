@@ -33,6 +33,7 @@ export function loadConfig() {
     database: {
       url: optionalEnv('DATABASE_URL', './data/bematic.db'),
     },
+    globalAdminChannelId: optionalEnv('GLOBAL_ADMIN_CHANNEL_ID', ''),
     server: {
       port: parseInt(optionalEnv('PORT', '3000'), 10),
       nodeEnv,

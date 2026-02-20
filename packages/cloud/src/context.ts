@@ -28,9 +28,13 @@ import type { MessageRouter } from './gateway/message-router.js';
 import type { AgentHealthTracker } from './gateway/agent-health-tracker.js';
 import type { SyncOrchestrator } from './services/sync-orchestrator.service.js';
 import type { OpsService } from './services/ops.service.js';
+import type { Config } from './config.js';
 
 /** Shared context injected into all Slack listeners */
 export interface AppContext {
+  // Config
+  config: Config;
+
   // Database
   db: DB;
 

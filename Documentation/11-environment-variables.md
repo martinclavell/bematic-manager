@@ -25,6 +25,7 @@
 | `CLOUD_SSL_KEY_PATH` | No | — | Path to TLS private key file |
 | `CLOUD_ENFORCE_WSS` | No | `true` (prod), `false` (dev) | Reject non-WSS connections |
 | `NETSUITE_ENCRYPTION_KEY` | Yes* | — | 64-char hex string (32 bytes) for AES-256 credential encryption (required if using NetSuite integration) |
+| `GLOBAL_ADMIN_CHANNEL_ID` | No | — | Slack channel ID for global admin dashboard (e.g., `C0AF53WL6CT`). When set, `/bm workers` in this channel shows all projects; in other channels, it only shows the channel's project. |
 
 ---
 
