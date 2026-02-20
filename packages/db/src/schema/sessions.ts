@@ -15,6 +15,10 @@ export const sessions = sqliteTable('sessions', {
   lastActivityAt: text('last_activity_at').notNull().$defaultFn(() => new Date().toISOString()),
   createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
   completedAt: text('completed_at'),
+  // Context compilation fields
+  compiledFromSessionId: text('compiled_from_session_id'),
+  compilationSummary: text('compilation_summary'),
+  isCompiled: integer('is_compiled', { mode: 'boolean' }).notNull().default(false),
 });
 
 export type SessionRow = typeof sessions.$inferSelect;

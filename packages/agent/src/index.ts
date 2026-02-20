@@ -267,28 +267,58 @@ async function handlePathValidate(wsClient: WSClient, payload: PathValidateReque
 }
 
 function handleDeploy(wsClient: WSClient, payload: DeployRequestPayload) {
-  logger.info({ localPath: payload.localPath }, 'Running railway up...');
+  logger.info({ localPath: payload.localPath }, 'Running Railway deployment...');
 
-  // Ensure Node 22 is active via nvm before running railway CLI
-  const command = process.platform === 'win32'
-    ? 'nvm use 22 && railway up --detach'
-    : 'source ~/.nvm/nvm.sh && nvm use 22 && railway up --detach';
+  // Validate Railway token
+  if (!process.env.RAILWAY_TOKEN) {
+    logger.error('RAILWAY_TOKEN not set in environment');
+    wsClient.send(
+      createWSMessage(MessageType.DEPLOY_RESULT, {
+        requestId: payload.requestId,
+        success: false,
+        output: 'RAILWAY_TOKEN environment variable is not set. Configure it in agent .env file.',
+      }),
+    );
+    return;
+  }
+
+  // Use npx to ensure Railway CLI is available, regardless of global install
+  // This works cross-platform and auto-installs if needed
+  const command = 'npx @railway/cli up --detach';
+
+  logger.info({ command, cwd: payload.localPath, platform: process.platform }, 'Executing deployment command');
 
   exec(command, {
     cwd: payload.localPath,
     encoding: 'utf-8',
-    timeout: 120_000,
-    shell: process.platform === 'win32' ? (process.env.ComSpec || 'C:\\Windows\\System32\\cmd.exe') : '/bin/bash',
-    env: process.env,
+    timeout: 300_000, // 5 minutes (increased for slow connections)
+    shell: true, // Use default shell (cmd.exe on Windows, /bin/sh on Unix)
+    env: {
+      ...process.env,
+      // Ensure Railway token is available
+      RAILWAY_TOKEN: process.env.RAILWAY_TOKEN,
+      // Ensure PATH includes npm global bin for Railway CLI
+      PATH: process.env.PATH,
+    },
   }, (err, stdout, stderr) => {
     if (err) {
       const message = stderr || err.message;
-      logger.error({ error: message }, 'Deploy failed');
+      logger.error({
+        error: message,
+        stderr,
+        stdout,
+        cwd: payload.localPath,
+        command,
+        env: {
+          hasRailwayToken: !!process.env.RAILWAY_TOKEN,
+          path: process.env.PATH,
+        }
+      }, 'Deploy failed');
       wsClient.send(
         createWSMessage(MessageType.DEPLOY_RESULT, {
           requestId: payload.requestId,
           success: false,
-          output: message,
+          output: `Deployment failed:\n${message}\n\nCommand: ${command}\nDirectory: ${payload.localPath}`,
         }),
       );
       return;
@@ -296,6 +326,8 @@ function handleDeploy(wsClient: WSClient, payload: DeployRequestPayload) {
 
     const output = stdout.trim();
     const urlMatch = output.match(/(https:\/\/railway\.com\/[^\s]+)/);
+
+    logger.info({ output, buildLogsUrl: urlMatch?.[1] }, 'Deploy succeeded');
 
     wsClient.send(
       createWSMessage(MessageType.DEPLOY_RESULT, {

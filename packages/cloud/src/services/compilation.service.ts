@@ -1,0 +1,220 @@
+import Anthropic from '@anthropic-ai/sdk';
+import {
+  createLogger,
+  generateId,
+  type TaskRow,
+} from '@bematic/common';
+import type { TaskRepository, SessionRepository, SessionInsert } from '@bematic/db';
+
+const logger = createLogger('compilation-service');
+
+interface CompiledContext {
+  compiledSessionId: string;
+  summary: string;
+  originalTokensEstimate: number;
+  compiledTokensEstimate: number;
+  tokensReduced: number;
+}
+
+interface ConversationEntry {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
+export class CompilationService {
+  private anthropic: Anthropic;
+
+  constructor(
+    private readonly taskRepo: TaskRepository,
+    private readonly sessionRepo: SessionRepository,
+    private readonly anthropicApiKey: string,
+  ) {
+    this.anthropic = new Anthropic({ apiKey: anthropicApiKey });
+  }
+
+  /**
+   * Compile a thread's conversation history into a concise summary
+   */
+  async compileThread(channelId: string, threadTs: string): Promise<CompiledContext> {
+    logger.info({ channelId, threadTs }, 'Starting thread compilation');
+
+    // 1. Fetch all tasks in the thread (chronological order)
+    const tasks = this.taskRepo.findByThread(channelId, threadTs);
+
+    if (tasks.length === 0) {
+      throw new Error('No tasks found in this thread');
+    }
+
+    logger.info({ channelId, threadTs, taskCount: tasks.length }, 'Fetched thread tasks');
+
+    // 2. Build conversation history
+    const conversationHistory = this.buildConversationHistory(tasks);
+
+    // 3. Estimate original token count (rough estimate: 1 token ≈ 4 chars)
+    const originalText = conversationHistory.map(e => e.content).join('\n');
+    const originalTokensEstimate = Math.ceil(originalText.length / 4);
+
+    logger.info({ originalTokens: originalTokensEstimate }, 'Estimated original context size');
+
+    // 4. Use Claude to generate summary
+    const summary = await this.summarizeConversation(conversationHistory, tasks);
+
+    // 5. Estimate compiled token count
+    const compiledTokensEstimate = Math.ceil(summary.length / 4);
+    const tokensReduced = originalTokensEstimate - compiledTokensEstimate;
+
+    logger.info(
+      {
+        originalTokens: originalTokensEstimate,
+        compiledTokens: compiledTokensEstimate,
+        reduction: tokensReduced
+      },
+      'Compilation complete'
+    );
+
+    // 6. Get the last task's session ID for reference
+    const lastTask = tasks[tasks.length - 1]!;
+
+    // 7. Create a new compiled session
+    const compiledSessionId = generateId('session');
+    const sessionInsert: SessionInsert = {
+      id: compiledSessionId,
+      taskId: lastTask.id,
+      agentId: 'compiled',
+      model: 'compilation',
+      inputTokens: 0,
+      outputTokens: 0,
+      estimatedCost: 0,
+      status: 'completed',
+      compiledFromSessionId: lastTask.sessionId,
+      compilationSummary: summary,
+      isCompiled: true,
+    };
+
+    this.sessionRepo.create(sessionInsert);
+
+    logger.info({ compiledSessionId, threadTs }, 'Created compiled session');
+
+    return {
+      compiledSessionId,
+      summary,
+      originalTokensEstimate,
+      compiledTokensEstimate,
+      tokensReduced,
+    };
+  }
+
+  /**
+   * Build chronological conversation history from tasks
+   */
+  private buildConversationHistory(tasks: TaskRow[]): ConversationEntry[] {
+    const entries: ConversationEntry[] = [];
+
+    for (const task of tasks) {
+      // User message (prompt)
+      entries.push({
+        role: 'user',
+        content: `[${task.botName}] ${task.command}: ${task.prompt}`,
+        timestamp: task.createdAt,
+      });
+
+      // Assistant response (result)
+      if (task.result) {
+        entries.push({
+          role: 'assistant',
+          content: task.result,
+          timestamp: task.completedAt || task.updatedAt,
+        });
+      }
+    }
+
+    return entries;
+  }
+
+  /**
+   * Use Claude API to summarize the conversation
+   */
+  private async summarizeConversation(
+    history: ConversationEntry[],
+    tasks: TaskRow[],
+  ): Promise<string> {
+    // Build context from conversation
+    const conversationText = history
+      .map((entry, idx) => {
+        const role = entry.role === 'user' ? 'USER' : 'ASSISTANT';
+        return `[${idx + 1}] ${role} (${entry.timestamp}):\n${entry.content}`;
+      })
+      .join('\n\n---\n\n');
+
+    // Build file changes summary
+    const allFilesChanged = new Set<string>();
+    const allCommandsRun = new Set<string>();
+
+    for (const task of tasks) {
+      try {
+        const files = JSON.parse(task.filesChanged) as string[];
+        const commands = JSON.parse(task.commandsRun) as string[];
+        files.forEach(f => allFilesChanged.add(f));
+        commands.forEach(c => allCommandsRun.add(c));
+      } catch {
+        // Ignore parse errors
+      }
+    }
+
+    const systemPrompt = `You are a technical summarizer. Your job is to analyze a conversation thread between a user and an AI coding assistant and extract the essential context needed to continue the conversation effectively.
+
+Extract and organize:
+1. **Current State**: What is the current state of the codebase after all changes?
+2. **Key Changes**: What files were modified and what were the significant changes?
+3. **Decisions Made**: What technical decisions were made and why?
+4. **Remaining Work**: What tasks are incomplete or what questions are open?
+5. **Critical Context**: Any important context (bugs, constraints, patterns) needed to continue.
+
+Be concise but preserve critical technical details. Prioritize information that Claude would need to continue working on this project effectively.`;
+
+    const userPrompt = `Analyze this conversation thread and create a concise summary for context continuation.
+
+**Files Changed:**
+${Array.from(allFilesChanged).length > 0 ? Array.from(allFilesChanged).map(f => `- ${f}`).join('\n') : 'None'}
+
+**Commands Run:**
+${Array.from(allCommandsRun).length > 0 ? Array.from(allCommandsRun).slice(0, 10).map(c => `- ${c}`).join('\n') : 'None'}
+
+**Conversation History:**
+
+${conversationText}
+
+---
+
+Generate a comprehensive but concise summary that captures the essential context.`;
+
+    logger.info({ historyLength: history.length }, 'Sending summarization request to Claude API');
+
+    try {
+      const response = await this.anthropic.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4096,
+        system: systemPrompt,
+        messages: [
+          {
+            role: 'user',
+            content: userPrompt,
+          },
+        ],
+      });
+
+      const summary = response.content
+        .filter(block => block.type === 'text')
+        .map(block => (block as { type: 'text'; text: string }).text)
+        .join('\n');
+
+      logger.info({ summaryLength: summary.length }, 'Received summary from Claude API');
+
+      return summary;
+    } catch (error) {
+      logger.error({ error }, 'Failed to generate summary using Claude API');
+      throw new Error(`Compilation failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+}

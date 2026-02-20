@@ -43,6 +43,7 @@
 | `MAX_CONTINUATIONS` | No | `3` | Max auto-continuations when Claude hits 200-turn limit |
 | `AGENT_WS_PROTOCOL` | No | Auto-detect | WebSocket protocol (`wss`/`ws`). Auto: production=wss, dev=ws |
 | `AGENT_WS_REJECT_UNAUTHORIZED` | No | `true` | Certificate validation for WSS connections |
+| `RAILWAY_TOKEN` | Yes* | — | Railway API token (required for `/bm deploy` and `/bm sync` commands) |
 
 ---
 

@@ -1,4 +1,4 @@
-import { eq, and, desc, isNotNull, sql, lt } from 'drizzle-orm';
+import { eq, and, desc, asc, isNotNull, sql, lt } from 'drizzle-orm';
 import { BaseRepository } from './base.repository.js';
 import { tasks } from '../schema/tasks.js';
 import type { TaskInsert, TaskRow } from '../schema/tasks.js';
@@ -198,6 +198,30 @@ export class TaskRepository extends BaseRepository {
       logger.error({ error, channelId, threadTs }, 'Failed to find last session in thread');
       throw classifySQLiteError(error, {
         operation: 'findLastSessionInThread',
+        table: 'tasks',
+        data: { channelId, threadTs },
+      });
+    }
+  }
+
+  /** Find all tasks in a Slack thread (chronological order) */
+  findByThread(channelId: string, threadTs: string): TaskRow[] {
+    try {
+      return this.db
+        .select()
+        .from(tasks)
+        .where(
+          and(
+            eq(tasks.slackChannelId, channelId),
+            eq(tasks.slackThreadTs, threadTs),
+          ),
+        )
+        .orderBy(asc(tasks.createdAt))
+        .all();
+    } catch (error) {
+      logger.error({ error, channelId, threadTs }, 'Failed to find tasks by thread');
+      throw classifySQLiteError(error, {
+        operation: 'findByThread',
         table: 'tasks',
         data: { channelId, threadTs },
       });

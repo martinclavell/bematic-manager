@@ -1,6 +1,7 @@
-import { eq, lt, and, isNull } from 'drizzle-orm';
+import { eq, lt, and, isNull, desc } from 'drizzle-orm';
 import { BaseRepository } from './base.repository.js';
 import { sessions } from '../schema/sessions.js';
+import { tasks } from '../schema/tasks.js';
 import type { SessionInsert, SessionRow } from '../schema/sessions.js';
 import { classifySQLiteError, RecordNotFoundError } from '../errors.js';
 
@@ -291,6 +292,35 @@ export class SessionRepository extends BaseRepository {
         operation: 'extendSession',
         table: 'sessions',
         data: { id, hoursToAdd },
+      });
+    }
+  }
+
+  /** Find the most recent compiled session for a Slack thread */
+  findCompiledSessionForThread(channelId: string, threadTs: string): SessionRow | null {
+    try {
+      const result = this.db
+        .select({ session: sessions })
+        .from(sessions)
+        .innerJoin(tasks, eq(sessions.taskId, tasks.id))
+        .where(
+          and(
+            eq(tasks.slackChannelId, channelId),
+            eq(tasks.slackThreadTs, threadTs),
+            eq(sessions.isCompiled, true),
+          ),
+        )
+        .orderBy(desc(sessions.createdAt))
+        .limit(1)
+        .get();
+
+      return result?.session ?? null;
+    } catch (error) {
+      logger.error({ error, channelId, threadTs }, 'Failed to find compiled session for thread');
+      throw classifySQLiteError(error, {
+        operation: 'findCompiledSessionForThread',
+        table: 'sessions',
+        data: { channelId, threadTs },
       });
     }
   }
