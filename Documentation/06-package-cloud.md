@@ -54,7 +54,7 @@ Executed in order for every incoming Slack event:
 | Listener | File | Triggers On | Description |
 |----------|------|-------------|-------------|
 | Mentions | `mentions.ts` | `@BematicManager ...` | Primary UX — resolve bot, parse command, create task, submit to agent |
-| Messages | `messages.ts` | Channel messages | Auto-detect tasks in configured project channels |
+| Messages | `messages.ts` | Channel messages | Auto-detect tasks in configured project channels, **batches multiple file uploads** |
 | BM Command | `bm-command.ts` | `/bm [subcommand]` | Main unified command handler with admin handlers architecture |
 | NetSuite Command | `netsuite-command.ts` | `/bm netsuite` | NetSuite integration commands (config, get, seo, test) |
 | Actions | `actions.ts` | Button clicks | Retry/cancel task interactive actions |
@@ -356,6 +356,16 @@ The `FileValidator` provides comprehensive security scanning for uploaded files:
 - **Content Scanning**: Basic scanning for malicious patterns (SVG scripts, etc.)
 - **Size Limits**: Enforces category-specific file size limits
 - **Virus Scanning**: Placeholder for future antivirus integration
+
+### File Upload Batching
+
+The `messages.ts` listener implements intelligent batching for multiple file uploads:
+
+- **Automatic Batching**: When users upload multiple files (e.g., 4 screenshots), Slack sends separate `file_share` messages for each file
+- **Aggregation Window**: Files uploaded within 2 seconds are automatically batched together
+- **Single Task**: All batched files are processed as a single task and sent to the AI together
+- **Batch Key**: `${channel}:${user}:${threadTs}` ensures files from the same context are grouped
+- **Timer Reset**: Each new file resets the 2-second window, allowing for sequential uploads
 
 ### Security Headers
 
