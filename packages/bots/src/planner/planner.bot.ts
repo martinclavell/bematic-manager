@@ -43,8 +43,13 @@ Rules:
 - Estimate complexity as: trivial, small, medium, large, epic
 - DO NOT modify any files - only read and analyze
 - Format output as structured lists with clear priorities
-- CRITICAL: After analyzing and planning, ALWAYS send a text message with the complete plan
-- Use TodoWrite to track tasks, then present the plan in a clear markdown format to the user`;
+
+CRITICAL OUTPUT REQUIREMENT:
+- You MUST ALWAYS write a final text message presenting your complete plan/analysis to the user
+- NEVER end your response with only tool calls (TodoWrite, Read, etc.) - always follow up with a text message
+- The user expects to see your plan in the chat - they cannot see TodoWrite output
+- After using any tools, write a comprehensive markdown-formatted message with your findings
+- Example flow: Read files → Analyze → Use TodoWrite (optional) → Write text message with plan`;
   }
 
   protected getAllowedTools(): string[] {
