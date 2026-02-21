@@ -16,13 +16,14 @@
     "start": "node dist/index.js"
   },
   "dependencies": {
+    "@bematic/bots": "*",
     "@bematic/common": "*",
     "@bematic/db": "*",
-    "@bematic/bots": "*",
     "@slack/bolt": "^4.0.0",
-    "ws": "^8.0.0",
+    "dotenv": "^16.0.0",
     "pino": "^9.0.0",
-    "dotenv": "^16.0.0"
+    "ws": "^8.0.0",
+    "yaml": "^2.8.2"
   },
   "devDependencies": {
     "@types/ws": "^8.0.0",

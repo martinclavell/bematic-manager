@@ -12,3 +12,4 @@ export { NetSuiteConfigRepository } from './netsuite-config.repository.js';
 export { PendingActionRepository } from './pending-action.repository.js';
 export { FeedbackSuggestionRepository } from './feedback-suggestion.repository.js';
 export { ScheduledTaskRepository } from './scheduled-task.repository.js';
+export { GlobalContextRepository } from './global-context.repository.js';

@@ -15,6 +15,7 @@ import { ResponseBuilder, BotRegistry } from '@bematic/bots';
 import { AgentManager } from '../gateway/agent-manager.js';
 import { OfflineQueue } from '../gateway/offline-queue.js';
 import { NotificationService } from './notification.service.js';
+import type { GlobalContextService } from './global-context.service.js';
 import { metrics, MetricNames } from '../utils/metrics.js';
 
 const logger = createLogger('command-service');
@@ -34,6 +35,7 @@ export class CommandService {
     private readonly agentManager: AgentManager,
     private readonly offlineQueue: OfflineQueue,
     private readonly notifier: NotificationService,
+    private readonly globalContextService: GlobalContextService,
   ) {}
 
   async submit(params: SubmitParams): Promise<string> {
@@ -60,6 +62,19 @@ export class CommandService {
       channelId: slackContext.channelId,
       channelName: undefined, // TODO: Fetch from Slack API if needed
     });
+
+    // Inject global context into system prompt
+    const globalContext = this.globalContextService.buildGlobalPrompt(project.id);
+    if (globalContext) {
+      execConfig.systemPrompt = `${globalContext}\n\n---\n\n${execConfig.systemPrompt}`;
+      logger.info(
+        {
+          projectId: project.id,
+          globalContextLength: globalContext.length
+        },
+        'Injected global context into system prompt'
+      );
+    }
 
     // Append file description to the prompt if attachments were downloaded
     if (slackContext.fileInfo) {

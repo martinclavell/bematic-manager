@@ -35,3 +35,6 @@ export type { FeedbackSuggestionRow, FeedbackSuggestionInsert } from './feedback
 
 export { scheduledTasks } from './scheduled-tasks.js';
 export type { ScheduledTaskRow, ScheduledTaskInsert } from './scheduled-tasks.js';
+
+export { globalContexts } from './global-contexts.js';
+export type { GlobalContextRow, GlobalContextInsert } from './global-contexts.js';

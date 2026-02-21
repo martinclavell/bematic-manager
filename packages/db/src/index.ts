@@ -18,6 +18,7 @@ export {
   pendingActions,
   feedbackSuggestions,
   scheduledTasks,
+  globalContexts,
 } from './schema/index.js';
 export type {
   ProjectRow,
@@ -47,6 +48,8 @@ export type {
   FeedbackSuggestionInsert,
   ScheduledTaskRow,
   ScheduledTaskInsert,
+  GlobalContextRow,
+  GlobalContextInsert,
 } from './schema/index.js';
 
 // Repositories
@@ -64,4 +67,5 @@ export {
   PendingActionRepository,
   FeedbackSuggestionRepository,
   ScheduledTaskRepository,
+  GlobalContextRepository,
 } from './repositories/index.js';

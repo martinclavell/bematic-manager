@@ -13,6 +13,7 @@ import { archivedTasks } from './schema/archived-tasks.js';
 import { pendingActions } from './schema/pending-actions.js';
 import { feedbackSuggestions } from './schema/feedback-suggestions.js';
 import { scheduledTasks } from './schema/scheduled-tasks.js';
+import { globalContexts } from './schema/global-contexts.js';
 
 /**
  * Push schema to database (create tables if not exist).
@@ -248,6 +249,24 @@ export function pushSchema(dbUrl?: string) {
     last_triggered_at TEXT,
     expires_at TEXT
   )`);
+
+  db.run(sql`CREATE TABLE IF NOT EXISTS ${globalContexts} (
+    id TEXT PRIMARY KEY,
+    category TEXT NOT NULL,
+    name TEXT NOT NULL,
+    content TEXT NOT NULL,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    priority INTEGER NOT NULL DEFAULT 100,
+    scope TEXT NOT NULL DEFAULT 'global',
+    project_id TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`);
+
+  db.run(sql.raw(`CREATE INDEX IF NOT EXISTS global_contexts_category_idx ON global_contexts(category)`));
+  db.run(sql.raw(`CREATE INDEX IF NOT EXISTS global_contexts_enabled_idx ON global_contexts(enabled)`));
+  db.run(sql.raw(`CREATE INDEX IF NOT EXISTS global_contexts_project_id_idx ON global_contexts(project_id)`));
+  db.run(sql.raw(`CREATE INDEX IF NOT EXISTS global_contexts_priority_idx ON global_contexts(priority)`));
 
   // Create indexes for scheduled_tasks
   db.run(sql.raw(`CREATE INDEX IF NOT EXISTS scheduled_tasks_next_execution_idx ON scheduled_tasks(next_execution_at)`));

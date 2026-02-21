@@ -1,0 +1,44 @@
+# Global Claude Context Configuration
+# These contexts are injected into ALL Claude sessions across all projects/channels
+# Priority: lower number = higher priority in merge order
+# Categories allow organizing contexts by purpose
+
+# Security and compliance context
+- category: security
+  name: Security Guidelines
+  enabled: true
+  priority: 10
+  content: |
+    ## Security Requirements
+    - NEVER commit secrets, API keys, or credentials to version control
+    - Validate all user inputs and file paths
+    - Follow principle of least privilege
+    - Use parameterized queries for database operations
+    - Sanitize all outputs to prevent injection attacks
+
+# Coding standards and best practices
+- category: coding-standards
+  name: TypeScript & Node.js Standards
+  enabled: true
+  priority: 20
+  content: |
+    ## Coding Standards
+    - Use TypeScript strict mode
+    - Prefer functional programming patterns
+    - Write self-documenting code with clear names
+    - Keep functions small and focused (single responsibility)
+    - Use async/await over callbacks
+    - Handle errors explicitly, never swallow them
+    - Add JSDoc comments for public APIs
+
+# Company-wide policies (example - disabled by default)
+- category: company-policies
+  name: Company Development Policies
+  enabled: false
+  priority: 30
+  content: |
+    ## Company Policies
+    - All code must pass CI/CD checks before merge
+    - Follow GitFlow branching strategy
+    - Peer review required for all PRs
+    - Write tests for all new features

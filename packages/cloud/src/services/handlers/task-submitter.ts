@@ -13,6 +13,7 @@ import { ResponseBuilder } from '@bematic/bots';
 import { AgentManager } from '../../gateway/agent-manager.js';
 import { OfflineQueue } from '../../gateway/offline-queue.js';
 import { NotificationService } from '../notification.service.js';
+import type { GlobalContextService } from '../global-context.service.js';
 
 const logger = createLogger('task-submitter');
 
@@ -40,6 +41,7 @@ export class TaskSubmitter {
     private readonly agentManager: AgentManager,
     private readonly offlineQueue: OfflineQueue,
     private readonly notifier: NotificationService,
+    private readonly globalContextService: GlobalContextService,
   ) {}
 
   /**
@@ -55,6 +57,20 @@ export class TaskSubmitter {
       defaultModel: project.defaultModel,
       defaultMaxBudget: project.defaultMaxBudget,
     });
+
+    // Inject global context into system prompt
+    const globalContext = this.globalContextService.buildGlobalPrompt(project.id);
+    if (globalContext) {
+      execConfig.systemPrompt = `${globalContext}\n\n---\n\n${execConfig.systemPrompt}`;
+      logger.info(
+        {
+          taskId: 'pre-creation',
+          projectId: project.id,
+          globalContextLength: globalContext.length
+        },
+        'Injected global context into system prompt'
+      );
+    }
 
     // Append file/image attachment info to the prompt if present
     if (slackContext.fileInfo) {

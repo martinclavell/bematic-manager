@@ -11,6 +11,7 @@ import type {
   PendingActionRepository,
   FeedbackSuggestionRepository,
   ScheduledTaskRepository,
+  GlobalContextRepository,
 } from '@bematic/db';
 import type { CommandService } from './services/command.service.js';
 import type { SchedulerService } from './services/scheduler.service.js';
@@ -29,6 +30,7 @@ import type { AgentHealthTracker } from './gateway/agent-health-tracker.js';
 import type { SyncOrchestrator } from './services/sync-orchestrator.service.js';
 import type { OpsService } from './services/ops.service.js';
 import type { EnvService } from './services/env.service.js';
+import type { GlobalContextService } from './services/global-context.service.js';
 import type { Config } from './config.js';
 
 /** Shared context injected into all Slack listeners */
@@ -51,6 +53,7 @@ export interface AppContext {
   pendingActionRepo: PendingActionRepository;
   feedbackSuggestionRepo: FeedbackSuggestionRepository;
   scheduledTaskRepo: ScheduledTaskRepository;
+  globalContextRepo: GlobalContextRepository;
 
   // Services
   commandService: CommandService;
@@ -63,6 +66,7 @@ export interface AppContext {
   slackUserService: SlackUserService;
   netsuiteService: NetSuiteService;
   schedulerService: SchedulerService;
+  globalContextService: GlobalContextService;
   // compilationService: CompilationService;
 
   // Gateway

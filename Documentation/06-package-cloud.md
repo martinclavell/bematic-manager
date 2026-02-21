@@ -302,6 +302,55 @@ Quick link to Claude.ai web UI usage page included in output for manual verifica
 | `HealthService` | `health.service.ts` | Health check and metrics reporting with performance tracking |
 | `NetSuiteService` | `netsuite.service.ts` | NetSuite integration: OAuth 1.0 authentication, RESTlet API calls, credential encryption |
 | `SchedulerService` | `scheduler.service.ts` | Scheduled task management: create, update, execute scheduled tasks with cron support |
+| `GlobalContextService` | `global-context.service.ts` | Global Claude context injection: file-based + database contexts, category-based organization, caching |
+
+### Global Context Service
+
+The `GlobalContextService` provides a powerful way to inject custom context into ALL Claude sessions across all channels/projects.
+
+**Architecture**:
+- **Hybrid Storage**: File-based defaults (version-controlled) + database overrides (runtime changes)
+- **Merge Strategy**: Load file contexts → override with matching database contexts → sort by priority
+- **Caching**: 5-minute TTL cache to optimize performance
+- **Hierarchical**: Global contexts + optional project-specific overrides
+
+**File Configuration** (`config/global-contexts.yaml`):
+```yaml
+- category: security
+  name: Security Guidelines
+  enabled: true
+  priority: 10
+  content: |
+    ## Security Requirements
+    - NEVER commit secrets to version control
+    - Validate all user inputs
+```
+
+**Admin Commands** (`/bm-admin contexts`):
+- `list` - Show all global contexts
+- `stats` - Display statistics (total, enabled, categories, cache size)
+- `add <category> <name> <content>` - Create new context
+- `update <id> <content>` - Update existing context
+- `enable <id>` / `disable <id>` - Toggle context activation
+- `delete <id>` - Remove context permanently
+- `reload` - Reload file-based contexts (clears cache)
+
+**Integration**:
+Global contexts are automatically prepended to every bot's system prompt:
+```
+{global_context}
+
+---
+
+{bot_system_prompt}
+```
+
+**Features**:
+- Category-based organization (security, coding-standards, company-policies, etc.)
+- Priority-based merge order (lower number = higher priority)
+- Scope support (global or project-specific)
+- Full audit trail for all context changes
+- Performance-optimized with caching layer
 
 ---
 

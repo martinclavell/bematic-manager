@@ -56,6 +56,7 @@
 | `schema/prompt-history.ts` | Prompt history table definition |
 | `schema/netsuite-configs.ts` | NetSuite configurations table definition |
 | `schema/scheduled-tasks.ts` | Scheduled tasks table definition |
+| `schema/global-contexts.ts` | Global context categories table definition |
 | `schema/index.ts` | Barrel export |
 | **Repositories** | |
 | `repositories/base.repository.ts` | Abstract base with DB injection |
@@ -69,6 +70,7 @@
 | `repositories/prompt-history.repository.ts` | Prompt history CRUD + search + stats |
 | `repositories/netsuite-config.repository.ts` | NetSuite config CRUD + upsert |
 | `repositories/scheduled-task.repository.ts` | Scheduled task CRUD + due task queries |
+| `repositories/global-context.repository.ts` | Global context CRUD + active context queries |
 | `repositories/index.ts` | Barrel export |
 
 ---
@@ -98,6 +100,7 @@
 |------|---------|
 | `index.ts` | Main entry, server bootstrap |
 | `config.ts` | Environment config loading |
+| `config/global-contexts.yaml` | File-based global context definitions |
 | `context.ts` | Application context (DI container) |
 | `error-handlers.ts` | Global unhandled rejection and exception handlers |
 | `shutdown.ts` | Graceful shutdown orchestration |
@@ -127,6 +130,7 @@
 | `slack/admin-commands/retention-commands.ts` | Data retention commands |
 | `slack/admin-commands/worker-commands.ts` | Worker management commands |
 | `slack/admin-commands/scheduled-tasks.ts` | Scheduled task statistics and cleanup |
+| `slack/admin-commands/global-contexts.ts` | Global context management commands |
 | `slack/commands/scheduled-commands.ts` | User-facing scheduled task commands |
 | **WebSocket Gateway** | |
 | `gateway/ws-server.ts` | WebSocket server setup |
@@ -158,6 +162,7 @@
 | `services/health.service.ts` | Health check and metrics reporting |
 | `services/api-key.service.ts` | API key generation, validation, and rotation |
 | `services/scheduler.service.ts` | Scheduled task creation, execution, and cron management |
+| `services/global-context.service.ts` | Global context composition: file + DB merge, caching, project-level overrides |
 | `services/index.ts` | Barrel export |
 | **Workers** | |
 | `workers/scheduler-worker.ts` | Background worker for scheduled task execution |

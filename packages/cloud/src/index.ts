@@ -19,6 +19,7 @@ import {
   PendingActionRepository,
   FeedbackSuggestionRepository,
   ScheduledTaskRepository,
+  GlobalContextRepository,
 } from '@bematic/db';
 import { registerAllBots } from '@bematic/bots';
 import { loadConfig } from './config.js';
@@ -45,6 +46,7 @@ import { SyncOrchestrator } from './services/sync-orchestrator.service.js';
 import { OpsService } from './services/ops.service.js';
 import { EnvService } from './services/env.service.js';
 import { SchedulerService } from './services/scheduler.service.js';
+import { GlobalContextService } from './services/global-context.service.js';
 import { SchedulerWorker } from './workers/scheduler-worker.js';
 import { metrics, MetricNames } from './utils/metrics.js';
 import { createSecurityHeadersMiddleware, applySecurityHeaders } from './middleware/security-headers.js';
@@ -73,6 +75,7 @@ async function main() {
   const pendingActionRepo = new PendingActionRepository(db);
   const feedbackSuggestionRepo = new FeedbackSuggestionRepository(db);
   const scheduledTaskRepo = new ScheduledTaskRepository(db);
+  const globalContextRepo = new GlobalContextRepository(db);
 
   // Register all bots
   registerAllBots();
@@ -117,12 +120,14 @@ async function main() {
   );
 
   // Services
+  const globalContextService = new GlobalContextService(globalContextRepo, auditLogRepo);
   const commandService = new CommandService(
     taskRepo,
     auditLogRepo,
     agentManager,
     offlineQueue,
     notifier,
+    globalContextService,
   );
   const projectService = new ProjectService(projectRepo, auditLogRepo);
   const deployService = new DeployService(config.railway.apiToken);
@@ -194,6 +199,7 @@ async function main() {
     pendingActionRepo,
     feedbackSuggestionRepo,
     scheduledTaskRepo,
+    globalContextRepo,
     commandService,
     projectService,
     notifier,
@@ -204,6 +210,7 @@ async function main() {
     slackUserService,
     netsuiteService,
     schedulerService,
+    globalContextService,
     agentManager,
     messageRouter,
     agentHealthTracker,

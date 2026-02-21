@@ -13,6 +13,7 @@ import type { ProjectRow, TaskRepository, AuditLogRepository, TaskRow } from '@b
 import { AgentManager } from '../gateway/agent-manager.js';
 import { OfflineQueue } from '../gateway/offline-queue.js';
 import { NotificationService } from './notification.service.js';
+import type { GlobalContextService } from './global-context.service.js';
 import { TaskSubmitter, DecompositionHandler } from './handlers/index.js';
 
 const logger = createLogger('command-service');
@@ -43,6 +44,7 @@ export class CommandService {
     private readonly agentManager: AgentManager,
     private readonly offlineQueue: OfflineQueue,
     private readonly notifier: NotificationService,
+    private readonly globalContextService: GlobalContextService,
   ) {
     // Initialize handlers
     this.taskSubmitter = new TaskSubmitter(
@@ -51,6 +53,7 @@ export class CommandService {
       agentManager,
       offlineQueue,
       notifier,
+      globalContextService,
     );
 
     this.decompositionHandler = new DecompositionHandler(

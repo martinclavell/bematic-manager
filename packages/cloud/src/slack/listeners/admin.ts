@@ -22,7 +22,8 @@ import {
 const logger = createLogger('slack:admin');
 
 export function registerAdminListener(app: App, ctx: AppContext) {
-  app.command('/bm-admin', async ({ command, ack, respond }) => {
+  app.command('/bm-admin', async (slackArgs) => {
+    const { command, ack, respond } = slackArgs;
     await ack();
 
     const { user_id, channel_id, text } = command;
@@ -150,6 +151,14 @@ export function registerAdminListener(app: App, ctx: AppContext) {
           break;
         }
 
+        case 'contexts': {
+          const { handleAdminContextsCommand } = await import('../admin-commands/global-contexts.js');
+          const modifiedCommand = { ...command, text: args.slice(1).join(' ') };
+          const modifiedArgs = { ...slackArgs, command: modifiedCommand };
+          await handleAdminContextsCommand(modifiedArgs, ctx);
+          break;
+        }
+
         case 'help':
         default:
           await respond(
@@ -174,7 +183,8 @@ export function registerAdminListener(app: App, ctx: AppContext) {
             '`/bm-admin metrics <subcommand>` - Real-time metrics (show, summary, top, reset, export)\n' +
             '`/bm-admin scheduled-stats` - Show scheduled tasks statistics\n' +
             '`/bm-admin scheduled-cleanup` - Clean up old scheduled tasks (--dry-run, --force)\n' +
-            '`/bm-admin upload <file-path> [title] [comment]` - Upload file to current channel/thread\n',
+            '`/bm-admin upload <file-path> [title] [comment]` - Upload file to current channel/thread\n' +
+            '`/bm-admin contexts <subcommand>` - Global context management (list, stats, add, update, enable, disable, delete, reload)\n',
           );
           break;
       }
