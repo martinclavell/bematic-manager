@@ -34,6 +34,8 @@ export type {
   DeployResultPayload,
   PathValidateRequestPayload,
   PathValidateResultPayload,
+  EnvUpdateRequestPayload,
+  EnvUpdateResultPayload,
   Task,
   TaskSubmitPayload,
   TaskProgressPayload,

@@ -9,6 +9,7 @@ import {
   taskErrorSchema,
   type DeployResultPayload,
   type PathValidateResultPayload,
+  type EnvUpdateResultPayload,
   type BotName,
   type TaskCompletePayload,
   type TaskAckData,
@@ -23,6 +24,7 @@ import type { StreamAccumulator } from './stream-accumulator.js';
 import type { NotificationService } from '../services/notification.service.js';
 import type { CommandService } from '../services/command.service.js';
 import type { AgentHealthTracker } from './agent-health-tracker.js';
+import type { AgentManager } from './agent-manager.js';
 import type { SyncOrchestrator } from '../services/sync-orchestrator.service.js';
 import { markdownToSlack } from '../utils/markdown-to-slack.js';
 import { metrics, MetricNames } from '../utils/metrics.js';
@@ -47,9 +49,18 @@ interface DeployRequest {
 /** Callback for path validation results */
 type PathValidationCallback = (result: { success: boolean; exists: boolean; created: boolean; error?: string }) => void;
 
+/** Tracks where to send env update results */
+interface EnvUpdateRequest {
+  slackChannelId: string;
+  slackThreadTs: string | null;
+  requestedBy: string;
+  createdAt: number;
+}
+
 export class MessageRouter {
   private progressTrackers = new Map<string, ProgressTracker>();
   private deployRequests = new Map<string, DeployRequest>();
+  private envUpdateRequests = new Map<string, EnvUpdateRequest>();
   private pathValidationCallbacks = new Map<string, PathValidationCallback>();
   private commandService: CommandService | null = null;
   private projectRepo: ProjectRepository | null = null;
@@ -59,8 +70,10 @@ export class MessageRouter {
   // Configuration
   private readonly maxProgressTrackers: number;
   private readonly maxDeployRequests: number;
+  private readonly maxEnvUpdateRequests: number;
   private readonly progressTrackerTtlMs: number;
   private readonly deployRequestTtlMs: number;
+  private readonly envUpdateRequestTtlMs: number;
   private readonly cleanupIntervalMs: number;
 
   constructor(
@@ -69,18 +82,23 @@ export class MessageRouter {
     private readonly streamAccumulator: StreamAccumulator,
     private readonly notifier: NotificationService,
     private readonly agentHealthTracker: AgentHealthTracker,
+    private readonly agentManager: AgentManager,
     options: {
       maxProgressTrackers?: number;
       maxDeployRequests?: number;
+      maxEnvUpdateRequests?: number;
       progressTrackerTtlMs?: number;
       deployRequestTtlMs?: number;
+      envUpdateRequestTtlMs?: number;
       cleanupIntervalMs?: number;
     } = {}
   ) {
     this.maxProgressTrackers = options.maxProgressTrackers || 1000;
     this.maxDeployRequests = options.maxDeployRequests || 1000;
+    this.maxEnvUpdateRequests = options.maxEnvUpdateRequests || 1000;
     this.progressTrackerTtlMs = options.progressTrackerTtlMs || 3600000; // 1 hour
     this.deployRequestTtlMs = options.deployRequestTtlMs || 3600000; // 1 hour
+    this.envUpdateRequestTtlMs = options.envUpdateRequestTtlMs || 3600000; // 1 hour
     this.cleanupIntervalMs = options.cleanupIntervalMs || 300000; // 5 minutes
 
     this.startMemoryCleanup();
@@ -104,6 +122,21 @@ export class MessageRouter {
   /** Register a path validation callback */
   registerPathValidation(requestId: string, callback: PathValidationCallback): void {
     this.pathValidationCallbacks.set(requestId, callback);
+  }
+
+  /** Register an env update request so we know where to post the result */
+  registerEnvUpdateRequest(requestId: string, channelId: string, threadTs: string | null, userId: string): void {
+    // Enforce size limit using LRU eviction
+    if (this.envUpdateRequests.size >= this.maxEnvUpdateRequests) {
+      this.evictOldestEnvUpdateRequest();
+    }
+
+    this.envUpdateRequests.set(requestId, {
+      slackChannelId: channelId,
+      slackThreadTs: threadTs,
+      requestedBy: userId,
+      createdAt: Date.now()
+    });
   }
 
   /**
@@ -141,6 +174,7 @@ export class MessageRouter {
     const now = Date.now();
     let cleanedProgressTrackers = 0;
     let cleanedDeployRequests = 0;
+    let cleanedEnvUpdateRequests = 0;
 
     // Clean up expired progress trackers
     for (const [taskId, tracker] of this.progressTrackers.entries()) {
@@ -158,12 +192,22 @@ export class MessageRouter {
       }
     }
 
-    if (cleanedProgressTrackers > 0 || cleanedDeployRequests > 0) {
+    // Clean up expired env update requests
+    for (const [requestId, request] of this.envUpdateRequests.entries()) {
+      if (now - request.createdAt > this.envUpdateRequestTtlMs) {
+        this.envUpdateRequests.delete(requestId);
+        cleanedEnvUpdateRequests++;
+      }
+    }
+
+    if (cleanedProgressTrackers > 0 || cleanedDeployRequests > 0 || cleanedEnvUpdateRequests > 0) {
       logger.debug({
         cleanedProgressTrackers,
         cleanedDeployRequests,
+        cleanedEnvUpdateRequests,
         remainingProgressTrackers: this.progressTrackers.size,
-        remainingDeployRequests: this.deployRequests.size
+        remainingDeployRequests: this.deployRequests.size,
+        remainingEnvUpdateRequests: this.envUpdateRequests.size
       }, 'Memory cleanup completed');
     }
 
@@ -189,6 +233,23 @@ export class MessageRouter {
     if (oldestRequestId) {
       this.deployRequests.delete(oldestRequestId);
       logger.warn({ evictedRequestId: oldestRequestId }, 'Evicted oldest deploy request due to size limit');
+    }
+  }
+
+  private evictOldestEnvUpdateRequest(): void {
+    let oldestRequestId: string | null = null;
+    let oldestTime = Date.now();
+
+    for (const [requestId, request] of this.envUpdateRequests.entries()) {
+      if (request.createdAt < oldestTime) {
+        oldestTime = request.createdAt;
+        oldestRequestId = requestId;
+      }
+    }
+
+    if (oldestRequestId) {
+      this.envUpdateRequests.delete(oldestRequestId);
+      logger.warn({ evictedRequestId: oldestRequestId }, 'Evicted oldest env update request due to size limit');
     }
   }
 
@@ -260,7 +321,7 @@ export class MessageRouter {
 
     switch (msg.type) {
       case MessageType.TASK_ACK:
-        await this.handleTaskAck(msg.payload);
+        await this.handleTaskAck(agentId, msg.payload);
         break;
       case MessageType.TASK_PROGRESS:
         await this.handleTaskProgress(msg.payload);
@@ -275,13 +336,16 @@ export class MessageRouter {
         await this.handleTaskError(agentId, msg.payload);
         break;
       case MessageType.TASK_CANCELLED:
-        await this.handleTaskCancelled(msg.payload);
+        await this.handleTaskCancelled(agentId, msg.payload);
         break;
       case MessageType.DEPLOY_RESULT:
         await this.handleDeployResult(agentId, msg.payload as DeployResultPayload);
         break;
       case MessageType.PATH_VALIDATE_RESULT:
         this.handlePathValidateResult(msg.payload as PathValidateResultPayload);
+        break;
+      case MessageType.ENV_UPDATE_RESULT:
+        await this.handleEnvUpdateResult(agentId, msg.payload as EnvUpdateResultPayload);
         break;
       case MessageType.AGENT_STATUS:
         logger.debug({ agentId, payload: msg.payload }, 'Agent status update');
@@ -291,13 +355,14 @@ export class MessageRouter {
     }
   }
 
-  private async handleTaskAck(payload: unknown): Promise<void> {
+  private async handleTaskAck(agentId: string, payload: unknown): Promise<void> {
     const parsed = taskAckSchema.parse(payload) as TaskAckData;
     const task = this.taskRepo.findById(parsed.taskId);
     if (!task) return;
 
     if (parsed.accepted) {
       this.taskRepo.update(parsed.taskId, { status: 'running' });
+      this.agentManager.addActiveTask(agentId, parsed.taskId);
       metrics.increment('tasks.accepted');
       metrics.gauge(MetricNames.ACTIVE_TASKS, this.taskRepo.findByStatus('running').length);
     } else {
@@ -417,6 +482,9 @@ export class MessageRouter {
     if (parsed.sessionId) {
       this.taskRepo.update(parsed.taskId, { sessionId: parsed.sessionId });
     }
+
+    // Remove from agent's active tasks
+    this.agentManager.removeActiveTask(agentId, parsed.taskId);
 
     // Clean up stream + progress tracker
     this.streamAccumulator.removeStream(parsed.taskId);
@@ -664,6 +732,46 @@ export class MessageRouter {
     }
   }
 
+  private async handleEnvUpdateResult(agentId: string, payload: EnvUpdateResultPayload): Promise<void> {
+    const req = this.envUpdateRequests.get(payload.requestId);
+    this.envUpdateRequests.delete(payload.requestId);
+
+    if (!req) {
+      logger.warn({ requestId: payload.requestId }, 'Env update result for unknown request');
+      return;
+    }
+
+    if (payload.success) {
+      const filesLine = payload.filesUpdated.length > 0
+        ? `\n> Files updated: ${payload.filesUpdated.map((f: string) => `\`${f}\``).join(', ')}`
+        : '';
+      const railwayLine = payload.railwayUpdated
+        ? '\n> :railway_car: Railway variable synced'
+        : '';
+
+      const opText = payload.operation === 'add' ? 'added/updated' : 'removed';
+      await this.notifier.postMessage(
+        req.slackChannelId,
+        `:white_check_mark: *Environment variable \`${payload.key}\` ${opText} successfully*${filesLine}${railwayLine}\n\`\`\`${payload.output}\`\`\``,
+        req.slackThreadTs,
+      );
+    } else {
+      await this.notifier.postMessage(
+        req.slackChannelId,
+        `:x: *Environment variable update failed:*\n\`\`\`${payload.error || payload.output}\`\`\``,
+        req.slackThreadTs,
+      );
+    }
+
+    logger.info({
+      requestId: payload.requestId,
+      success: payload.success,
+      operation: payload.operation,
+      key: payload.key,
+      agentId
+    }, 'Env update result received');
+  }
+
   private handlePathValidateResult(payload: PathValidateResultPayload): void {
     const callback = this.pathValidationCallbacks.get(payload.requestId);
     this.pathValidationCallbacks.delete(payload.requestId);
@@ -710,6 +818,10 @@ export class MessageRouter {
     if (parsed.sessionId) {
       this.taskRepo.update(parsed.taskId, { sessionId: parsed.sessionId });
     }
+
+    // Remove from agent's active tasks
+    this.agentManager.removeActiveTask(agentId, parsed.taskId);
+
     this.streamAccumulator.removeStream(parsed.taskId);
     this.progressTrackers.delete(parsed.taskId);
 
@@ -754,7 +866,7 @@ export class MessageRouter {
     logger.error({ taskId: parsed.taskId, error: parsed.error, parentTaskId: task.parentTaskId }, 'Task failed');
   }
 
-  private async handleTaskCancelled(payload: unknown): Promise<void> {
+  private async handleTaskCancelled(agentId: string, payload: unknown): Promise<void> {
     const parsed = (payload as { taskId: string; reason: string });
     const task = this.taskRepo.findById(parsed.taskId);
     if (!task) return;
@@ -767,6 +879,10 @@ export class MessageRouter {
     metrics.histogram(MetricNames.TASK_DURATION, taskDuration);
 
     this.taskRepo.update(parsed.taskId, { status: 'cancelled' });
+
+    // Remove from agent's active tasks
+    this.agentManager.removeActiveTask(agentId, parsed.taskId);
+
     this.streamAccumulator.removeStream(parsed.taskId);
     this.progressTrackers.delete(parsed.taskId);
 

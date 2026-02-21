@@ -29,6 +29,10 @@ export const MessageType = {
   PATH_VALIDATE_REQUEST: 'path:validate:request',
   PATH_VALIDATE_RESULT: 'path:validate:result',
 
+  // Environment variables
+  ENV_UPDATE_REQUEST: 'env:update:request',
+  ENV_UPDATE_RESULT: 'env:update:result',
+
   // System
   SYSTEM_ERROR: 'system:error',
   SYSTEM_SHUTDOWN: 'system:shutdown',

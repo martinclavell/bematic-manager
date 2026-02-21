@@ -193,6 +193,47 @@ export class AgentManager extends EventEmitter {
     return sent ? agentId : null;
   }
 
+  /**
+   * Add a task to the agent's active tasks list
+   */
+  addActiveTask(agentId: string, taskId: string): void {
+    const agent = this.agents.get(agentId);
+    if (agent) {
+      if (!agent.activeTasks.includes(taskId)) {
+        agent.activeTasks.push(taskId);
+
+        // Update cached status
+        agentCache.set(CacheKeys.agentStatus(agentId), {
+          status: agent.status,
+          activeTasks: agent.activeTasks,
+          connectedAt: agent.connectedAt,
+          lastHeartbeat: agent.lastHeartbeat,
+        });
+      }
+    }
+  }
+
+  /**
+   * Remove a task from the agent's active tasks list
+   */
+  removeActiveTask(agentId: string, taskId: string): void {
+    const agent = this.agents.get(agentId);
+    if (agent) {
+      const index = agent.activeTasks.indexOf(taskId);
+      if (index !== -1) {
+        agent.activeTasks.splice(index, 1);
+
+        // Update cached status
+        agentCache.set(CacheKeys.agentStatus(agentId), {
+          status: agent.status,
+          activeTasks: agent.activeTasks,
+          connectedAt: agent.connectedAt,
+          lastHeartbeat: agent.lastHeartbeat,
+        });
+      }
+    }
+  }
+
   /** Sweep for dead connections (no heartbeat in 2x interval) */
   sweepDead(heartbeatIntervalMs: number): string[] {
     const threshold = Date.now() - heartbeatIntervalMs * 2;

@@ -14,6 +14,8 @@ export type {
   DeployResultPayload,
   PathValidateRequestPayload,
   PathValidateResultPayload,
+  EnvUpdateRequestPayload,
+  EnvUpdateResultPayload,
 } from './messages.js';
 
 export type {

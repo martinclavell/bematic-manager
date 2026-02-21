@@ -40,6 +40,8 @@ export interface ExecutionResult {
   continuations: number;
   /** Attachment processing results */
   attachmentResults?: AttachmentResult[];
+  /** Model used for this task */
+  model: string;
 }
 
 /** Result of a single Claude SDK invocation (one query() call) */
@@ -532,6 +534,7 @@ Task: ${task.taskId}`;
           durationMs,
           continuations: continuationCount,
           attachmentResults: attachmentResults.length > 0 ? attachmentResults : undefined,
+          model: task.model,
         };
 
         this.wsClient.send(
@@ -599,6 +602,7 @@ Task: ${task.taskId}`;
         durationMs,
         continuations: continuationCount,
         attachmentResults: attachmentResults.length > 0 ? attachmentResults : undefined,
+        model: task.model,
       };
 
       // Send completion

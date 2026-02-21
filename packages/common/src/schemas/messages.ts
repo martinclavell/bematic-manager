@@ -89,6 +89,7 @@ export const taskCompleteSchema = z.object({
   durationMs: z.number(),
   continuations: z.number().int().min(0).optional(),
   attachmentResults: z.array(attachmentResultSchema).optional(),
+  model: z.string(),
 });
 
 export const taskErrorSchema = z.object({

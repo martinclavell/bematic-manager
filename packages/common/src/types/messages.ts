@@ -29,6 +29,8 @@ export interface MessagePayloadMap {
   [MessageType.DEPLOY_RESULT]: DeployResultPayload;
   [MessageType.PATH_VALIDATE_REQUEST]: PathValidateRequestPayload;
   [MessageType.PATH_VALIDATE_RESULT]: PathValidateResultPayload;
+  [MessageType.ENV_UPDATE_REQUEST]: EnvUpdateRequestPayload;
+  [MessageType.ENV_UPDATE_RESULT]: EnvUpdateResultPayload;
   [MessageType.SYSTEM_ERROR]: SystemErrorPayload;
   [MessageType.SYSTEM_SHUTDOWN]: SystemShutdownPayload;
   [MessageType.SYSTEM_RESTART]: SystemRestartPayload;
@@ -133,5 +135,30 @@ export interface PathValidateResultPayload {
   success: boolean;
   exists: boolean;
   created: boolean;
+  error?: string;
+}
+
+export interface EnvUpdateRequestPayload {
+  requestId: string;
+  operation: 'add' | 'remove';
+  key: string;
+  value?: string;
+  localPath: string;
+  slackChannelId: string;
+  slackThreadTs: string | null;
+  requestedBy: string;
+  railwayProjectId?: string | null;
+  railwayServiceId?: string | null;
+  railwayEnvironmentId?: string | null;
+}
+
+export interface EnvUpdateResultPayload {
+  requestId: string;
+  success: boolean;
+  operation: 'add' | 'remove';
+  key: string;
+  filesUpdated: string[];
+  railwayUpdated: boolean;
+  output: string;
   error?: string;
 }

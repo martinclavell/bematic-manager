@@ -43,6 +43,7 @@ import { NetSuiteService } from './services/netsuite.service.js';
 import { AgentHealthTracker } from './gateway/agent-health-tracker.js';
 import { SyncOrchestrator } from './services/sync-orchestrator.service.js';
 import { OpsService } from './services/ops.service.js';
+import { EnvService } from './services/env.service.js';
 import { SchedulerService } from './services/scheduler.service.js';
 import { SchedulerWorker } from './workers/scheduler-worker.js';
 import { metrics, MetricNames } from './utils/metrics.js';
@@ -112,6 +113,7 @@ async function main() {
     streamAccumulator,
     notifier,
     agentHealthTracker,
+    agentManager,
   );
 
   // Services
@@ -156,6 +158,9 @@ async function main() {
 
   // Ops service (centralized deploy + restart)
   const opsService = new OpsService(agentManager, messageRouter, auditLogRepo);
+
+  // Environment variable management service
+  const envService = new EnvService(agentManager, messageRouter, auditLogRepo);
 
   // Sync orchestrator (coordinates test → build → restart → deploy)
   const syncOrchestrator = new SyncOrchestrator(
@@ -204,6 +209,7 @@ async function main() {
     agentHealthTracker,
     syncOrchestrator,
     opsService,
+    envService,
     authChecker,
     rateLimiter,
     projectResolver,

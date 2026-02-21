@@ -451,6 +451,84 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
           break;
         }
 
+        // ===== ENV =====
+        case 'env':
+        case 'environment': {
+          await ctx.authChecker.checkPermission(user_id, Permission.PROJECT_MANAGE);
+
+          const project = ctx.projectResolver.tryResolve(channel_id);
+          if (!project) {
+            await respond(':x: No project configured for this channel. Use `/bm config` first.');
+            return;
+          }
+
+          const resolvedAgentId = ctx.agentManager.resolveAgent(project.agentId);
+          if (!resolvedAgentId) {
+            await respond(':x: No agents are connected. Cannot update environment variables.');
+            return;
+          }
+
+          const operation = subArgs[0]?.toLowerCase();
+          const key = subArgs[1];
+          const value = subArgs.slice(2).join(' ');
+
+          if (!operation || !['add', 'remove'].includes(operation)) {
+            await respond(
+              '*Environment Variable Management*\n\n' +
+              '*Usage:*\n' +
+              '`/bm env add <KEY> <value>` - Add or update an environment variable\n' +
+              '`/bm env remove <KEY>` - Remove an environment variable\n\n' +
+              '*Examples:*\n' +
+              '• `/bm env add TEST_VAR hello world`\n' +
+              '• `/bm env remove OLD_VAR`\n\n' +
+              '*Notes:*\n' +
+              '• Updates all `.env` files in project directory\n' +
+              '• Syncs to Railway if project is configured\n' +
+              '• Reserved variables (SLACK_*, AGENT_API_KEY, etc.) cannot be modified'
+            );
+            return;
+          }
+
+          if (!key) {
+            await respond(':x: Missing variable name. Usage: `/bm env ' + operation + ' <KEY> [value]`');
+            return;
+          }
+
+          // Validate key format
+          const validationError = ctx.envService.validateKey(key);
+          if (validationError) {
+            await respond(`:x: ${validationError}`);
+            return;
+          }
+
+          if (operation === 'add' && !value) {
+            await respond(`:x: Missing value. Usage: \`/bm env add ${key} <value>\``);
+            return;
+          }
+
+          const { requestId, sent } = ctx.envService.sendEnvUpdate({
+            project,
+            agentId: resolvedAgentId,
+            operation: operation as 'add' | 'remove',
+            key,
+            value: operation === 'add' ? value : undefined,
+            slackChannelId: channel_id,
+            slackThreadTs: null,
+            requestedBy: user_id,
+          });
+
+          if (!sent) {
+            await respond(':x: Failed to send environment variable update request to agent.');
+            return;
+          }
+
+          const opText = operation === 'add' ? 'Adding/updating' : 'Removing';
+          const maskedValue = operation === 'add' ? ' (value masked for security)' : '';
+          await respond(`:hourglass_flowing_sand: ${opText} environment variable \`${key}\`${maskedValue}...`);
+
+          break;
+        }
+
         // ===== LOGS =====
         case 'logs':
         case 'log': {
@@ -896,6 +974,9 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
             '`/bm scheduled pause|resume|cancel <id>` - Manage scheduled tasks\n\n' +
             '*Configuration:*\n' +
             '`/bm config` or `/bm configure` or `/bm setup` - Configure project settings\n\n' +
+            '*Environment Variables:*\n' +
+            '`/bm env add <KEY> <value>` - Add/update environment variable in .env files + Railway\n' +
+            '`/bm env remove <KEY>` - Remove environment variable from .env files + Railway\n\n' +
             '*NetSuite Integration:*\n' +
             '`/bm netsuite config` - Configure NetSuite credentials & endpoints\n' +
             '`/bm netsuite get <type> <id>` - Fetch NetSuite record (e.g. `customer 1233`)\n' +
