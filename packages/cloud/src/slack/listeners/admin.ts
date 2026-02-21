@@ -142,6 +142,14 @@ export function registerAdminListener(app: App, ctx: AppContext) {
           break;
         }
 
+        case 'upload': {
+          const { FileUploadCommands } = await import('../admin-commands/file-upload.js');
+          const uploadCommands = new FileUploadCommands(ctx.notifier);
+          const result = await uploadCommands.handleFileUploadCommand(args.slice(1), channel_id, command.thread_ts);
+          await respond(result);
+          break;
+        }
+
         case 'help':
         default:
           await respond(
@@ -165,7 +173,8 @@ export function registerAdminListener(app: App, ctx: AppContext) {
             '`/bm-admin archive <subcommand>` - Archive management (list, restore, delete, stats)\n' +
             '`/bm-admin metrics <subcommand>` - Real-time metrics (show, summary, top, reset, export)\n' +
             '`/bm-admin scheduled-stats` - Show scheduled tasks statistics\n' +
-            '`/bm-admin scheduled-cleanup` - Clean up old scheduled tasks (--dry-run, --force)\n',
+            '`/bm-admin scheduled-cleanup` - Clean up old scheduled tasks (--dry-run, --force)\n' +
+            '`/bm-admin upload <file-path> [title] [comment]` - Upload file to current channel/thread\n',
           );
           break;
       }

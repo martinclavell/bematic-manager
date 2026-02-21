@@ -12,3 +12,4 @@ export { handleMetricsCommand } from './metrics.js';
 export { SessionCommands } from './sessions.js';
 export { UserCommands } from './users.js';
 export { TempFileCommands } from './temp-files.js';
+export { FileUploadCommands } from './file-upload.js';
