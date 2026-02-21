@@ -5,6 +5,15 @@ import { basename } from 'node:path';
 
 const logger = createLogger('admin:file-upload');
 
+/**
+ * Strip Slack's auto-link formatting from a string
+ * Converts: <http://martinclavell.com|martinclavell.com> → martinclavell.com
+ * Converts: <http://example.com> → http://example.com
+ */
+function stripSlackLinkFormatting(text: string): string {
+  return text.replace(/<([^|>]+)\|([^>]+)>/g, '$2').replace(/<([^>]+)>/g, '$1');
+}
+
 export class FileUploadCommands {
   constructor(private readonly notifier: NotificationService) {}
 
@@ -43,7 +52,8 @@ export class FileUploadCommands {
       return '❌ Missing file path. Usage: `/bm-admin upload <file-path> [title] [comment]`';
     }
 
-    const filePath = args[0]!;
+    // Strip Slack's auto-link formatting from file path
+    const filePath = stripSlackLinkFormatting(args[0]!);
     const title = args[1];
     const comment = args.slice(2).join(' ') || undefined;
 
