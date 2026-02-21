@@ -118,7 +118,19 @@ The bot will:
 3. Extract and analyze all JSON-LD schemas
 4. Research industry competitors
 5. Generate a comprehensive HTML report saved to the project directory
-6. Automatically upload the HTML report to Slack as a downloadable attachment
+6. **Automatically upload the HTML report to Slack** — no manual action required
+
+### Auto-Upload Mechanism
+
+When NetSuite bot completes an `audit` or `crawl` task:
+1. Task completion handler searches for `SEO_Audit_*.html` files in:
+   - Project directory (`project.localPath`)
+   - IWA subdirectory (`project.localPath/iwa-wine`)
+2. Finds the most recently modified audit file
+3. Uploads it to the Slack thread using `files.uploadV2`
+4. File appears as downloadable attachment with title and description
+
+**No markers required** — the system automatically detects and uploads audit reports without relying on agent instructions or response markers.
 
 ---
 
