@@ -17,14 +17,7 @@ export class FileUploadCommands {
       return this.getHelp();
     }
 
-    const command = args[0];
-
-    switch (command) {
-      case 'upload':
-        return this.uploadFile(args.slice(1), channelId, threadTs);
-      default:
-        return this.getHelp();
-    }
+    return this.uploadFile(args, channelId, threadTs);
   }
 
   private getHelp(): string {
@@ -52,7 +45,7 @@ export class FileUploadCommands {
 
     const filePath = args[0]!;
     const title = args[1];
-    const comment = args[2];
+    const comment = args.slice(2).join(' ') || undefined;
 
     // Validate file exists
     if (!existsSync(filePath)) {
