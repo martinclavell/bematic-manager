@@ -130,15 +130,85 @@ export class TaskCompletionHandler {
   }
 
   private async handleFileUploadIfPresent(task: TaskRow, result: string): Promise<void> {
-    // Look for REPORT_FILE_PATH: marker in the result
+    // For NetSuite bot audit tasks, automatically find and upload HTML reports
+    if (task.botName === 'netsuite' && (task.command === 'audit' || task.command === 'crawl')) {
+      await this.uploadNetSuiteAuditReport(task, result);
+      return;
+    }
+
+    // Fallback: Look for REPORT_FILE_PATH: marker in the result
     const filePathMatch = result.match(/REPORT_FILE_PATH:\s*(.+?)(?:\n|$)/);
     if (!filePathMatch) return;
 
     const filePath = filePathMatch[1]!.trim();
+    await this.uploadAuditFile(task, filePath);
+  }
 
+  private async uploadNetSuiteAuditReport(task: TaskRow, result: string): Promise<void> {
+    try {
+      const { existsSync, readdirSync, statSync } = await import('node:fs');
+      const { join } = await import('node:path');
+
+      // Get project path
+      const project = this.projectRepo?.findById(task.projectId);
+      if (!project?.localPath) {
+        logger.debug({ taskId: task.id }, 'No project path found for audit file search');
+        return;
+      }
+
+      // Search for SEO_Audit_*.html files in project directory and subdirectories
+      const searchDirs = [
+        project.localPath,
+        join(project.localPath, 'iwa-wine'), // IWA project subdirectory
+      ];
+
+      let auditFiles: { path: string; mtime: number }[] = [];
+
+      for (const dir of searchDirs) {
+        if (!existsSync(dir)) continue;
+
+        try {
+          const files = readdirSync(dir);
+          for (const file of files) {
+            if (file.match(/^SEO_Audit_.*\.html$/i)) {
+              const fullPath = join(dir, file);
+              const stats = statSync(fullPath);
+              auditFiles.push({ path: fullPath, mtime: stats.mtimeMs });
+            }
+          }
+        } catch (err) {
+          logger.debug({ dir, error: err }, 'Could not read directory for audit files');
+        }
+      }
+
+      if (auditFiles.length === 0) {
+        logger.debug({ taskId: task.id, searchDirs }, 'No SEO audit HTML files found');
+        return;
+      }
+
+      // Sort by modification time (most recent first)
+      auditFiles.sort((a, b) => b.mtime - a.mtime);
+
+      // Upload the most recent audit file
+      const mostRecentFile = auditFiles[0]!.path;
+      await this.uploadAuditFile(task, mostRecentFile);
+
+      logger.info(
+        { taskId: task.id, filePath: mostRecentFile, totalFiles: auditFiles.length },
+        'Auto-detected and uploaded NetSuite audit report',
+      );
+    } catch (error) {
+      logger.error(
+        { error, taskId: task.id, botName: task.botName },
+        'Failed to auto-detect NetSuite audit report',
+      );
+    }
+  }
+
+  private async uploadAuditFile(task: TaskRow, filePath: string): Promise<void> {
     try {
       // Extract filename from path
-      const filename = filePath.split('/').pop() || 'audit_report.html';
+      const filename = filePath.split(/[/\\]/).pop() || 'audit_report.html';
 
       // Upload file to Slack
       await this.notifier.uploadFile(
