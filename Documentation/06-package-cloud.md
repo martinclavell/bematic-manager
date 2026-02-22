@@ -56,7 +56,7 @@ Executed in order for every incoming Slack event:
 | Mentions | `mentions.ts` | `@BematicManager ...` | Primary UX — resolve bot, parse command, create task, submit to agent |
 | Messages | `messages.ts` | Channel messages | Auto-detect tasks in configured project channels, **batches multiple file uploads** |
 | BM Command | `bm-command.ts` | `/bm [subcommand]` | Main unified command handler with admin handlers architecture |
-| NetSuite Command | `netsuite-command.ts` | `/bm netsuite` | NetSuite integration commands (config, get, seo, test) |
+| NetSuite Command | `netsuite-command.ts` | `/bm netsuite` | NetSuite subcommand handler — exports `handleNetSuiteSubcommand()` called by `bm-command.ts`; registers modal handler only |
 | Actions | `actions.ts` | Button clicks | Retry/cancel task interactive actions |
 | Admin (legacy) | `admin.ts` | `/bm-admin` | Legacy admin commands (kept for backwards compatibility) |
 | File Utils | `file-utils.ts` | File uploads | Secure file validation and processing |
@@ -172,6 +172,7 @@ Primary command interface for development, operations, and configuration:
 | `/bm usage` | USER_MANAGE | View session usage & statistics |
 | `/bm logs [limit]` | USER_MANAGE | View prompt history with optional filters |
 | `/bm config` | PROJECT_MANAGE | Configure project settings via modal (name, path, agent, model, budget, auto-commit) |
+| `/bm netsuite audit <url>` (aliases: `analyze`, `check`, `scan`) | TASK_CREATE | Full SEO & structured data audit via NetSuite bot — crawls site, generates HTML report |
 | `/bm netsuite config` (aliases: `configure`, `setup`) | PROJECT_MANAGE | Configure NetSuite credentials & endpoints (OAuth 1.0, RESTlet URL) |
 | `/bm netsuite get <type> <id>` (alias: `fetch`) | TASK_CREATE | Fetch NetSuite record via RESTlet (e.g. `customer 1233`) |
 | `/bm netsuite seo <url>` (alias: `seo-debug`) | TASK_CREATE | Generate SEO debug URL with prerender flags |

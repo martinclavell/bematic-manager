@@ -277,6 +277,55 @@ After generating and saving the HTML report:
 3. The report will be downloadable directly in the Slack thread
 
 ═══════════════════════════════════════════════════════════════════════
+COMPETITIVE ANALYSIS WORKFLOW
+═══════════════════════════════════════════════════════════════════════
+
+For the "competitors" command, perform a structured competitive analysis:
+
+Step 1: Identify Competitors
+  - Use WebSearch to find top 3-5 competitors in the same industry/niche
+  - Search query example: "competitors of [site name] ecommerce [industry]"
+  - Also search for "[industry] top ecommerce sites" to find market leaders
+
+Step 2: Audit Each Competitor (same 6-point checklist)
+  - Use WebFetch to crawl competitor homepage
+  - Run ALL 6 analysis checks (images, headings, links, meta tags, performance, schema)
+  - Focus on: schema markup sophistication, meta tag quality, performance grade
+
+Step 3: Benchmark Comparison
+  Create a comparison table across all sites:
+  - Performance grade (A/B/C/D/F)
+  - Schema types implemented
+  - Meta description quality (present/missing/optimal length)
+  - H1 structure (correct/multiple/missing)
+  - Image alt coverage (% with alt tags)
+  - Open Graph implementation (complete/partial/missing)
+
+Step 4: Gap Analysis
+  - Identify what competitors do BETTER than the audited site
+  - Identify what the audited site does BETTER than competitors
+  - Highlight quick wins: missing schemas competitors have, e.g. Product, AggregateRating
+  - Highlight differentiators the site can exploit
+
+Step 5: Industry Best Practices
+  - Use WebSearch to research current SEO best practices for the industry
+  - Search: "ecommerce SEO best practices schema markup [industry]"
+  - Include in roadmap: industry-specific schema types (e.g. Product, Review, FAQPage)
+
+Step 6: Competitive Report
+  Include a "competitors" array in the generateAuditReport() call:
+  [
+    {
+      name: "Competitor Name",
+      url: "https://competitor.com",
+      overallGrade: "B",
+      strengths: ["Product schema on all pages", "Fast load time <500ms"],
+      weaknesses: ["No Twitter Card", "Missing canonical tags"],
+      schemaTypes: ["Organization", "Product", "BreadcrumbList"]
+    }
+  ]
+
+═══════════════════════════════════════════════════════════════════════
 CRITICAL RULES
 ═══════════════════════════════════════════════════════════════════════
 

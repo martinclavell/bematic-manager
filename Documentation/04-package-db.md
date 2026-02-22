@@ -122,6 +122,8 @@ All tables use TEXT primary keys (nanoid-generated) except `audit_logs`, `offlin
 | `metadata` | TEXT NOT NULL | JSON, default: `{}` |
 | `timestamp` | TEXT NOT NULL | |
 
+**Indexes**: `user_id`, `timestamp`, composite `(resource_type, resource_id)`
+
 ### `offline_queue` table
 
 | Column | Type | Notes |
@@ -224,7 +226,7 @@ All repositories extend `BaseRepository` which receives a DB instance via constr
 | `TaskRepository` | `create`, `findById`, `findByProjectId(id, limit?)`, `findByStatus`, `findActiveByProjectId`, `update`, `complete(id, result, metrics)`, `fail(id, errorMessage)` |
 | `SessionRepository` | `create`, `findById`, `findByTaskId`, `complete(id, metrics)` |
 | `UserRepository` | `create`, `findById`, `findBySlackUserId`, `upsert`, `updateRole`, `findAll` |
-| `AuditLogRepository` | `create`, `log(action, resourceType, resourceId?, userId?, metadata?)`, `findRecent(limit?)` |
+| `AuditLogRepository` | `create`, `log(action, resourceType, resourceId?, userId?, metadata?)`, `findRecent(limit?)`, `findByUser(userId, limit?)`, `findByAction(action, limit?)`, `findByResource(resourceType, resourceId, limit?)`, `delete(id)` |
 | `OfflineQueueRepository` | `enqueue`, `findPendingByAgentId`, `markDelivered`, `cleanExpired` |
 | `NetSuiteConfigRepository` | `create`, `findById`, `findByProjectId`, `findAll`, `update`, `upsertByProjectId`, `delete`, `deleteByProjectId` |
 | `ApiKeyRepository` | `create`, `findById`, `findByKey`, `findByAgentId`, `updateLastUsed`, `revoke`, `findActive`, `cleanup` |

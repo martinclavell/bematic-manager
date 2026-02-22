@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { BaseRepository } from './base.repository.js';
 import { auditLogs } from '../schema/audit-logs.js';
 import type { AuditLogInsert, AuditLogRow } from '../schema/audit-logs.js';
@@ -28,21 +28,13 @@ export class AuditLogRepository extends BaseRepository {
     userId?: string | null,
     metadata?: Record<string, unknown>,
   ): AuditLogRow {
-    try {
-      return this.create({
-        action,
-        resourceType,
-        resourceId,
-        userId: userId ?? null,
-        metadata: metadata ? JSON.stringify(metadata) : '{}',
-      });
-    } catch (error) {
-      logger.error(
-        { error, action, resourceType, resourceId, userId, metadata },
-        'Failed to log audit entry',
-      );
-      throw error; // Re-throw the error from create() which already has proper classification
-    }
+    return this.create({
+      action,
+      resourceType,
+      resourceId,
+      userId: userId ?? null,
+      metadata: metadata ? JSON.stringify(metadata) : '{}',
+    });
   }
 
   findRecent(limit = 100): AuditLogRow[] {
@@ -71,6 +63,68 @@ export class AuditLogRepository extends BaseRepository {
       throw classifySQLiteError(error, {
         operation: 'findAll',
         table: 'audit_logs',
+      });
+    }
+  }
+
+  findByUser(userId: string, limit = 100): AuditLogRow[] {
+    try {
+      return this.db
+        .select()
+        .from(auditLogs)
+        .where(eq(auditLogs.userId, userId))
+        .orderBy(desc(auditLogs.timestamp))
+        .limit(limit)
+        .all();
+    } catch (error) {
+      logger.error({ error, userId, limit }, 'Failed to find audit logs by user');
+      throw classifySQLiteError(error, {
+        operation: 'findByUser',
+        table: 'audit_logs',
+        data: { userId, limit },
+      });
+    }
+  }
+
+  findByAction(action: string, limit = 100): AuditLogRow[] {
+    try {
+      return this.db
+        .select()
+        .from(auditLogs)
+        .where(eq(auditLogs.action, action))
+        .orderBy(desc(auditLogs.timestamp))
+        .limit(limit)
+        .all();
+    } catch (error) {
+      logger.error({ error, action, limit }, 'Failed to find audit logs by action');
+      throw classifySQLiteError(error, {
+        operation: 'findByAction',
+        table: 'audit_logs',
+        data: { action, limit },
+      });
+    }
+  }
+
+  findByResource(resourceType: string, resourceId: string, limit = 100): AuditLogRow[] {
+    try {
+      return this.db
+        .select()
+        .from(auditLogs)
+        .where(
+          and(
+            eq(auditLogs.resourceType, resourceType),
+            eq(auditLogs.resourceId, resourceId),
+          )
+        )
+        .orderBy(desc(auditLogs.timestamp))
+        .limit(limit)
+        .all();
+    } catch (error) {
+      logger.error({ error, resourceType, resourceId, limit }, 'Failed to find audit logs by resource');
+      throw classifySQLiteError(error, {
+        operation: 'findByResource',
+        table: 'audit_logs',
+        data: { resourceType, resourceId, limit },
       });
     }
   }

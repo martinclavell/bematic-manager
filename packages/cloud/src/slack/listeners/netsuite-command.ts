@@ -1,33 +1,31 @@
 import type { App } from '@slack/bolt';
 import { Permission, createLogger } from '@bematic/common';
+import { BotRegistry } from '@bematic/bots';
 import type { AppContext } from '../../context.js';
 
 const logger = createLogger('slack:netsuite-command');
 
 /**
- * /bm netsuite command handler
- * Manages NetSuite configuration and operations
+ * NetSuite subcommand handler
+ * Extracted from the command listener to be called by the main /bm handler
  */
-export function registerNetSuiteCommandListener(app: App, ctx: AppContext) {
-  app.command('/bm', async ({ command, ack, respond, client }) => {
-    const { user_id, channel_id, text, trigger_id } = command;
-    const args = text.trim().split(/\s+/);
-    const subcommand = args[0]?.toLowerCase();
+export async function handleNetSuiteSubcommand(params: {
+  netsuiteSubcommand: string;
+  subArgs: string[];
+  user_id: string;
+  channel_id: string;
+  trigger_id: string;
+  ack: Function;
+  respond: Function;
+  client: any;
+  ctx: AppContext;
+}): Promise<void> {
+  const { netsuiteSubcommand, subArgs, user_id, channel_id, trigger_id, respond, client, ctx } = params;
 
-    // Only handle 'netsuite' subcommand
-    if (subcommand !== 'netsuite') {
-      return; // Let other handlers process it
-    }
+  logger.info({ user: user_id, netsuiteSubcommand }, '/bm netsuite subcommand received');
 
-    await ack();
-
-    const netsuiteSubcommand = args[1]?.toLowerCase() || 'help';
-    const subArgs = args.slice(2);
-
-    logger.info({ user: user_id, netsuiteSubcommand, text }, '/bm netsuite command received');
-
-    try {
-      switch (netsuiteSubcommand) {
+  try {
+    switch (netsuiteSubcommand) {
         // ===== CONFIG =====
         case 'config':
         case 'configure':
@@ -204,13 +202,17 @@ export function registerNetSuiteCommandListener(app: App, ctx: AppContext) {
               ],
             });
 
-            ctx.auditLogRepo.log(
-              'netsuite:record:fetched',
-              'netsuite',
-              `${recordType}:${recordId}`,
-              user_id,
-              { projectId: project.id, recordType, recordId }
-            );
+            try {
+              ctx.auditLogRepo.log(
+                'netsuite:record:fetched',
+                'netsuite',
+                `${recordType}:${recordId}`,
+                user_id,
+                { projectId: project.id, recordType, recordId }
+              );
+            } catch {
+              // audit logging must not break main flow
+            }
           } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown error';
             await client.chat.postMessage({
@@ -261,13 +263,69 @@ export function registerNetSuiteCommandListener(app: App, ctx: AppContext) {
             ],
           });
 
-          ctx.auditLogRepo.log(
-            'netsuite:seo:analyzed',
-            'netsuite',
-            baseUrl,
-            user_id,
-            { projectId: project.id, baseUrl, debugUrl }
-          );
+          try {
+            ctx.auditLogRepo.log(
+              'netsuite:seo:analyzed',
+              'netsuite',
+              baseUrl,
+              user_id,
+              { projectId: project.id, baseUrl, debugUrl }
+            );
+          } catch {
+            // audit logging must not break main flow
+          }
+          break;
+        }
+
+        // ===== AUDIT =====
+        case 'audit':
+        case 'analyze':
+        case 'check':
+        case 'scan': {
+          await ctx.authChecker.checkPermission(user_id, Permission.TASK_CREATE);
+
+          const dbUser = ctx.userRepo.findBySlackUserId(user_id);
+          ctx.rateLimiter.check(user_id, dbUser?.rateLimitOverride);
+
+          const project = ctx.projectResolver.tryResolve(channel_id);
+          if (!project) {
+            await respond(':x: No project configured for this channel. Use `/bm config` first.');
+            return;
+          }
+
+          const url = subArgs[0];
+          if (!url) {
+            await respond(':x: Usage: `/bm netsuite audit <url>`\n\nExample: `/bm netsuite audit https://www.example.com`\n\nAliases: `analyze`, `check`, `scan`');
+            return;
+          }
+
+          const netsuiteBot = BotRegistry.get('netsuite');
+          if (!netsuiteBot) {
+            await respond(':x: NetSuite bot not available');
+            return;
+          }
+
+          const auditCommand = netsuiteBot.parseCommand(`audit ${subArgs.join(' ')}`);
+          await ctx.commandService.submit({
+            bot: netsuiteBot,
+            command: auditCommand,
+            project,
+            slackContext: { channelId: channel_id, threadTs: null, userId: user_id },
+          });
+
+          await respond(`:mag: SEO audit started for \`${url}\`. I'll post the full report in the channel.`);
+
+          try {
+            ctx.auditLogRepo.log(
+              'netsuite:audit:started',
+              'netsuite',
+              url,
+              user_id,
+              { projectId: project.id, url }
+            );
+          } catch {
+            // audit logging must not break main flow
+          }
           break;
         }
 
@@ -292,13 +350,17 @@ export function registerNetSuiteCommandListener(app: App, ctx: AppContext) {
             text: `${icon} ${result.message}`,
           });
 
-          ctx.auditLogRepo.log(
-            'netsuite:connection:tested',
-            'netsuite',
-            project.id,
-            user_id,
-            { projectId: project.id, success: result.success }
-          );
+          try {
+            ctx.auditLogRepo.log(
+              'netsuite:connection:tested',
+              'netsuite',
+              project.id,
+              user_id,
+              { projectId: project.id, success: result.success }
+            );
+          } catch {
+            // audit logging must not break main flow
+          }
           break;
         }
 
@@ -308,6 +370,8 @@ export function registerNetSuiteCommandListener(app: App, ctx: AppContext) {
         default:
           await respond(
             '*NetSuite Integration - /bm netsuite*\n\n' +
+            '*SEO Audit:*\n' +
+            '`/bm netsuite audit <url>` (aliases: `analyze`, `check`, `scan`) - Full SEO & structured data audit\n\n' +
             '*Configuration:*\n' +
             '`/bm netsuite config` (aliases: `configure`, `setup`) - Configure NetSuite credentials & endpoints\n\n' +
             '*Operations:*\n' +
@@ -315,21 +379,26 @@ export function registerNetSuiteCommandListener(app: App, ctx: AppContext) {
             '`/bm netsuite seo <url>` (alias: `seo-debug`) - Generate SEO debug URL with prerender flags\n' +
             '`/bm netsuite test` (alias: `test-connection`) - Test NetSuite connection & authentication\n\n' +
             '*Examples:*\n' +
+            '• `/bm netsuite audit https://www.example.com`\n' +
             '• `/bm netsuite get customer 1233`\n' +
-            '• `/bm netsuite fetch customer 1233` (same as get)\n' +
-            '• `/bm netsuite seo www.christianartgifts.com`\n' +
+            '• `/bm netsuite seo www.example.com`\n' +
             '• `/bm netsuite test`\n\n' +
             '*Help:*\n' +
             '`/bm netsuite help` or `/bm netsuite ?` - Show this help message\n'
           );
           break;
       }
-    } catch (error) {
-      logger.error({ error, netsuiteSubcommand }, 'Error handling /bm netsuite command');
-      const message = error instanceof Error ? error.message : 'An unexpected error occurred';
-      await respond(`:x: ${message}`);
-    }
-  });
+  } catch (error) {
+    logger.error({ error, netsuiteSubcommand }, 'Error handling /bm netsuite subcommand');
+    const message = error instanceof Error ? error.message : 'An unexpected error occurred';
+    await respond(`:x: ${message}`);
+  }
+}
+
+/**
+ * Register NetSuite command listener (now only for modal handler)
+ */
+export function registerNetSuiteCommandListener(app: App, ctx: AppContext) {
 
   // Handle modal submission
   app.view('netsuite_config_modal', async ({ view, ack, client, body }) => {
@@ -392,16 +461,20 @@ export function registerNetSuiteCommandListener(app: App, ctx: AppContext) {
           `> Production: \`${productionUrl}\`\n` +
           (sandboxUrl ? `> Sandbox: \`${sandboxUrl}\`\n` : '') +
           `> RESTlet: \`${restletUrl}\`\n\n` +
-          'You can now use `/bm netsuite get` and `/bm netsuite seo` commands.',
+          'You can now use `/bm netsuite audit`, `/bm netsuite get`, and `/bm netsuite seo` commands.',
       });
 
-      ctx.auditLogRepo.log(
-        existingConfig ? 'netsuite:config:updated' : 'netsuite:config:created',
-        'netsuite',
-        projectId,
-        body.user?.id,
-        { projectId, accountNumber }
-      );
+      try {
+        ctx.auditLogRepo.log(
+          existingConfig ? 'netsuite:config:updated' : 'netsuite:config:created',
+          'netsuite',
+          projectId,
+          body.user?.id,
+          { projectId, accountNumber }
+        );
+      } catch {
+        // audit logging must not break main flow
+      }
 
       logger.info({ projectId, accountNumber }, 'NetSuite config saved');
     } catch (error) {

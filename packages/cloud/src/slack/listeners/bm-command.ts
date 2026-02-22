@@ -7,6 +7,7 @@ import {
 } from '@bematic/common';
 import type { AppContext } from '../../context.js';
 import { BotRegistry } from '@bematic/bots';
+import { handleNetSuiteSubcommand } from './netsuite-command.js';
 import {
   handleRemindCommand,
   handleScheduleCommand,
@@ -31,10 +32,6 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
     const subcommand = args[0]?.toLowerCase() || 'help';
     const subArgs = args.slice(1);
 
-    // Let netsuite-command.ts handle netsuite subcommands
-    if (subcommand === 'netsuite') {
-      return; // Don't ack - let netsuite handler process it
-    }
 
     await ack();
 
@@ -811,6 +808,24 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
           break;
         }
 
+        // ===== NETSUITE =====
+        case 'netsuite': {
+          const netsuiteSubcommand = subArgs[0]?.toLowerCase() || 'help';
+          const netsuiteSubArgs = subArgs.slice(1);
+          await handleNetSuiteSubcommand({
+            netsuiteSubcommand,
+            subArgs: netsuiteSubArgs,
+            user_id,
+            channel_id,
+            trigger_id,
+            ack: async () => {}, // already ack'd above
+            respond,
+            client,
+            ctx,
+          });
+          break;
+        }
+
         // ===== SYNC (test + build + restart + deploy) =====
         case 'sync': {
           await ctx.authChecker.checkPermission(user_id, Permission.USER_MANAGE);
@@ -983,6 +998,7 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
             '`/bm env add <KEY> <value>` - Add/update environment variable in .env files + Railway\n' +
             '`/bm env remove <KEY>` - Remove environment variable from .env files + Railway\n\n' +
             '*NetSuite Integration:*\n' +
+            '`/bm netsuite audit <url>` - Full SEO & structured data audit (aliases: `analyze`, `check`, `scan`)\n' +
             '`/bm netsuite config` - Configure NetSuite credentials & endpoints\n' +
             '`/bm netsuite get <type> <id>` - Fetch NetSuite record (e.g. `customer 1233`)\n' +
             '`/bm netsuite seo <url>` - Generate SEO debug URL with prerender flags\n' +
