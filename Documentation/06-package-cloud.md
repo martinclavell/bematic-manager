@@ -172,10 +172,11 @@ Primary command interface for development, operations, and configuration:
 | `/bm usage` | USER_MANAGE | View session usage & statistics |
 | `/bm logs [limit]` | USER_MANAGE | View prompt history with optional filters |
 | `/bm config` | PROJECT_MANAGE | Configure project settings via modal (name, path, agent, model, budget, auto-commit) |
-| `/bm netsuite config` | PROJECT_MANAGE | Configure NetSuite credentials & endpoints (OAuth 1.0, RESTlet URL) |
-| `/bm netsuite get <type> <id>` | TASK_CREATE | Fetch NetSuite record via RESTlet (e.g. `customer 1233`) |
-| `/bm netsuite seo <url>` | TASK_CREATE | Generate SEO debug URL with prerender flags |
-| `/bm netsuite test` | TASK_CREATE | Test NetSuite connection & authentication |
+| `/bm netsuite config` (aliases: `configure`, `setup`) | PROJECT_MANAGE | Configure NetSuite credentials & endpoints (OAuth 1.0, RESTlet URL) |
+| `/bm netsuite get <type> <id>` (alias: `fetch`) | TASK_CREATE | Fetch NetSuite record via RESTlet (e.g. `customer 1233`) |
+| `/bm netsuite seo <url>` (alias: `seo-debug`) | TASK_CREATE | Generate SEO debug URL with prerender flags |
+| `/bm netsuite test` (alias: `test-connection`) | TASK_CREATE | Test NetSuite connection & authentication |
+| `/bm netsuite help` (alias: `?`) | - | Show detailed NetSuite commands help |
 | `/bm schedule <time> <command>` | TASK_CREATE | Schedule a one-time task (e.g., `schedule tomorrow 9am fix bug`) |
 | `/bm schedule-cron <cron> <command>` | TASK_CREATE | Schedule a recurring task (e.g., `schedule-cron "0 0 * * *" build`) |
 | `/bm scheduled list` | TASK_CREATE | List all scheduled tasks for current project |

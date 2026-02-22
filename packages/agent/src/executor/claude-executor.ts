@@ -52,6 +52,8 @@ interface InvocationResult {
   totalCost: number;
   inputTokens: number;
   outputTokens: number;
+  /** Total messages received from the SDK stream */
+  messageCount: number;
 }
 
 export class ClaudeExecutor {
@@ -437,7 +439,16 @@ Task: ${task.taskId}`;
       }, taskTimeoutMs);
 
       logger.info(
-        { taskId: task.taskId, hasApiKey: !!process.env['ANTHROPIC_API_KEY'], cwd: task.localPath },
+        {
+          taskId: task.taskId,
+          hasApiKey: !!process.env['ANTHROPIC_API_KEY'],
+          apiKeyValue: process.env['ANTHROPIC_API_KEY'] ? `${process.env['ANTHROPIC_API_KEY'].slice(0, 8)}...` : '(unset)',
+          cwd: task.localPath,
+          cwdExists: existsSync(task.localPath),
+          model: task.model,
+          promptLength: task.prompt?.length ?? 0,
+          systemPromptLength: task.systemPrompt?.length ?? 0,
+        },
         'Pre-launch check',
       );
 
@@ -458,6 +469,13 @@ Task: ${task.taskId}`;
       totalCost += invocation.result.totalCost;
       sessionId = invocation.result.sessionId ?? sessionId;
       lastResultText = invocation.result.resultText;
+
+      // Detect empty stream — Claude subprocess likely crashed or failed to start
+      if (invocation.result.messageCount === 0) {
+        const emptyStreamError = 'Claude SDK returned 0 messages — the subprocess may have failed to start or authenticate. Check agent console for stderr output.';
+        logger.error({ taskId: task.taskId }, emptyStreamError);
+        throw new Error(emptyStreamError);
+      }
 
       // --- Auto-continue loop ---
       while (
@@ -712,12 +730,20 @@ Task: ${task.taskId}`;
       allowedTools: task.allowedTools.length > 0 ? task.allowedTools : undefined,
       abortController,
       permissionMode: 'bypassPermissions',
-      env: {
-        ...process.env as Record<string, string>,
-        ...(process.env['ANTHROPIC_API_KEY'] ? { ANTHROPIC_API_KEY: process.env['ANTHROPIC_API_KEY'] } : {}),
-      },
+      env: (() => {
+        const env = { ...process.env as Record<string, string> };
+        // Remove ANTHROPIC_API_KEY if it's not set or is a placeholder value.
+        // The root .env has a placeholder (sk-ant-your-key) that dotenv may load;
+        // real Anthropic keys are 100+ chars. Without a valid key, the CLI falls
+        // back to OAuth credentials from ~/.claude/.credentials.json.
+        const apiKey = env['ANTHROPIC_API_KEY'];
+        if (!apiKey || apiKey.length < 40 || apiKey.includes('your')) {
+          delete env['ANTHROPIC_API_KEY'];
+        }
+        return env;
+      })(),
       stderr: (data: string) => {
-        logger.error({ taskId: task.taskId, stderr: data }, 'Claude stderr');
+        logger.warn({ taskId: task.taskId, stderr: data.slice(0, 2000) }, 'Claude stderr');
       },
     };
 
@@ -727,12 +753,44 @@ Task: ${task.taskId}`;
       logger.info({ taskId: task.taskId, resumeSessionId }, 'Resuming Claude session');
     }
 
+    logger.info(
+      {
+        taskId: task.taskId,
+        promptLength: prompt.length,
+        promptPreview: prompt.slice(0, 200),
+        model: queryOptions.model,
+        maxTurns: queryOptions.maxTurns,
+        cwd: queryOptions.cwd,
+        hasSystemPrompt: !!queryOptions.customSystemPrompt,
+        systemPromptLength: queryOptions.customSystemPrompt?.length ?? 0,
+        hasAllowedTools: !!queryOptions.allowedTools,
+        hasEnvApiKey: !!queryOptions.env?.['ANTHROPIC_API_KEY'],
+        permissionMode: queryOptions.permissionMode,
+      },
+      'Calling query() with options',
+    );
+
+    let messageCount = 0;
+    const messageTypes: string[] = [];
+
     const stream = query({
       prompt,
       options: queryOptions,
     });
 
     for await (const message of stream) {
+      messageCount++;
+      const msgType = (message as { type?: string }).type ?? 'unknown';
+      const msgSubtype = (message as { subtype?: string }).subtype ?? '';
+      messageTypes.push(`${msgType}${msgSubtype ? ':' + msgSubtype : ''}`);
+
+      if (messageCount <= 5 || msgType === 'result' || msgType === 'system') {
+        logger.info(
+          { taskId: task.taskId, messageCount, msgType, msgSubtype },
+          'SDK message received',
+        );
+      }
+
       // Add newline separator between different assistant messages
       if (isAssistantMessage(message)) {
         const hasText = hasTextContent(message);
@@ -753,7 +811,17 @@ Task: ${task.taskId}`;
       // Capture session ID from init or result messages
       if (isSystemInitMessage(message)) {
         sessionId = extractSessionId(message);
-        logger.info({ taskId: task.taskId, sessionId }, 'Claude session started');
+        // Log full init message to see apiKeySource, model, tools, etc.
+        const initMsg = message as Record<string, unknown>;
+        logger.info({
+          taskId: task.taskId,
+          sessionId,
+          apiKeySource: initMsg['apiKeySource'],
+          model: initMsg['model'],
+          tools: initMsg['tools'],
+          permissionMode: initMsg['permissionMode'],
+          cwd: initMsg['cwd'],
+        }, 'Claude session started (init details)');
       }
 
       // Extract result from result message
@@ -767,8 +835,35 @@ Task: ${task.taskId}`;
         outputTokens = message.usage.output_tokens;
         resultIsError = message.is_error;
         resultText = extractResultText(message);
+
+        logger.info(
+          {
+            taskId: task.taskId,
+            totalCost,
+            inputTokens,
+            outputTokens,
+            resultIsError,
+            resultTextLength: resultText.length,
+            resultTextPreview: resultText.slice(0, 200),
+            subtype: msgSubtype,
+          },
+          'Result message extracted',
+        );
       }
     }
+
+    logger.info(
+      {
+        taskId: task.taskId,
+        totalMessages: messageCount,
+        messageTypes: messageTypes.join(', '),
+        finalResultText: resultText.slice(0, 200),
+        finalInputTokens: inputTokens,
+        finalOutputTokens: outputTokens,
+        finalCost: totalCost,
+      },
+      'Stream completed',
+    );
 
     return {
       result: {
@@ -778,6 +873,7 @@ Task: ${task.taskId}`;
         totalCost,
         inputTokens,
         outputTokens,
+        messageCount,
       },
       assistantTurnCount,
     };

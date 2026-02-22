@@ -1,8 +1,9 @@
-import 'dotenv/config';
+import './bootstrap.js';
+import { config as loadDotenv } from 'dotenv';
+import { fileURLToPath } from 'node:url';
 import process from 'node:process';
-process.setMaxListeners(20);
 import { exec } from 'node:child_process';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import {
@@ -26,6 +27,11 @@ import { QueueProcessor } from './executor/queue-processor.js';
 import { setupFileLogging } from './logging.js';
 import { ResourceMonitor } from './monitoring/resource-monitor.js';
 
+// Load .env from agent package root (not CWD) to avoid picking up
+// root monorepo .env which contains placeholder values like ANTHROPIC_API_KEY=sk-ant-your-key
+const __agentRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+loadDotenv({ path: resolve(__agentRoot, '.env') });
+
 /** Exit code 75 signals the wrapper script to restart the agent */
 const RESTART_EXIT_CODE = 75;
 
@@ -41,6 +47,15 @@ async function main() {
   setupFileLogging(config.logLevel);
 
   logger.info({ agentId: config.agentId }, 'Starting Bematic Agent');
+
+  // Warn if ANTHROPIC_API_KEY looks like a placeholder (common in .env.example files)
+  const apiKey = process.env['ANTHROPIC_API_KEY'];
+  if (apiKey && (apiKey.includes('your') || apiKey.length < 40)) {
+    logger.warn(
+      { keyPreview: apiKey.slice(0, 15) + '...' },
+      'ANTHROPIC_API_KEY appears to be a placeholder — it will be ignored. Using OAuth credentials instead.',
+    );
+  }
 
   // Initialize resource monitoring
   const resourceMonitor = new ResourceMonitor(config.resourceLimits);

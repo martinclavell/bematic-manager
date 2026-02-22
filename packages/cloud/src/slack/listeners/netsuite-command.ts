@@ -309,14 +309,18 @@ export function registerNetSuiteCommandListener(app: App, ctx: AppContext) {
           await respond(
             '*NetSuite Integration - /bm netsuite*\n\n' +
             '*Configuration:*\n' +
-            '`/bm netsuite config` - Configure NetSuite credentials & endpoints\n\n' +
+            '`/bm netsuite config` (aliases: `configure`, `setup`) - Configure NetSuite credentials & endpoints\n\n' +
             '*Operations:*\n' +
-            '`/bm netsuite get <type> <id>` - Fetch record via RESTlet (e.g. `customer 1233`)\n' +
-            '`/bm netsuite seo <url>` - Generate SEO debug URL with prerender flags\n' +
-            '`/bm netsuite test` - Test NetSuite connection & authentication\n\n' +
+            '`/bm netsuite get <type> <id>` (alias: `fetch`) - Fetch record via RESTlet (e.g. `customer 1233`)\n' +
+            '`/bm netsuite seo <url>` (alias: `seo-debug`) - Generate SEO debug URL with prerender flags\n' +
+            '`/bm netsuite test` (alias: `test-connection`) - Test NetSuite connection & authentication\n\n' +
             '*Examples:*\n' +
             '• `/bm netsuite get customer 1233`\n' +
-            '• `/bm netsuite seo www.christianartgifts.com`\n'
+            '• `/bm netsuite fetch customer 1233` (same as get)\n' +
+            '• `/bm netsuite seo www.christianartgifts.com`\n' +
+            '• `/bm netsuite test`\n\n' +
+            '*Help:*\n' +
+            '`/bm netsuite help` or `/bm netsuite ?` - Show this help message\n'
           );
           break;
       }
