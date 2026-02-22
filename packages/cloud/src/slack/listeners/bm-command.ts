@@ -406,6 +406,24 @@ export function registerBmCommandListener(app: App, ctx: AppContext) {
                     ],
                   },
                 },
+                {
+                  type: 'input',
+                  block_id: 'is_netsuite',
+                  label: { type: 'plain_text', text: 'NetSuite / SuiteCommerce Project' },
+                  hint: { type: 'plain_text', text: 'Enables NetSuite & SuiteCommerce context and skills in every task' },
+                  element: {
+                    type: 'static_select',
+                    action_id: 'value',
+                    initial_option: {
+                      text: { type: 'plain_text', text: existing?.isNetSuite ? 'Yes' : 'No' },
+                      value: existing?.isNetSuite ? 'true' : 'false',
+                    },
+                    options: [
+                      { text: { type: 'plain_text', text: 'Yes' }, value: 'true' },
+                      { text: { type: 'plain_text', text: 'No' }, value: 'false' },
+                    ],
+                  },
+                },
                 { type: 'divider' },
                 {
                   type: 'section',
@@ -1060,6 +1078,7 @@ export function registerConfigModalHandler(app: App, ctx: AppContext) {
     const defaultModel = vals['default_model']!['value']!.selected_option!.value;
     const maxBudget = parseFloat(vals['max_budget']!['value']!.value!) || 5.0;
     const autoCommitPush = vals['auto_commit_push']!['value']!.selected_option!.value === 'true';
+    const isNetSuite = vals['is_netsuite']!['value']!.selected_option!.value === 'true';
     const railwayProjectId = vals['railway_project_id']?.['value']?.value || null;
     const railwayServiceId = vals['railway_service_id']?.['value']?.value || null;
     const railwayEnvironmentId = vals['railway_environment_id']?.['value']?.value || null;
@@ -1094,6 +1113,7 @@ export function registerConfigModalHandler(app: App, ctx: AppContext) {
         defaultModel,
         defaultMaxBudget: maxBudget,
         autoCommitPush,
+        isNetSuite,
         railwayProjectId,
         railwayServiceId,
         railwayEnvironmentId,
@@ -1126,6 +1146,7 @@ export function registerConfigModalHandler(app: App, ctx: AppContext) {
         defaultModel,
         defaultMaxBudget: maxBudget,
         autoCommitPush,
+        isNetSuite,
         railwayProjectId,
         railwayServiceId,
         railwayEnvironmentId,
