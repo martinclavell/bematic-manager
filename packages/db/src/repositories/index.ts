@@ -1,4 +1,4 @@
-export { BaseRepository } from './base.repository.js';
+export { BaseRepository, setRepositoryMetrics, type DBMetrics } from './base.repository.js';
 export { ProjectRepository } from './project.repository.js';
 export { TaskRepository } from './task.repository.js';
 export { SessionRepository } from './session.repository.js';

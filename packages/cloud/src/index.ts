@@ -49,6 +49,7 @@ import { SchedulerService } from './services/scheduler.service.js';
 import { GlobalContextService } from './services/global-context.service.js';
 import { SchedulerWorker } from './workers/scheduler-worker.js';
 import { metrics, MetricNames } from './utils/metrics.js';
+import { MaintenanceWorker } from './workers/maintenance-worker.js';
 import { createSecurityHeadersMiddleware, applySecurityHeaders } from './middleware/security-headers.js';
 import type { AppContext } from './context.js';
 
@@ -394,73 +395,19 @@ async function main() {
   // Start periodic drain of offline queue (catches anything missed by event-based drains)
   offlineQueue.startPeriodicDrain(30_000);
 
-  // Periodic cleanup of expired offline queue entries
-  setInterval(() => {
-    const cleaned = offlineQueue.cleanExpired();
-    if (cleaned > 0) {
-      logger.info({ cleaned }, 'Cleaned expired offline queue entries');
-    }
-  }, 60_000);
 
-  // Periodic logging of offline queue metrics (every 5 minutes)
-  setInterval(() => {
-    const metrics = offlineQueue.getMetrics();
-    if (metrics.totalMessages > 0) {
-      logger.info({
-        ...metrics,
-        successRate: ((metrics.successfulDeliveries / metrics.totalMessages) * 100).toFixed(2) + '%'
-      }, 'Offline queue performance metrics');
-    }
-  }, 5 * 60 * 1000);
+  // Start maintenance worker (periodic cleanup tasks)
+  const maintenanceWorker = new MaintenanceWorker(offlineQueue, apiKeyService, retentionService);
+  maintenanceWorker.start();
 
-  // Periodic cleanup of expired/revoked API keys (every 6 hours)
-  setInterval(() => {
-    try {
-      const result = apiKeyService.cleanupExpiredKeys();
-      if (result.deleted > 0) {
-        logger.info({ deleted: result.deleted }, 'Cleaned expired/revoked API keys');
-      }
-    } catch (error) {
-      logger.error({ error }, 'Error during API key cleanup');
-    }
-  }, 6 * 60 * 60 * 1000);
-
-  // Scheduled retention cleanup (every 24 hours)
-  const runRetentionCleanup = async () => {
-    try {
-      logger.info('Starting scheduled retention cleanup');
-      const results = await retentionService.runRetentionPolicies();
-      const totalDeleted = results.tasksDeleted + results.sessionsDeleted +
-                          results.auditLogsDeleted + results.offlineQueueDeleted;
-
-      logger.info({ ...results, totalDeleted }, 'Retention cleanup completed');
-
-      // Optionally notify admin channel about cleanup statistics
-      // if (totalDeleted > 0) {
-      //   await notifier.postMessage(
-      //     process.env.ADMIN_CHANNEL_ID,
-      //     `🧹 Retention cleanup completed: ${totalDeleted} total records deleted\n` +
-      //     `• Tasks: ${results.tasksDeleted}\n` +
-      //     `• Sessions: ${results.sessionsDeleted}\n` +
-      //     `• Audit logs: ${results.auditLogsDeleted}\n` +
-      //     `• Offline queue: ${results.offlineQueueDeleted}`
-      //   );
-      // }
-    } catch (error) {
-      logger.error({ error }, 'Error during retention cleanup');
-    }
-  };
-
-  // Run cleanup every 24 hours (86400000 ms)
-  setInterval(runRetentionCleanup, 24 * 60 * 60 * 1000);
-
-  // Run initial cleanup on startup (after 5 minutes to allow system to stabilize)
-  setTimeout(runRetentionCleanup, 5 * 60 * 1000);
+  // Start periodic drain of offline queue (catches anything missed by event-based drains)
+  offlineQueue.startPeriodicDrain(30_000);
 
   // Graceful shutdown
   const shutdown = async () => {
     logger.info('Shutting down...');
     await schedulerWorker.stop();
+    maintenanceWorker.stop();
     syncOrchestrator.stop();
     offlineQueue.stopPeriodicDrain();
     streamAccumulator.stop();

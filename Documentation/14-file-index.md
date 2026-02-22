@@ -32,6 +32,7 @@
 | `utils/ws-helpers.ts` | WebSocket message creation, serialization, parsing |
 | `utils/message-truncation.ts` | Intelligent message truncation for Slack limits (head/tail/smart strategies) |
 | `utils/time-parser.ts` | Natural language time parsing using chrono-node |
+| `utils/bounded-map.ts` | Generic `BoundedMap<K,V>` with max-size eviction and TTL expiry |
 | `utils/cron-parser.ts` | Cron expression validation and description |
 | `utils/index.ts` | Barrel export |
 
@@ -59,7 +60,7 @@
 | `schema/global-contexts.ts` | Global context categories table definition |
 | `schema/index.ts` | Barrel export |
 | **Repositories** | |
-| `repositories/base.repository.ts` | Abstract base with DB injection |
+| `repositories/base.repository.ts` | Abstract base with DB injection; exports `setRepositoryMetrics()` to avoid circular db->cloud dependency |
 | `repositories/project.repository.ts` | Project CRUD + tests |
 | `repositories/task.repository.ts` | Task CRUD + complete/fail helpers |
 | `repositories/session.repository.ts` | Session CRUD + complete helper + cleanup |
@@ -167,6 +168,7 @@
 | `services/index.ts` | Barrel export |
 | **Workers** | |
 | `workers/scheduler-worker.ts` | Background worker for scheduled task execution |
+| `workers/maintenance-worker.ts` | Periodic cleanup: offline queue, API keys, retention policies |
 | **Service Handlers** | |
 | `services/handlers/index.ts` | Barrel export |
 | `services/handlers/decomposition-handler.ts` | Task decomposition logic |
@@ -199,6 +201,11 @@
 | `executor/handlers/message-handler.ts` | Message processing logic |
 | `executor/handlers/continuation-handler.ts` | Conversation continuation handling |
 | `executor/handlers/execution-tracker.ts` | Execution tracking utilities |
+| **Handlers** | |
+| `handlers/index.ts` | Barrel export |
+| `handlers/deploy.ts` | Railway deployment handler |
+| `handlers/path-validate.ts` | Local path validation and creation handler |
+| `handlers/env-update.ts` | .env file and Railway variable update handler |
 | **Security** | |
 | `security/path-validator.ts` | Project path sandboxing |
 

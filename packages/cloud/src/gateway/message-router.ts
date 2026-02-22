@@ -2,6 +2,7 @@ import {
   MessageType,
   createLogger,
   parseMessage,
+BoundedMap,  type BoundedEntry,
   taskAckSchema,
   taskProgressSchema,
   taskStreamSchema,
@@ -58,9 +59,9 @@ interface EnvUpdateRequest {
 }
 
 export class MessageRouter {
-  private progressTrackers = new Map<string, ProgressTracker>();
-  private deployRequests = new Map<string, DeployRequest>();
-  private envUpdateRequests = new Map<string, EnvUpdateRequest>();
+  private progressTrackers: BoundedMap<string, ProgressTracker>;
+  private deployRequests: BoundedMap<string, DeployRequest>;
+  private envUpdateRequests: BoundedMap<string, EnvUpdateRequest>;
   private pathValidationCallbacks = new Map<string, PathValidationCallback>();
   private commandService: CommandService | null = null;
   private projectRepo: ProjectRepository | null = null;
@@ -100,16 +101,15 @@ export class MessageRouter {
     this.deployRequestTtlMs = options.deployRequestTtlMs || 3600000; // 1 hour
     this.envUpdateRequestTtlMs = options.envUpdateRequestTtlMs || 3600000; // 1 hour
     this.cleanupIntervalMs = options.cleanupIntervalMs || 300000; // 5 minutes
+    this.progressTrackers = new BoundedMap(this.maxProgressTrackers, this.progressTrackerTtlMs);
+    this.deployRequests = new BoundedMap(this.maxDeployRequests, this.deployRequestTtlMs);
+    this.envUpdateRequests = new BoundedMap(this.maxEnvUpdateRequests, this.envUpdateRequestTtlMs);
 
     this.startMemoryCleanup();
   }
 
   /** Register a deploy request so we know where to post the result */
   registerDeployRequest(requestId: string, channelId: string, threadTs: string | null, userId: string): void {
-    // Enforce size limit using LRU eviction
-    if (this.deployRequests.size >= this.maxDeployRequests) {
-      this.evictOldestDeployRequest();
-    }
 
     this.deployRequests.set(requestId, {
       slackChannelId: channelId,
@@ -126,10 +126,6 @@ export class MessageRouter {
 
   /** Register an env update request so we know where to post the result */
   registerEnvUpdateRequest(requestId: string, channelId: string, threadTs: string | null, userId: string): void {
-    // Enforce size limit using LRU eviction
-    if (this.envUpdateRequests.size >= this.maxEnvUpdateRequests) {
-      this.evictOldestEnvUpdateRequest();
-    }
 
     this.envUpdateRequests.set(requestId, {
       slackChannelId: channelId,
@@ -171,34 +167,9 @@ export class MessageRouter {
    * Perform memory cleanup - remove expired entries
    */
   private performMemoryCleanup(): void {
-    const now = Date.now();
-    let cleanedProgressTrackers = 0;
-    let cleanedDeployRequests = 0;
-    let cleanedEnvUpdateRequests = 0;
-
-    // Clean up expired progress trackers
-    for (const [taskId, tracker] of this.progressTrackers.entries()) {
-      if (now - tracker.createdAt > this.progressTrackerTtlMs) {
-        this.progressTrackers.delete(taskId);
-        cleanedProgressTrackers++;
-      }
-    }
-
-    // Clean up expired deploy requests
-    for (const [requestId, request] of this.deployRequests.entries()) {
-      if (now - request.createdAt > this.deployRequestTtlMs) {
-        this.deployRequests.delete(requestId);
-        cleanedDeployRequests++;
-      }
-    }
-
-    // Clean up expired env update requests
-    for (const [requestId, request] of this.envUpdateRequests.entries()) {
-      if (now - request.createdAt > this.envUpdateRequestTtlMs) {
-        this.envUpdateRequests.delete(requestId);
-        cleanedEnvUpdateRequests++;
-      }
-    }
+    const cleanedProgressTrackers = this.progressTrackers.evictExpired();
+    const cleanedDeployRequests = this.deployRequests.evictExpired();
+    const cleanedEnvUpdateRequests = this.envUpdateRequests.evictExpired();
 
     if (cleanedProgressTrackers > 0 || cleanedDeployRequests > 0 || cleanedEnvUpdateRequests > 0) {
       logger.debug({
@@ -207,11 +178,10 @@ export class MessageRouter {
         cleanedEnvUpdateRequests,
         remainingProgressTrackers: this.progressTrackers.size,
         remainingDeployRequests: this.deployRequests.size,
-        remainingEnvUpdateRequests: this.envUpdateRequests.size
+        remainingEnvUpdateRequests: this.envUpdateRequests.size,
       }, 'Memory cleanup completed');
     }
 
-    // Update metrics
     metrics.gauge('memory.progress_trackers', this.progressTrackers.size);
     metrics.gauge('memory.deploy_requests', this.deployRequests.size);
   }
@@ -219,59 +189,11 @@ export class MessageRouter {
   /**
    * Evict the oldest deploy request (LRU)
    */
-  private evictOldestDeployRequest(): void {
-    let oldestRequestId: string | null = null;
-    let oldestTime = Date.now();
 
-    for (const [requestId, request] of this.deployRequests.entries()) {
-      if (request.createdAt < oldestTime) {
-        oldestTime = request.createdAt;
-        oldestRequestId = requestId;
-      }
-    }
-
-    if (oldestRequestId) {
-      this.deployRequests.delete(oldestRequestId);
-      logger.warn({ evictedRequestId: oldestRequestId }, 'Evicted oldest deploy request due to size limit');
-    }
-  }
-
-  private evictOldestEnvUpdateRequest(): void {
-    let oldestRequestId: string | null = null;
-    let oldestTime = Date.now();
-
-    for (const [requestId, request] of this.envUpdateRequests.entries()) {
-      if (request.createdAt < oldestTime) {
-        oldestTime = request.createdAt;
-        oldestRequestId = requestId;
-      }
-    }
-
-    if (oldestRequestId) {
-      this.envUpdateRequests.delete(oldestRequestId);
-      logger.warn({ evictedRequestId: oldestRequestId }, 'Evicted oldest env update request due to size limit');
-    }
-  }
 
   /**
    * Evict the oldest progress tracker (LRU)
    */
-  private evictOldestProgressTracker(): void {
-    let oldestTaskId: string | null = null;
-    let oldestTime = Date.now();
-
-    for (const [taskId, tracker] of this.progressTrackers.entries()) {
-      if (tracker.createdAt < oldestTime) {
-        oldestTime = tracker.createdAt;
-        oldestTaskId = taskId;
-      }
-    }
-
-    if (oldestTaskId) {
-      this.progressTrackers.delete(oldestTaskId);
-      logger.warn({ evictedTaskId: oldestTaskId }, 'Evicted oldest progress tracker due to size limit');
-    }
-  }
 
   /**
    * Get memory statistics
@@ -390,10 +312,6 @@ export class MessageRouter {
       // Get or create progress tracker for this task
       let tracker = this.progressTrackers.get(parsed.taskId);
       if (!tracker) {
-        // Enforce size limit using LRU eviction
-        if (this.progressTrackers.size >= this.maxProgressTrackers) {
-          this.evictOldestProgressTracker();
-        }
 
         tracker = { messageTs: null, steps: [], createdAt: Date.now() };
         this.progressTrackers.set(parsed.taskId, tracker);

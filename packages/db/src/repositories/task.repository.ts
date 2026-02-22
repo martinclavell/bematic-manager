@@ -1,15 +1,11 @@
-import { eq, and, desc, asc, isNotNull, sql, lt } from 'drizzle-orm';
+import { eq, and, desc, asc, isNotNull, sql, lt, inArray } from 'drizzle-orm';
+import { createLogger } from '@bematic/common';
 import { BaseRepository } from './base.repository.js';
 import { tasks } from '../schema/tasks.js';
 import type { TaskInsert, TaskRow } from '../schema/tasks.js';
 import { classifySQLiteError, RecordNotFoundError } from '../errors.js';
 
-// Simple logger for testing
-const logger = {
-  error: (data: any, msg?: string) => console.error(msg || 'Error:', data),
-  info: (data: any, msg?: string) => console.log(msg || 'Info:', data),
-  warn: (data: any, msg?: string) => console.warn(msg || 'Warn:', data),
-};
+const logger = createLogger('task-repository');
 
 export class TaskRepository extends BaseRepository {
   create(data: TaskInsert): TaskRow {

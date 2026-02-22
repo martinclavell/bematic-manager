@@ -122,10 +122,11 @@ export {
   parseMessage,
   truncateMessage,
   truncateForSectionBlock,
+BoundedMap,
   TimeParser,
   CronParser,
 } from './utils/index.js';
-export type { Logger, RetryOptions, TruncationOptions } from './utils/index.js';
+export type { Logger, RetryOptions, TruncationOptions, BoundedEntry } from './utils/index.js';
 
 // Cache
 export {

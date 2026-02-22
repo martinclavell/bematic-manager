@@ -20,6 +20,8 @@ export {
   scheduledTasks,
   globalContexts,
 } from './schema/index.js';
+
+export type { DBMetrics } from './repositories/index.js';
 export type {
   ProjectRow,
   ProjectInsert,
@@ -54,6 +56,8 @@ export type {
 
 // Repositories
 export {
+  BaseRepository,
+  setRepositoryMetrics,
   ProjectRepository,
   TaskRepository,
   SessionRepository,

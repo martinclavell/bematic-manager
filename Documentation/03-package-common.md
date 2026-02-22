@@ -194,6 +194,21 @@ truncateForSectionBlock(text: string): string[]
 - `indicator`: Custom truncation notice
 - `preserveCodeBlocks`: Prioritize keeping code (default: true)
 
+### BoundedMap (`utils/bounded-map.ts`)
+
+A drop-in `Map` subclass with automatic size enforcement and TTL-based expiry.
+
+```typescript
+class BoundedMap<K, V extends BoundedEntry> extends Map<K, V> {
+  constructor(maxSize: number, ttlMs: number)
+  set(key, value): this    // auto-evicts oldest entry when at capacity
+  evictExpired(): number   // removes entries older than ttlMs; returns count
+}
+```
+
+Replaces three copies of manual LRU eviction logic in `MessageRouter`.
+
+
 ### Retry (`utils/retry.ts`)
 
 ```typescript

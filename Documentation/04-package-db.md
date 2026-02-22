@@ -220,6 +220,13 @@ All tables use TEXT primary keys (nanoid-generated) except `audit_logs`, `offlin
 
 All repositories extend `BaseRepository` which receives a DB instance via constructor injection.
 
+**Metrics injection** (avoids circular `db->cloud` dependency): call `setRepositoryMetrics(m)` once at startup to enable DB query performance tracking. Silently no-ops if not called (e.g. in tests).
+
+```typescript
+import { setRepositoryMetrics } from '@bematic/db';
+setRepositoryMetrics(metrics); // cloud MetricsCollector
+```
+
 | Repository | Key Methods |
 |-----------|-------------|
 | `ProjectRepository` | `create`, `findById`, `findByChannelId`, `findByAgentId`, `findAll`, `update`, `delete` |

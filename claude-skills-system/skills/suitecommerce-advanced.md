@@ -92,3 +92,28 @@ record.getField('category').getSelectOptions();
 3. **Wrong event names** - Always check Model name property
 4. **Missing permissions** - Use Suitelets for elevated operations
 5. **Custom fields on CREATE** - They're empty during customer creation
+
+## ESLint Validation Context
+
+When validating or linting SuiteCommerce extension code, the following paths must be **excluded** (mirrors the project's `.eslintignore`):
+
+```
+*/bin/**
+*/distros/**
+*/gulp/**
+*/HostingRootFiles/**
+*/node_modules/**
+*/ns_npm_repository/**
+*/SupportScripts/**
+*/Modules/suitecommerce/**
+*/Modules/third_parties*/**
+*/Modules/extensions/**
+*/gulpfile.js
+*/package.json
+*/Workspace/Extras/**
+*Web/SuiteCommerce/**
+```
+
+- Only lint files under `Extensions/Workspace/` (excluding `Workspace/Extras/**`)
+- Never report issues on core, third-party, or generated files
+- Apply these exclusions whenever running ESLint or performing static analysis on SCA code

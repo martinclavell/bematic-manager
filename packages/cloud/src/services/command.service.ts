@@ -112,7 +112,7 @@ export class CommandService {
 
     // Track metrics for task submission
     metrics.increment(MetricNames.TASKS_SUBMITTED);
-    metrics.gauge(MetricNames.ACTIVE_TASKS, this.taskRepo.findActiveByProjectId('').length);
+    metrics.gauge(MetricNames.ACTIVE_TASKS, this.taskRepo.findByStatus('running').length);
 
     // Audit log
     this.auditLogRepo.log('task:created', 'task', taskId, slackContext.userId, {
@@ -222,7 +222,7 @@ export class CommandService {
 
     // Track metrics for decomposition task submission
     metrics.increment(MetricNames.TASKS_SUBMITTED);
-    metrics.gauge(MetricNames.ACTIVE_TASKS, this.taskRepo.findActiveByProjectId('').length);
+    metrics.gauge(MetricNames.ACTIVE_TASKS, this.taskRepo.findByStatus('running').length);
 
     this.auditLogRepo.log('task:created', 'task', parentTaskId, slackContext.userId, {
       botName: bot.name,
@@ -433,7 +433,7 @@ export class CommandService {
 
     // Track metrics for continued task submission
     metrics.increment(MetricNames.TASKS_SUBMITTED);
-    metrics.gauge(MetricNames.ACTIVE_TASKS, this.taskRepo.findActiveByProjectId('').length);
+    metrics.gauge(MetricNames.ACTIVE_TASKS, this.taskRepo.findByStatus('running').length);
 
     // Resume the previous Claude session if one exists
     const resumeSessionId = task.sessionId ?? null;
@@ -476,25 +476,13 @@ export class CommandService {
     const task = this.taskRepo.findById(taskId);
     if (!task) throw new Error(`Task not found: ${taskId}`);
 
-    const project = (await import('@bematic/db')).getDatabase()
-      ? undefined
-      : undefined; // Not needed - we get agentId from project
+    const cancelMsg = createWSMessage(MessageType.TASK_CANCEL, { taskId, reason });
 
-    // Find the project's agent
-    const projectRow = this.taskRepo.findById(taskId);
-    if (!projectRow) return;
-
-    const cancelMsg = createWSMessage(MessageType.TASK_CANCEL, {
-      taskId,
-      reason,
-    });
-
-    // Try to find project to get agentId
-    // For simplicity, broadcast cancel to all agents
+    // Broadcast to all agents — we don't track task→agent mapping at the cloud level,
+    // so all agents receive the cancel and only the one running it will act on it.
     for (const agentId of this.agentManager.getConnectedAgentIds()) {
       this.agentManager.send(agentId, serializeMessage(cancelMsg));
     }
-
     this.taskRepo.update(taskId, { status: 'cancelled' });
 
     // Also cancel any child subtasks

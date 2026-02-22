@@ -1,32 +1,29 @@
 import type { DB } from '../connection.js';
 
-// Simple metrics interface to avoid circular dependencies
-interface SimpleMetrics {
-  increment: (name: string, value?: number) => void;
-  histogram: (name: string, value: number) => void;
+/**
+ * Minimal metrics interface - injected by the consuming application (cloud) to avoid
+ * a circular dependency between the db and cloud packages.
+ */
+export interface DBMetrics {
+  increment(name: string, value?: number): void;
+  histogram(name: string, value: number): void;
 }
 
-// Lazy-loaded metrics to avoid circular dependencies
-let metrics: SimpleMetrics | null = null;
-const getMetrics = (): SimpleMetrics | null => {
-  if (!metrics) {
-    try {
-      // Import metrics lazily to avoid circular dependency
-      const metricsModule = require('../../cloud/src/utils/metrics.js');
-      metrics = metricsModule.metrics;
-    } catch (error) {
-      // Metrics not available (e.g., in tests or different package contexts)
-      metrics = null;
-    }
-  }
-  return metrics;
-};
+let _injectedMetrics: DBMetrics | null = null;
+
+/**
+ * Inject a metrics implementation. Called once at startup by the cloud package.
+ * If not called (e.g. in tests), metrics tracking is silently skipped.
+ */
+export function setRepositoryMetrics(m: DBMetrics): void {
+  _injectedMetrics = m;
+}
 
 export abstract class BaseRepository {
   constructor(protected readonly db: DB) {}
 
   /**
-   * Track database query performance
+   * Track synchronous database query performance
    */
   protected trackQuery<T>(operation: string, fn: () => T): T {
     const startTime = Date.now();
@@ -41,22 +38,12 @@ export abstract class BaseRepository {
       throw error;
     } finally {
       const duration = Date.now() - startTime;
-      const metrics = getMetrics();
-
-      if (metrics) {
-        metrics.increment('db.queries.total');
-        metrics.increment(`db.queries.${operation}`);
-        metrics.histogram('db.query.duration', duration);
-
-        if (success) {
-          metrics.increment('db.queries.success');
-        } else {
-          metrics.increment('db.queries.errors');
-        }
-
-        if (duration > 500) {
-          metrics.increment('db.queries.slow');
-        }
+      if (_injectedMetrics) {
+        _injectedMetrics.increment('db.queries.total');
+        _injectedMetrics.increment(`db.queries.${operation}`);
+        _injectedMetrics.histogram('db.query.duration', duration);
+        _injectedMetrics.increment(success ? 'db.queries.success' : 'db.queries.errors');
+        if (duration > 500) _injectedMetrics.increment('db.queries.slow');
       }
     }
   }
@@ -77,22 +64,12 @@ export abstract class BaseRepository {
       throw error;
     } finally {
       const duration = Date.now() - startTime;
-      const metrics = getMetrics();
-
-      if (metrics) {
-        metrics.increment('db.queries.total');
-        metrics.increment(`db.queries.${operation}`);
-        metrics.histogram('db.query.duration', duration);
-
-        if (success) {
-          metrics.increment('db.queries.success');
-        } else {
-          metrics.increment('db.queries.errors');
-        }
-
-        if (duration > 500) {
-          metrics.increment('db.queries.slow');
-        }
+      if (_injectedMetrics) {
+        _injectedMetrics.increment('db.queries.total');
+        _injectedMetrics.increment(`db.queries.${operation}`);
+        _injectedMetrics.histogram('db.query.duration', duration);
+        _injectedMetrics.increment(success ? 'db.queries.success' : 'db.queries.errors');
+        if (duration > 500) _injectedMetrics.increment('db.queries.slow');
       }
     }
   }

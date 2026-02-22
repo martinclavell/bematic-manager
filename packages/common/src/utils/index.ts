@@ -18,3 +18,4 @@ export { truncateMessage, truncateForSectionBlock } from './message-truncation.j
 export type { TruncationOptions } from './message-truncation.js';
 export { TimeParser } from './time-parser.js';
 export { CronParser } from './cron-parser.js';
+export { BoundedMap, type BoundedEntry } from './bounded-map.js';

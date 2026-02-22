@@ -11,7 +11,10 @@ import {
 import { writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { execSync } from 'node:child_process';
+import { execSync, exec } from 'node:child_process';
+import { promisify } from 'node:util';
+
+const execAsync = promisify(exec);
 import {
   MessageType,
   Limits,
@@ -278,7 +281,7 @@ export class ClaudeExecutor {
       );
 
       // Stage all changes
-      execSync('git add -A', { cwd: task.localPath, encoding: 'utf-8' });
+      await execAsync('git add -A', { cwd: task.localPath });
 
       // Create commit message
       const fileList = Array.from(filesChanged).join(', ');
@@ -290,13 +293,12 @@ Files changed: ${fileList}
 Task: ${task.taskId}`;
 
       // Commit
-      execSync(`git commit -m "${commitMessage.replace(/"/g, '\\"')}"`, {
+      await execAsync(`git commit -m "${commitMessage.replace(/"/g, '\\"')}"`, {
         cwd: task.localPath,
-        encoding: 'utf-8'
       });
 
       // Push
-      execSync('git push', { cwd: task.localPath, encoding: 'utf-8' });
+      await execAsync('git push', { cwd: task.localPath });
 
       logger.info({ taskId: task.taskId }, 'Successfully committed and pushed changes');
 
