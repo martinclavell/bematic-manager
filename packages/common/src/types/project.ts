@@ -9,6 +9,8 @@ export interface Project {
   railwayProjectId: string | null;
   railwayServiceId: string | null;
   railwayEnvironmentId: string | null;
+  autoCommitPush: boolean;
+  isNetSuite: boolean;
   active: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -24,4 +26,6 @@ export interface ProjectCreateInput {
   railwayProjectId?: string | null;
   railwayServiceId?: string | null;
   railwayEnvironmentId?: string | null;
+  autoCommitPush?: boolean;
+  isNetSuite?: boolean;
 }

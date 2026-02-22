@@ -52,6 +52,13 @@ export function pushSchema(dbUrl?: string) {
     // Column already exists, ignore
   }
 
+  // Add is_netsuite column (migration for existing DBs)
+  try {
+    db.run(sql.raw(`ALTER TABLE projects ADD COLUMN is_netsuite INTEGER NOT NULL DEFAULT 0`));
+  } catch {
+    // Column already exists, ignore
+  }
+
   db.run(sql`CREATE TABLE IF NOT EXISTS ${tasks} (
     id TEXT PRIMARY KEY,
     project_id TEXT NOT NULL REFERENCES projects(id),

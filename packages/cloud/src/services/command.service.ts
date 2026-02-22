@@ -76,6 +76,15 @@ export class CommandService {
       );
     }
 
+    // Inject NetSuite & SuiteCommerce skills when project is flagged
+    if (project.isNetSuite) {
+      const netsuiteSkills = this.globalContextService.buildNetSuiteSkillsPrompt();
+      if (netsuiteSkills) {
+        execConfig.systemPrompt = `${netsuiteSkills}\n\n---\n\n${execConfig.systemPrompt ?? ''}`;
+        logger.info({ projectId: project.id }, 'Injected NetSuite skills into system prompt');
+      }
+    }
+
     // Append file description to the prompt if attachments were downloaded
     if (slackContext.fileInfo) {
       execConfig.prompt = execConfig.prompt

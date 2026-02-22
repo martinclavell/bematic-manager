@@ -1,5 +1,5 @@
 import type { App } from '@slack/bolt';
-import { Permission, createLogger, generateProjectId, generateId, MessageType, createWSMessage, serializeMessage } from '@bematic/common';
+import { Permission, createLogger, generateId, MessageType, createWSMessage, serializeMessage } from '@bematic/common';
 import type { AppContext } from '../../context.js';
 
 const logger = createLogger('slack:config');
@@ -113,6 +113,24 @@ export function registerConfigListener(app: App, ctx: AppContext) {
               ],
             },
           },
+          {
+            type: 'input',
+            block_id: 'is_netsuite',
+            label: { type: 'plain_text', text: 'NetSuite / SuiteCommerce Project' },
+            hint: { type: 'plain_text', text: 'Enables NetSuite & SuiteCommerce context and skills in every task' },
+            element: {
+              type: 'static_select',
+              action_id: 'value',
+              initial_option: {
+                text: { type: 'plain_text', text: existing?.isNetSuite ? 'Yes' : 'No' },
+                value: existing?.isNetSuite ? 'true' : 'false',
+              },
+              options: [
+                { text: { type: 'plain_text', text: 'Yes' }, value: 'true' },
+                { text: { type: 'plain_text', text: 'No' }, value: 'false' },
+              ],
+            },
+          },
           { type: 'divider' },
           {
             type: 'section',
@@ -171,6 +189,7 @@ export function registerConfigListener(app: App, ctx: AppContext) {
     const defaultModel = vals['default_model']!['value']!.selected_option!.value;
     const maxBudget = parseFloat(vals['max_budget']!['value']!.value!) || 5.0;
     const autoCommitPush = vals['auto_commit_push']!['value']!.selected_option!.value === 'true';
+    const isNetSuite = vals['is_netsuite']!['value']!.selected_option!.value === 'true';
     const railwayProjectId = vals['railway_project_id']?.['value']?.value || null;
     const railwayServiceId = vals['railway_service_id']?.['value']?.value || null;
     const railwayEnvironmentId = vals['railway_environment_id']?.['value']?.value || null;
@@ -245,6 +264,8 @@ export function registerConfigListener(app: App, ctx: AppContext) {
       return;
     }
 
+    const netsuiteLabel = isNetSuite ? '\n> NetSuite/SuiteCommerce: :white_check_mark: Enabled' : '';
+
     if (existing) {
       ctx.projectService.update(existing.id, {
         name,
@@ -253,6 +274,7 @@ export function registerConfigListener(app: App, ctx: AppContext) {
         defaultModel,
         defaultMaxBudget: maxBudget,
         autoCommitPush,
+        isNetSuite,
         railwayProjectId,
         railwayServiceId,
         railwayEnvironmentId,
@@ -261,7 +283,7 @@ export function registerConfigListener(app: App, ctx: AppContext) {
       const railwayInfo = railwayServiceId ? `\n> Railway: \`${railwayServiceId}\`` : '';
       await client.chat.postMessage({
         channel: channelId,
-        text: `:white_check_mark: Project *${name}* updated.\n> Path: \`${localPath}\`\n> Agent: \`${agentId}\`\n> Model: \`${defaultModel}\`\n> Budget: $${maxBudget}${railwayInfo}`,
+        text: `:white_check_mark: Project *${name}* updated.\n> Path: \`${localPath}\`\n> Agent: \`${agentId}\`\n> Model: \`${defaultModel}\`\n> Budget: $${maxBudget}${netsuiteLabel}${railwayInfo}`,
       });
     } else {
       // Auto-provision user as admin if first project
@@ -286,6 +308,7 @@ export function registerConfigListener(app: App, ctx: AppContext) {
         defaultModel,
         defaultMaxBudget: maxBudget,
         autoCommitPush,
+        isNetSuite,
         railwayProjectId,
         railwayServiceId,
         railwayEnvironmentId,
@@ -294,10 +317,10 @@ export function registerConfigListener(app: App, ctx: AppContext) {
       const railwayInfo = railwayServiceId ? `\n> Railway: \`${railwayServiceId}\`` : '';
       await client.chat.postMessage({
         channel: channelId,
-        text: `:white_check_mark: Project *${name}* created!\n> Path: \`${localPath}\`\n> Agent: \`${agentId}\`\n> Model: \`${defaultModel}\`\n> Budget: $${maxBudget}${railwayInfo}\n\nYou can now use \`@BematicManager code <task>\` in this channel.`,
+        text: `:white_check_mark: Project *${name}* created!\n> Path: \`${localPath}\`\n> Agent: \`${agentId}\`\n> Model: \`${defaultModel}\`\n> Budget: $${maxBudget}${netsuiteLabel}${railwayInfo}\n\nYou can now use \`@BematicManager code <task>\` in this channel.`,
       });
     }
 
-    logger.info({ channelId, name, localPath }, 'Project configured');
+    logger.info({ channelId, name, localPath, isNetSuite }, 'Project configured');
   });
 }

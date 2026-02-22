@@ -400,4 +400,51 @@ export class GlobalContextService {
       cacheSize: this.cache.size(),
     };
   }
+
+  /**
+   * Build the NetSuite and SuiteCommerce skills prompt.
+   * Reads the three skill .md files from claude-skills-system/skills/.
+   * Returns a formatted string ready to prepend to system prompts.
+   */
+  buildNetSuiteSkillsPrompt(): string {
+    const cacheKey = 'netsuite-skills-prompt';
+    const cached = this.cache.get<string>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const SKILLS_DIR = join(__dirname, '../../../../claude-skills-system/skills');
+    const skillFiles = [
+      'netsuite-suitescript-1.md',
+      'netsuite-suitescript-2.md',
+      'suitecommerce-advanced.md',
+    ];
+
+    const sections: string[] = [];
+    for (const file of skillFiles) {
+      try {
+        const content = readFileSync(join(SKILLS_DIR, file), 'utf-8');
+        sections.push(content.trim());
+      } catch (err) {
+        logger.warn({ file, err }, 'Failed to load NetSuite skill file');
+      }
+    }
+
+    if (sections.length === 0) {
+      logger.warn('No NetSuite skill files loaded');
+      return '';
+    }
+
+    const prompt = sections.join('\n\n---\n\n') + '\n';
+
+    // Cache with the same TTL as global prompts (5 min)
+    this.cache.set(cacheKey, prompt);
+
+    logger.info(
+      { skillCount: skillFiles.length, totalLength: prompt.length },
+      'Built NetSuite skills prompt',
+    );
+
+    return prompt;
+  }
 }
