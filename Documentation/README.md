@@ -30,6 +30,7 @@
 | 16 | [Security & Compliance](./16-security-compliance.md) | Security model, authentication, file validation, audit trails, GDPR compliance |
 | 17 | [Operations & Troubleshooting](./17-operations-troubleshooting.md) | Health monitoring, debugging procedures, performance tuning, incident response |
 | 18 | [Extending Bematic](./18-extending-bematic.md) | Adding bots, custom integrations, database extensions, plugin development |
+| 19 | [Help System Architecture](./19-help-system-architecture.md) | Command registry, auto-generated help, NetSuite integration, troubleshooting guide |
 
 ---
 
@@ -43,3 +44,4 @@
 6. **Extending the system?** → See [18 — Extending Bematic](./18-extending-bematic.md)
 7. **Security concerns?** → See [16 — Security & Compliance](./16-security-compliance.md)
 8. **Advanced architecture?** → See [15 — Advanced Patterns](./15-advanced-patterns.md)
+9. **Help system or command issues?** → See [19 — Help System Architecture](./19-help-system-architecture.md)

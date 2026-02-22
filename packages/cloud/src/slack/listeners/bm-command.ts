@@ -26,12 +26,17 @@ const logger = createLogger('slack:bm-command');
  */
 export function registerBmCommandListener(app: App, ctx: AppContext) {
   app.command(MAIN_SLASH_COMMAND, async ({ command, ack, respond, client }) => {
-    await ack();
-
     const { user_id, channel_id, text, trigger_id } = command;
     const args = text.trim().split(/\s+/);
     const subcommand = args[0]?.toLowerCase() || 'help';
     const subArgs = args.slice(1);
+
+    // Let netsuite-command.ts handle netsuite subcommands
+    if (subcommand === 'netsuite') {
+      return; // Don't ack - let netsuite handler process it
+    }
+
+    await ack();
 
     logger.info({ user: user_id, subcommand, text }, '/bm command received');
 

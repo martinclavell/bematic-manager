@@ -132,6 +132,7 @@
 | `slack/admin-commands/scheduled-tasks.ts` | Scheduled task statistics and cleanup |
 | `slack/admin-commands/global-contexts.ts` | Global context management commands |
 | `slack/commands/scheduled-commands.ts` | User-facing scheduled task commands |
+| `slack/commands/command-registry.ts` | Command metadata registry for auto-generated help (future) |
 | **WebSocket Gateway** | |
 | `gateway/ws-server.ts` | WebSocket server setup |
 | `gateway/agent-manager.ts` | Agent connection pool management |
