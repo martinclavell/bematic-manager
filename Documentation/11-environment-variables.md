@@ -53,8 +53,8 @@
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `MODEL_ROUTING_ENABLED` | No | `true` | Master switch — `false` disables routing, all tasks use project default |
-| `MODEL_TIER_STANDARD` | No | `claude-sonnet-4-5-20250929` | Sonnet model (default for all read-only/analysis tasks) |
-| `MODEL_TIER_PREMIUM` | No | `claude-opus-4-20250514` | Opus model (CoderBot write commands only) |
+| `MODEL_TIER_STANDARD` | No | `claude-sonnet-4-6` | Sonnet model (default for all read-only/analysis tasks) |
+| `MODEL_TIER_PREMIUM` | No | `claude-opus-4-6` | Opus model (CoderBot write commands only) |
 
 **Routing strategy:** Sonnet for all tasks except CoderBot write commands (fix, feature, refactor, test) which use Opus.
 

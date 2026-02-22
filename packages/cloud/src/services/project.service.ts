@@ -16,7 +16,7 @@ export class ProjectService {
       slackChannelId: input.slackChannelId,
       localPath: input.localPath,
       agentId: input.agentId,
-      defaultModel: input.defaultModel ?? 'claude-sonnet-4-5-20250929',
+      defaultModel: input.defaultModel ?? 'claude-sonnet-4-6',
       defaultMaxBudget: input.defaultMaxBudget ?? 5.0,
     });
 

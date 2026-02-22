@@ -75,11 +75,11 @@ export function registerConfigListener(app: App, ctx: AppContext) {
               type: 'static_select',
               action_id: 'value',
               initial_option: {
-                text: { type: 'plain_text', text: existing?.defaultModel === 'claude-opus-4-6' ? 'Claude Opus 4.6' : 'Claude Sonnet 4.5' },
-                value: existing?.defaultModel ?? 'claude-sonnet-4-5-20250929',
+                text: { type: 'plain_text', text: existing?.defaultModel === 'claude-opus-4-6' ? 'Claude Opus 4.6' : 'Claude Sonnet 4.6' },
+                value: existing?.defaultModel ?? 'claude-sonnet-4-6',
               },
               options: [
-                { text: { type: 'plain_text', text: 'Claude Sonnet 4.5' }, value: 'claude-sonnet-4-5-20250929' },
+                { text: { type: 'plain_text', text: 'Claude Sonnet 4.6' }, value: 'claude-sonnet-4-6' },
                 { text: { type: 'plain_text', text: 'Claude Opus 4.6' }, value: 'claude-opus-4-6' },
                 { text: { type: 'plain_text', text: 'Claude Haiku 4.5' }, value: 'claude-haiku-4-5-20251001' },
               ],

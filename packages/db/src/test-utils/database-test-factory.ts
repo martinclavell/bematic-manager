@@ -91,7 +91,7 @@ export class DatabaseTestFactory {
       id: generateSessionId(),
       taskId: generateTaskId(),
       agentId: `agent-${uniqueId}`,
-      model: 'claude-sonnet-4-5-20250929',
+      model: 'claude-sonnet-4-6',
       inputTokens: 150,
       outputTokens: 300,
       estimatedCost: 0.08,

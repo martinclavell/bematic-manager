@@ -6,7 +6,7 @@ export const projects = sqliteTable('projects', {
   slackChannelId: text('slack_channel_id').notNull().unique(),
   localPath: text('local_path').notNull(),
   agentId: text('agent_id').notNull(),
-  defaultModel: text('default_model').notNull().default('claude-sonnet-4-5-20250929'),
+  defaultModel: text('default_model').notNull().default('claude-sonnet-4-6'),
   defaultMaxBudget: real('default_max_budget').notNull().default(5.0),
   railwayProjectId: text('railway_project_id'),
   railwayServiceId: text('railway_service_id'),

@@ -2,17 +2,17 @@
 // Model Routing Strategy
 // ---------------------------------------------------------------------------
 // Simple, quality-focused approach:
-//   - Sonnet 4.5: Default for all tasks (read-only, analysis, simple writes)
-//   - Opus 4: Only for code implementation (CoderBot write operations)
+//   - Sonnet 4.6: Default for all tasks (read-only, analysis, simple writes)
+//   - Opus 4.6: Only for code implementation (CoderBot write operations)
 //
 // No Haiku — it produces lower quality results.
 // ---------------------------------------------------------------------------
 
 /** Supported model tier identifiers */
 export const ModelTier = {
-  /** Sonnet 4.5 - Default for all read-only and analysis tasks */
+  /** Sonnet 4.6 - Default for all read-only and analysis tasks */
   STANDARD: 'standard',
-  /** Opus 4 - Only for actual code implementation */
+  /** Opus 4.6 - Only for actual code implementation */
   PREMIUM: 'premium',
 } as const;
 
@@ -20,8 +20,8 @@ export type ModelTier = (typeof ModelTier)[keyof typeof ModelTier];
 
 /** Default Claude model ID for each tier (overridable via env vars) */
 export const DEFAULT_TIER_MODELS: Record<ModelTier, string> = {
-  [ModelTier.STANDARD]: 'claude-sonnet-4-5-20250929',
-  [ModelTier.PREMIUM]: 'claude-opus-4-20250514',
+  [ModelTier.STANDARD]: 'claude-sonnet-4-6',
+  [ModelTier.PREMIUM]: 'claude-opus-4-6',
 };
 
 /** Approximate cost per 1 M tokens (USD) — used for budget estimation only */

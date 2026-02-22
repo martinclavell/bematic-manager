@@ -46,7 +46,7 @@
 | Export | Type | Description |
 |--------|------|-------------|
 | `ModelTier` | const object | `{ STANDARD: 'standard', PREMIUM: 'premium' }` |
-| `DEFAULT_TIER_MODELS` | Record | Default Claude model ID per tier (Sonnet 4.5, Opus 4) |
+| `DEFAULT_TIER_MODELS` | Record | Default Claude model ID per tier (Sonnet 4.6, Opus 4.6) |
 | `TIER_COST_PER_MILLION` | Record | Approximate cost per 1M tokens (input/output) per tier |
 | `OPUS_COMMANDS` | Set | CoderBot commands that trigger Opus (fix, feature, refactor, test) |
 | `WRITE_BOTS` | Set | Bots that perform write operations (currently only 'coder') |

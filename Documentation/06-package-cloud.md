@@ -190,7 +190,7 @@ The `/bm config` modal allows configuring:
 - **Project Name**: Display name for the project
 - **Local Path**: Filesystem path on agent machine
 - **Agent ID**: Which agent handles this project (auto-routing or specific agent)
-- **Default Model**: Claude model to use (Sonnet 4.5, Opus 4.6, Haiku 4.5)
+- **Default Model**: Claude model to use (Sonnet 4.6, Opus 4.6, Haiku 4.5)
 - **Default Max Budget**: Maximum cost per task in USD
 - **Auto Commit & Push**: Whether to automatically commit and push changes after task completion
 - **Railway Settings**: Optional deployment configuration
@@ -274,7 +274,7 @@ The `/bm-admin usage` commands provide comprehensive Claude API usage analytics:
 
 - **Token Usage**: Input/output token counts aggregated by period
 - **Cost Tracking**: Estimated API costs based on model pricing
-- **Model Breakdown**: Usage statistics per model (Sonnet 4.5, Opus 4, etc.)
+- **Model Breakdown**: Usage statistics per model (Sonnet 4.6, Opus 4.6, etc.)
 - **Entity Breakdown**: Usage by bot type or by project
 - **Success Rates**: Task completion vs failure rates
 - **Time Periods**: Today, this week, this month, all-time

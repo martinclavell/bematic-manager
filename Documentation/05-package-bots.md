@@ -144,8 +144,8 @@ The `ModelRouter` (`base/model-router.ts`) automatically selects the optimal Cla
 
 | Model | When Used | Commands |
 |-------|-----------|----------|
-| **Sonnet 4.5** (standard) | All read-only tasks, analysis, planning, and all non-CoderBot tasks | ReviewerBot (all), OpsBot (all), PlannerBot (all), CoderBot decomposition planning |
-| **Opus 4** (premium) | CoderBot write commands only | `fix`, `feature`, `refactor`, `test`, `bugfix`, `debug`, `add`, `implement`, `create`, `cleanup`, `improve` |
+| **Sonnet 4.6** (standard) | All read-only tasks, analysis, planning, and all non-CoderBot tasks | ReviewerBot (all), OpsBot (all), PlannerBot (all), CoderBot decomposition planning |
+| **Opus 4.6** (premium) | CoderBot write commands only | `fix`, `feature`, `refactor`, `test`, `bugfix`, `debug`, `add`, `implement`, `create`, `cleanup`, `improve` |
 
 **No Haiku** — it produces lower quality results.
 
@@ -154,8 +154,8 @@ The `ModelRouter` (`base/model-router.ts`) automatically selects the optimal Cla
 | Env Variable | Default | Description |
 |--------------|---------|-------------|
 | `MODEL_ROUTING_ENABLED` | `true` | Master switch (`false` = use project default) |
-| `MODEL_TIER_STANDARD` | `claude-sonnet-4-5-20250929` | Override Sonnet model |
-| `MODEL_TIER_PREMIUM` | `claude-opus-4-20250514` | Override Opus model |
+| `MODEL_TIER_STANDARD` | `claude-sonnet-4-6` | Override Sonnet model |
+| `MODEL_TIER_PREMIUM` | `claude-opus-4-6` | Override Opus model |
 
 **Note:** `--model <id>` flag always overrides routing.
 

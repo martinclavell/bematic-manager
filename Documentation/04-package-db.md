@@ -37,7 +37,7 @@ All tables use TEXT primary keys (nanoid-generated) except `audit_logs`, `offlin
 | `slack_channel_id` | TEXT NOT NULL UNIQUE | |
 | `local_path` | TEXT NOT NULL | filesystem path on agent |
 | `agent_id` | TEXT NOT NULL | which agent handles this project |
-| `default_model` | TEXT NOT NULL | default: `claude-sonnet-4-5-20250929` |
+| `default_model` | TEXT NOT NULL | default: `claude-sonnet-4-6` |
 | `default_max_budget` | REAL NOT NULL | default: 5.0 |
 | `auto_commit_push` | BOOLEAN NOT NULL | default: false — auto-commit and push changes after task completion |
 | `active` | BOOLEAN NOT NULL | default: true |
